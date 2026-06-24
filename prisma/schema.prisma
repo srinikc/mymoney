@@ -1,0 +1,231 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  type      String    @default("expense")
+  icon      String    @default("circle")
+  color     String    @default("#6366f1")
+  createdAt DateTime  @default(now())
+  expenses  Expense[]
+  budgets   Budget[]
+  reminders Reminder[]
+}
+
+model Expense {
+  id              Int             @id @default(autoincrement())
+  date            DateTime
+  amount          Float
+  categoryId      Int
+  category        Category        @relation(fields: [categoryId], references: [id])
+  subCategory     String?
+  person          String?
+  vendor          String?
+  description     String?
+  paymentMode     String          @default("UPI")
+  recurrenceType  String          @default("onetime")
+  otherType       String?
+  tags            String?
+  receiptUrl      String?
+  isShared        Boolean         @default(false)
+  sharedWith      String?
+  paidThrough     String?
+  bankAccount     String?
+  notes           String?
+  importSessionId Int?
+  importSession   ImportSession?  @relation(fields: [importSessionId], references: [id])
+  flagged         Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([date])
+  @@index([categoryId])
+  @@index([vendor])
+  @@index([person])
+  @@index([importSessionId])
+}
+
+model Budget {
+  id         Int      @id @default(autoincrement())
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id])
+  month      Int
+  year       Int
+  amount     Float
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([categoryId, month, year])
+  @@index([categoryId])
+}
+
+model Goal {
+  id            Int      @id @default(autoincrement())
+  name          String
+  targetAmount  Float
+  currentAmount Float    @default(0)
+  deadline      DateTime?
+  category      String   @default("savings")
+  notes         String?
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Investment {
+  id             Int      @id @default(autoincrement())
+  type           String
+  name           String
+  amount         Float
+  currentValue   Float
+  purchaseDate   DateTime
+  returnRate     Float?
+  notes          String?
+  status         String   @default("active")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Plan {
+  id           Int      @id @default(autoincrement())
+  name         String
+  description  String?
+  category     String   @default("general")
+  amountNeeded Float
+  amountSaved  Float    @default(0)
+  monthlyContribution Float?
+  deadline     DateTime?
+  status       String   @default("active")
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model MerchantMapping {
+  id          Int      @id @default(autoincrement())
+  merchantKey String   @unique
+  description String?
+  expenseType String?
+  subCategory String?
+  person      String?
+  source      String   @default("manual")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([merchantKey])
+}
+
+model ImportSession {
+  id           Int       @id @default(autoincrement())
+  source       String
+  fileName     String?
+  totalRows    Int       @default(0)
+  autoMapped   Int       @default(0)
+  newMerchants Int       @default(0)
+  skipped      Int       @default(0)
+  status       String    @default("preview")
+  createdAt    DateTime  @default(now())
+  expenses     Expense[]
+}
+
+model Reminder {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  type        String    @default("custom")
+  priority    String    @default("normal")
+  dueDate     DateTime?
+  amount      Float?
+  categoryId  Int?
+  category    Category? @relation(fields: [categoryId], references: [id])
+  merchantKey String?
+  recurring   String    @default("none")
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([dueDate])
+  @@index([isCompleted])
+  @@index([categoryId])
+}
+
+model Deal {
+  id          Int       @id @default(autoincrement())
+  merchant    String
+  title       String
+  description String?
+  discount    String?
+  couponCode  String?
+  url         String?
+  validUntil  DateTime?
+  category    String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  @@index([merchant])
+  @@index([isActive])
+}
+
+model Asset {
+  id        Int      @id @default(autoincrement())
+  name      String
+  type      String   @default("other")
+  amount    Float
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Liability {
+  id           Int      @id @default(autoincrement())
+  name         String
+  type         String   @default("other")
+  amount       Float
+  interestRate Float?
+  dueDate      DateTime?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AlertRule {
+  id        Int      @id @default(autoincrement())
+  name      String
+  type      String
+  config    String?
+  isEnabled Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model NotificationConfig {
+  id         Int      @id @default(autoincrement())
+  channel    String   @unique
+  enabled    Boolean  @default(false)
+  config     String?
+  alertTypes String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  action     String
+  entityType String
+  entityId   Int?
+  metadata   String?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([action])
+  @@index([entityType])
+  @@index([createdAt])
+}

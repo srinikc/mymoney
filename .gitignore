@@ -1,0 +1,11 @@
+node_modules/
+.next/
+*.db
+*.db-shm
+*.db-wal
+.env.local
+.env.production
+dist/
+build/
+.next/
+dev-dashboard/data/

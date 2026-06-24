@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
+import { Suspense } from "react"
 import "./globals.css"
 import { AppShell } from "@/components/layout/app-shell"
 
@@ -41,7 +42,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
-        <AppShell>{children}</AppShell>
+        <Suspense fallback={<div className="min-h-screen" />}>
+          <AppShell>{children}</AppShell>
+        </Suspense>
       </body>
     </html>
   )

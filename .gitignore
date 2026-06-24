@@ -11,3 +11,5 @@ build/
 dev-dashboard/data/
 dev-dashboard/node_modules/
 .env
+tsconfig.tsbuildinfo
+*.tsbuildinfo

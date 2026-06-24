@@ -49,6 +49,10 @@ const config: Config = {
           muted: "hsl(var(--sidebar-muted))",
         },
       },
+      fontFamily: {
+        sans: ["var(--font-geist-sans)"],
+        mono: ["var(--font-geist-mono)"],
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",

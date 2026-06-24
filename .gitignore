@@ -13,3 +13,6 @@ dev-dashboard/node_modules/
 .env
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+test-results/
+playwright-report/
+e2e-results/

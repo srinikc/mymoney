@@ -1,9 +1,17 @@
 import type { Metadata, Viewport } from "next"
-import { Inter } from "next/font/google"
+import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import { AppShell } from "@/components/layout/app-shell"
 
-const inter = Inter({ subsets: ["latin"] })
+const geistSans = Geist({
+  subsets: ["latin"],
+  variable: "--font-geist-sans",
+})
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
+})
 
 export const metadata: Metadata = {
   title: "MyMoney - Personal Finance Manager",
@@ -32,7 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
-      <body className={inter.className}>
+      <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
         <AppShell>{children}</AppShell>
       </body>
     </html>

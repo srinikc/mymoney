@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dev Monitor — MyMoney</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --card-hover: #22263a;
+    --border: #2a2e3f;
+    --text: #e1e4ed;
+    --text-muted: #8b8fa3;
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --purple: #8b5cf6;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.5; }
+  .app { display: flex; flex-direction: column; height: 100vh; }
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--card); }
+  .header h1 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .header h1 span { font-size: 20px; }
+  .header .status { display: flex; align-items: center; gap: 16px; font-size: 12px; color: var(--text-muted); }
+  .header .status .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dot.green { background: var(--green); }
+  .dot.amber { background: var(--amber); }
+  .dot.red { background: var(--red); }
+  .main { display: flex; flex: 1; overflow: hidden; }
+  .left { width: 380px; min-width: 380px; border-right: 1px solid var(--border); overflow-y: auto; padding: 12px; }
+  .right { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; }
+  .detail { border-top: 1px solid var(--border); padding: 12px; background: var(--card); display: none; }
+  .detail.visible { display: block; }
+  .phase { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 8px; cursor: pointer; transition: background 0.15s; }
+  .phase:hover { background: var(--card-hover); }
+  .phase-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .phase-title { font-weight: 600; font-size: 13px; }
+  .phase-pct { font-size: 12px; color: var(--text-muted); }
+  .bar { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 8px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+  .phase-items { display: flex; flex-direction: column; gap: 3px; }
+  .item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); padding: 3px 6px; border-radius: 4px; cursor: pointer; }
+  .item:hover { background: var(--card-hover); color: var(--text); }
+  .item .icon { font-size: 12px; width: 16px; text-align: center; }
+  .item .name { flex: 1; }
+  .item .agent { font-size: 10px; background: var(--border); padding: 1px 5px; border-radius: 3px; }
+  .activity { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px; line-height: 1.6; }
+  .activity:hover { background: var(--card-hover); }
+  .activity .ts { color: var(--text-muted); font-size: 11px; font-family: monospace; }
+  .activity .evt { display: flex; align-items: flex-start; gap: 8px; }
+  .activity .evt .icon { font-size: 14px; width: 20px; text-align: center; }
+  .activity .evt .body { flex: 1; }
+  .activity .evt .body .gate { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+  .activity .evt .body .gate-item { font-size: 10px; padding: 1px 6px; border-radius: 3px; }
+  .gate-pass { background: #052e16; color: var(--green); }
+  .gate-fail { background: #2e0505; color: var(--red); }
+  .gate-skip { background: #1a1a1a; color: var(--text-muted); }
+  .detail-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+  .detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-bottom: 8px; }
+  .detail-field { font-size: 12px; }
+  .detail-field .label { color: var(--text-muted); font-size: 10px; }
+  .detail-activity { max-height: 200px; overflow-y: auto; }
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .filter-bar select, .filter-bar input { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1><span>🛠</span> Development Monitor — MyMoney</h1>
+    <div class="status">
+      <span id="activeAgent">No active agent</span>
+      <span><span class="dot green"></span> Auto-refresh 3s</span>
+      <span id="lastUpdate"></span>
+      <button onclick="location.reload()" style="background:var(--card);border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px">Refresh</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="left" id="phaseList"></div>
+    <div class="right">
+      <div class="filter-bar">
+        <select id="filterPhase" onchange="renderActivity()">
+          <option value="">All Phases</option>
+        </select>
+        <select id="filterType" onchange="renderActivity()">
+          <option value="">All Events</option>
+          <option value="merge">Merge</option>
+          <option value="gate_start">Gate</option>
+          <option value="gate_result">Gate Result</option>
+          <option value="file_write">File Write</option>
+          <option value="agent_start">Agent Start</option>
+          <option value="agent_complete">Agent Complete</option>
+          <option value="init">Init</option>
+        </select>
+        <input id="filterSearch" type="text" placeholder="Search..." oninput="renderActivity()" style="flex:1;min-width:120px">
+      </div>
+      <div id="activityFeed" style="flex:1;overflow-y:auto"></div>
+    </div>
+  </div>
+  <div class="detail" id="detailPanel"></div>
+</div>
+
+<script>
+let state = { progress: null, activity: [] }
+
+async function loadData() {
+  try {
+    const [p, a] = await Promise.all([
+      fetch('/api/progress').then(r => r.json()),
+      fetch('/api/activity?limit=200').then(r => r.json())
+    ])
+    state.progress = p
+    state.activity = a
+    render()
+  } catch (e) {
+    document.getElementById('phaseList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">Waiting for server...</div>'
+  }
+}
+
+function render() {
+  if (!state.progress) return
+  renderPhases()
+  renderActivity()
+  updateHeader()
+}
+
+function renderPhases() {
+  const el = document.getElementById('phaseList')
+  const selected = document.getElementById('selectedPhase')?.value
+  el.innerHTML = state.progress.phases.map(p => {
+    const done = p.items.filter(i => i.status === 'done').length
+    const pct = p.items.length ? Math.round(done / p.items.length * 100) : 0
+    const color = pct === 100 ? 'var(--green)' : pct > 0 ? 'var(--amber)' : 'var(--blue)'
+    return `<div class="phase" onclick="selectPhase('${p.id}')">
+      <div class="phase-header">
+        <span class="phase-title">${p.id} — ${p.name}</span>
+        <span class="phase-pct">${done}/${p.items.length} (${pct}%)</span>
+      </div>
+      <div class="bar"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <div class="phase-items">${p.items.map(i => {
+        const icon = i.status === 'done' ? '✅' : i.status === 'in_progress' ? '🔄' : i.status === 'blocked' ? '⛔' : '⬜'
+        const agent = i.agent ? `<span class="agent">${i.agent}</span>` : ''
+        return `<div class="item" onclick="event.stopPropagation();showDetail('${p.id}','${i.id}')">
+          <span class="icon">${icon}</span>
+          <span class="name">${i.name}</span>
+          ${agent}
+        </div>`
+      }).join('')}</div>
+    </div>`
+  }).join('')
+}
+
+function renderActivity() {
+  const el = document.getElementById('activityFeed')
+  const phaseFilter = document.getElementById('filterPhase').value
+  const typeFilter = document.getElementById('filterType').value
+  const search = document.getElementById('filterSearch').value.toLowerCase()
+
+  let items = state.activity
+  if (phaseFilter) items = items.filter(a => a.phase === phaseFilter)
+  if (typeFilter) items = items.filter(a => a.type === typeFilter)
+  if (search) items = items.filter(a => JSON.stringify(a).toLowerCase().includes(search))
+
+  el.innerHTML = items.length ? items.map(a => {
+    const ts = new Date(a.ts).toLocaleTimeString('en-IN', { hour12: false })
+    let icon = '📋', html = ''
+    switch (a.type) {
+      case 'init': icon = '🚀'; html = `<b>${a.summary}</b>`; break
+      case 'agent_start': icon = '🚀'; html = `<b>Agent ${a.agent}</b> started <b>${a.task}</b>`; break
+      case 'agent_complete': icon = '✅'; html = `<b>Agent ${a.agent}</b> completed <b>${a.task}</b> — ${a.filesChanged||0} files`; break
+      case 'file_write': icon = '📝'; html = `<b>Agent ${a.agent}</b> wrote <code>${a.file}</code> <span style="color:var(--text-muted)">(+${a.linesAdded||0}/-${a.linesRemoved||0} lines)</span>`; if (a.summary) html += `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${a.summary}</div>`; break
+      case 'gate_start': icon = '🔄'; html = `Gate running for <b>${a.phase}</b> — ${(a.checks||[]).join(', ')}`; break
+      case 'gate_result': icon = a.result === 'pass' ? '✅' : '❌'; html = `Gate <b>${a.result === 'pass' ? 'PASSED' : 'FAILED'}</b> for <b>${a.phase}</b>`; break
+      case 'merge': icon = '✅'; html = `<b>${a.phase}</b> merged to develop`; break
+      default: icon = '📋'; html = JSON.stringify(a).substring(0,100)
+    }
+    const gates = a.gates ? `<div class="gate">${Object.entries(a.gates).map(([k,v]) => `<span class="gate-item gate-${v === 'pass' ? 'pass' : v === 'fail' ? 'fail' : 'skip'}">${k} ${v === 'pass' ? '✅' : v === 'fail' ? '❌' : '⏳'}</span>`).join('')}</div>` : ''
+    return `<div class="activity">
+      <div class="evt"><span class="icon">${icon}</span><div class="body"><span class="ts">${ts}</span> ${html}${gates}</div></div>
+    </div>`
+  }).join('') : '<div style="padding:20px;text-align:center;color:var(--text-muted)">No activity</div>'
+}
+
+function updateHeader() {
+  const p = state.progress
+  document.getElementById('activeAgent').innerHTML = p.activeAgent ? `🔄 ${p.activeAgent.id} on ${p.activeAgent.task}` : '⏸ No active agent'
+  document.getElementById('lastUpdate').textContent = `Updated: ${new Date(p.lastUpdated).toLocaleString('en-IN')}`
+}
+
+function selectPhase(phaseId) {
+  document.getElementById('filterPhase').value = phaseId
+  renderActivity()
+}
+
+function showDetail(phaseId, itemId) {
+  const p = state.progress.phases.find(p => p.id === phaseId)
+  if (!p) return
+  const item = p.items.find(i => i.id === itemId)
+  if (!item) return
+  const detail = document.getElementById('detailPanel')
+  const relevantActivity = state.activity.filter(a => {
+    if (a.phase === phaseId) return true
+    if (a.phase && a.phase === itemId) return true
+    return false
+  }).slice(-10).reverse()
+  detail.innerHTML = `
+    <div class="detail-title">${item.id} — ${item.name}</div>
+    <div class="detail-grid">
+      <div class="detail-field"><div class="label">Status</div>${item.status}</div>
+      <div class="detail-field"><div class="label">Agent</div>${item.agent || '—'}</div>
+      ${item.date ? `<div class="detail-field"><div class="label">Completed</div>${item.date}</div>` : ''}
+      ${item.dependsOn ? `<div class="detail-field"><div class="label">Depends On</div>${item.dependsOn}</div>` : ''}
+      ${item.blockedBy ? `<div class="detail-field"><div class="label">Blocked By</div><span style="color:var(--red)">${item.blockedBy}</span></div>` : ''}
+      ${item.scope ? `<div class="detail-field"><div class="label">Scope</div>${item.scope.join(', ')}</div>` : ''}
+      ${item.gates ? `<div class="detail-field"><div class="label">Gates</div>${Object.entries(item.gates).map(([k,v]) => `<span class="gate-item gate-${v === 'pass' ? 'pass' : v === 'fail' ? 'fail' : 'skip'}">${k} ${v === 'pass' ? '✅' : v === 'fail' ? '❌' : '⏳'}</span>`).join(' ')}</div>` : ''}
+    </div>
+    ${relevantActivity.length ? `<div class="detail-title" style="font-size:13px">Related Activity</div><div class="detail-activity">${relevantActivity.map(a => {
+      const ts = new Date(a.ts).toLocaleTimeString('en-IN', { hour12: false })
+      return `<div class="activity" style="padding:4px 8px;font-size:11px"><span class="ts">${ts}</span> ${a.type} ${a.summary || a.task || a.file || ''}</div>`
+    }).join('')}</div>` : ''}
+  `
+  detail.classList.add('visible')
+}
+
+function populateFilters() {
+  const sel = document.getElementById('filterPhase')
+  if (state.progress) {
+    state.progress.phases.forEach(p => {
+      const opt = document.createElement('option')
+      opt.value = p.id; opt.textContent = `${p.id} — ${p.name}`
+      sel.appendChild(opt)
+    })
+  }
+}
+
+loadData().then(populateFilters)
+setInterval(loadData, 3000)
+</script>
+</body>
+</html>

@@ -9,3 +9,4 @@ dist/
 build/
 .next/
 dev-dashboard/data/
+dev-dashboard/node_modules/

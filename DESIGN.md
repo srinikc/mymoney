@@ -1373,8 +1373,41 @@ P10 (Admin Console)                                 P5 (Reports) ─────
 
 ---
 
-## 19. Changelog
+---
+
+## 20. Development Process Reference
+
+This design document is paired with a **process document** that defines how each feature is built, reviewed, merged, and tracked:
+
+| Document | Location | Purpose |
+|---|---|---|
+| **AgenticProductProcess.md** | `./AgenticProductProcess.md` | Full lifecycle: design → branch → implement → gate → walkthrough → merge. Agent architecture, branching strategy, quality gates, E2E testing strategy. |
+| **Development Monitor Dashboard** | `dev-dashboard/` (standalone, not part of MyMoney app) | Real-time dashboard showing phase progress, live activity feed, gate results. Run: `node dev-dashboard/server.js` |
+
+### How These Relate
+
+```
+AgenticProductProcess.md defines the PROCESS (how we build)
+                ↓
+DESIGN.md defines the PRODUCT (what we build)
+                ↓
+Dev Dashboard shows the PROGRESS (what's happening now)
+```
+
+### Quick Start
+
+```
+1. Start dashboard:   node dev-dashboard/server.js
+2. Open browser:      http://localhost:3099
+3. Pick next phase:   From DESIGN.md §15 Implementation Phases
+4. Follow process:    AgenticProductProcess.md §3 Module Lifecycle
+```
+
+---
+
+## 21. Changelog
 
 | Date | Author | Changes |
 |---|---|---|
 | 24-Jun-2026 | System | Initial design document — all discussions consolidated from planning session |
+| 24-Jun-2026 | System | Added AgenticProductProcess.md reference + dev-dashboard in §20 |

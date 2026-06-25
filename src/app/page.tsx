@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { AnimatedCounter } from "@/components/ui/animated-counter"
 import type { DashboardInsights } from "@/types"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area,
@@ -62,28 +63,28 @@ export default function DashboardPage() {
   const stats = [
     {
       title: "Total Expenses",
-      value: formatCurrency(insights.totalExpenses),
+      value: insights.totalExpenses,
       icon: IndianRupee,
       change: `${insights.monthlyTrend[insights.monthlyTrend.length - 1]?.amount > insights.monthlyTrend[insights.monthlyTrend.length - 2]?.amount ? "+" : ""}${formatCurrency(insights.monthlyTrend[insights.monthlyTrend.length - 1]?.amount - insights.monthlyTrend[insights.monthlyTrend.length - 2]?.amount)}`,
       up: insights.monthlyTrend[insights.monthlyTrend.length - 1]?.amount > insights.monthlyTrend[insights.monthlyTrend.length - 2]?.amount,
     },
     {
       title: "This Month",
-      value: formatCurrency(insights.monthlyExpense),
+      value: insights.monthlyExpense,
       icon: Wallet,
       sub: `${insights.budgetUtilization.toFixed(1)}% of budget`,
       up: insights.budgetUtilization < 100,
     },
     {
       title: "Total Investments",
-      value: formatCurrency(insights.totalInvestments),
+      value: insights.totalInvestments,
       icon: TrendingUp,
       change: `${insights.investmentReturns >= 0 ? "+" : ""}${formatCurrency(insights.investmentReturns)}`,
       up: insights.investmentReturns >= 0,
     },
     {
       title: "Active Goals",
-      value: `${insights.activeGoals}`,
+      value: insights.activeGoals,
       icon: Target,
       sub: `${insights.goalProgress.toFixed(0)}% avg progress`,
       up: insights.goalProgress > 50,
@@ -155,7 +156,13 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
+                <div className="text-2xl font-bold">
+                  {stat.title === "Active Goals" ? (
+                    <AnimatedCounter value={stat.value} />
+                  ) : (
+                    <AnimatedCounter value={stat.value} format={formatCurrency} />
+                  )}
+                </div>
                 {"change" in stat && stat.change ? (
                   <p className={`flex items-center gap-1 text-xs ${stat.up ? "text-emerald-500" : "text-red-500"}`}>
                     {stat.up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { CardGridSkeleton } from "@/components/ui/page-skeleton"
 import type { Plan } from "@/types"
 import { Plus, ClipboardList, Download } from "lucide-react"
 
@@ -114,9 +115,7 @@ export default function PlansPage() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {loading ? (
-          <div className="col-span-full flex justify-center py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          </div>
+          <div className="col-span-full"><CardGridSkeleton /></div>
         ) : plans.length === 0 ? (
           <div className="col-span-full py-12 text-center text-muted-foreground">No plans yet. Create a financial plan!</div>
         ) : plans.map((plan) => (

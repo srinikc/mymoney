@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { formatDate } from "@/lib/utils"
-import { Gift, Plus, Loader2, Trash2 } from "lucide-react"
+import { Gift, Plus, Trash2 } from "lucide-react"
+import { CardGridSkeleton } from "@/components/ui/page-skeleton"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
@@ -91,7 +92,7 @@ export default function DealsPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+        <div className="p-4"><CardGridSkeleton /></div>
       ) : deals.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">No deals yet. Add one!</CardContent></Card>
       ) : (

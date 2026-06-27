@@ -8,6 +8,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid,
 } from "recharts"
 import { Lightbulb, Users, Store, Sparkles } from "lucide-react"
+import { InsightsSkeleton } from "@/components/ui/page-skeleton"
 
 const COLORS = ["#6366f1", "#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#ec4899", "#8b5cf6", "#06b6d4", "#84cc16"]
 
@@ -33,7 +34,7 @@ export default function InsightsPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <div className="flex h-[60vh] items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>
+  if (loading) return <InsightsSkeleton />
   if (!data) return <div className="p-8 text-center text-muted-foreground">Failed to load insights</div>
 
   const selectedCat = selectedCategory

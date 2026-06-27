@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import type { Category } from "@/types"
-import { Plus, Bell, CheckCircle2, Trash2, Loader2, ShoppingCart, Heart, Clock, Sparkles } from "lucide-react"
+import { Plus, Bell, CheckCircle2, Trash2, ShoppingCart, Heart, Clock, Sparkles } from "lucide-react"
+import { CardGridSkeleton } from "@/components/ui/page-skeleton"
 
 interface Reminder {
   id: number
@@ -192,7 +193,7 @@ export default function RemindersPage() {
 
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {loading ? (
-          <div className="col-span-full flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
+          <div className="col-span-full"><CardGridSkeleton /></div>
         ) : reminders.length === 0 ? (
           <div className="col-span-full py-12 text-center text-muted-foreground">
             {filter === "upcoming" ? "No upcoming reminders. Add one or auto-detect from expenses!" : "No reminders found."}

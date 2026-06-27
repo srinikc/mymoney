@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { DashboardSkeleton } from "@/components/ui/page-skeleton"
 import { AnimatedCounter } from "@/components/ui/animated-counter"
 import type { DashboardInsights } from "@/types"
 import {
@@ -50,13 +51,7 @@ export default function DashboardPage() {
     fetchInsights()
   }, [fetchInsights])
 
-  if (loading) {
-    return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    )
-  }
+  if (loading) return <DashboardSkeleton />
 
   if (!insights) return <div className="p-8 text-center text-muted-foreground">Failed to load insights</div>
 

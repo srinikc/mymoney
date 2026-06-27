@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
-import { Loader2, Plus, Trash2, WalletCards, TrendingUp, TrendingDown } from "lucide-react"
+import { Plus, Trash2, WalletCards, TrendingUp, TrendingDown } from "lucide-react"
+import { CardGridSkeleton } from "@/components/ui/page-skeleton"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
@@ -50,7 +51,7 @@ export default function NetWorthPage() {
   const deleteAsset = async (id: number) => { await fetch(`/api/assets/${id}`, { method: "DELETE" }); load() }
   const deleteLiability = async (id: number) => { await fetch(`/api/liabilities/${id}`, { method: "DELETE" }); load() }
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
+  if (loading) return <CardGridSkeleton />
 
   return (
     <div className="space-y-6">

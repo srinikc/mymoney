@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { formatCurrency, formatMonthYear, getCurrentMonth, getCurrentYear } from "@/lib/utils"
+import { CardGridSkeleton } from "@/components/ui/page-skeleton"
 import type { Budget, Category } from "@/types"
 import { Plus, Download, AlertTriangle } from "lucide-react"
 
@@ -128,9 +129,7 @@ export default function BudgetsPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-            </div>
+            <div className="p-4"><CardGridSkeleton /></div>
           ) : budgets.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">
               No budgets set for this month. Add one to start tracking!

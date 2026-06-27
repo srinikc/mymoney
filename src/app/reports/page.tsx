@@ -11,6 +11,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line,
 } from "recharts"
 import { Download, FileText } from "lucide-react"
+import { ReportsSkeleton } from "@/components/ui/page-skeleton"
 
 export default function ReportsPage() {
   const [insights, setInsights] = useState<DashboardInsights | null>(null)
@@ -140,13 +141,7 @@ export default function ReportsPage() {
 
   const COLORS = ["#6366f1", "#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6"]
 
-  if (loading) {
-    return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    )
-  }
+  if (loading) return <ReportsSkeleton />
 
   if (!insights) return <div className="p-8 text-center text-muted-foreground">Failed to load data</div>
 

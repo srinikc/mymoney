@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { MerchantsSkeleton } from "@/components/ui/page-skeleton"
 import type { Category } from "@/types"
 import { SaveAll, Loader2, CheckCircle2, AlertCircle, Upload, Store, Search, Edit3, Trash2 } from "lucide-react"
 
@@ -288,7 +289,7 @@ export default function MerchantsPage() {
           </CardHeader>
           <CardContent className="p-0">
             {loading ? (
-              <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
+              <div className="p-4"><MerchantsSkeleton /></div>
             ) : merchants.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
                 All merchants are mapped! No pending review items.
@@ -377,7 +378,7 @@ export default function MerchantsPage() {
           </CardHeader>
           <CardContent className="p-0">
             {loading ? (
-              <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
+              <div className="p-4"><MerchantsSkeleton /></div>
             ) : filteredMappings.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
                 {searchTerm ? "No mappings match your search." : "No merchant mappings yet."}

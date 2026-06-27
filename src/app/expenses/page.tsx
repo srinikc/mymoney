@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DriveDialog } from "@/components/expenses/drive-dialog"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { TableSkeleton } from "@/components/ui/page-skeleton"
 import type { Expense, Category } from "@/types"
 import {
   Plus, Upload, Search, Download, FileSpreadsheet,
@@ -522,7 +523,7 @@ export default function ExpensesPage() {
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+            <div className="p-4"><TableSkeleton /></div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">

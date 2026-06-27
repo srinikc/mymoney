@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { ReviewDuplicatesSkeleton } from "@/components/ui/page-skeleton"
 import {
-  Loader2, Search, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, Trash2,
+  Search, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, Trash2,
 } from "lucide-react"
 import type { Expense } from "@/types"
 
@@ -150,9 +151,7 @@ export default function ReviewDuplicatesPage() {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
+              <div className="p-4"><ReviewDuplicatesSkeleton /></div>
             ) : expenses.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 {search ? "No flagged records match your search." : "No flagged records to review."}

@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test"
 test.describe("Smoke tests", () => {
   test("Dashboard loads and shows key elements", async ({ page }) => {
     await page.goto("/")
-    await expect(page.locator("h1, h2, h3").first()).toBeVisible()
+    await page.waitForSelector("h1", { timeout: 15000 })
     await expect(page.getByRole("link", { name: /MyMoney/ })).toBeVisible()
   })
 
@@ -21,6 +21,7 @@ test.describe("Smoke tests", () => {
 
   test("Page transition does not break layout", async ({ page }) => {
     await page.goto("/")
+    await page.waitForSelector("h1", { timeout: 15000 })
     await page.getByRole("link", { name: /Budgets/ }).click()
     await expect(page).toHaveURL(/\/budgets/)
     await page.getByRole("link", { name: /Dashboard/ }).click()

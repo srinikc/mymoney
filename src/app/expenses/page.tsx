@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { FilterBar } from "@/components/filters/filter-bar"
 import { DriveDialog } from "@/components/expenses/drive-dialog"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { TableSkeleton } from "@/components/ui/page-skeleton"
@@ -323,6 +324,44 @@ export default function ExpensesPage() {
     }
   }
 
+  const handleClearFilters = () => {
+    setCategoryFilter("all")
+    setVendorFilter("")
+    setPersonFilter("all")
+    setPaymentModeFilter("all")
+    setBankFilter("")
+    setSubCategoryFilter("")
+    setAmountMin("")
+    setAmountMax("")
+    setRecurrenceFilter("all")
+    setPage(1)
+  }
+
+  const handleVendorFilter = (val: string) => {
+    setVendorFilter(val)
+    setPage(1)
+  }
+
+  const handleSubCategoryFilter = (val: string) => {
+    setSubCategoryFilter(val)
+    setPage(1)
+  }
+
+  const handleBankFilter = (val: string) => {
+    setBankFilter(val)
+    setPage(1)
+  }
+
+  const handleAmountMinFilter = (val: string) => {
+    setAmountMin(val)
+    setPage(1)
+  }
+
+  const handleAmountMaxFilter = (val: string) => {
+    setAmountMax(val)
+    setPage(1)
+  }
+
   const SortHeader = ({ field, label, className }: { field: SortField; label: string; className?: string }) => (
     <th className={`px-3 py-3 cursor-pointer select-none hover:text-foreground ${className}`} onClick={() => toggleSort(field)}>
       <div className="flex items-center gap-1">
@@ -492,6 +531,35 @@ export default function ExpensesPage() {
         <Badge variant="secondary" className="text-[10px]">{total.toLocaleString()} items</Badge>
       </div>
 
+      <FilterBar
+        categories={categories}
+        categoryValue={categoryFilter}
+        onCategoryChange={handleFilterChange(setCategoryFilter)}
+        distinctVendors={distinctVendors}
+        vendorValue={vendorFilter}
+        onVendorChange={handleVendorFilter}
+        distinctPersons={distinctPersons}
+        personValue={personFilter}
+        onPersonChange={handleFilterChange(setPersonFilter)}
+        distinctPaymentModes={distinctPaymentModes}
+        paymentModeValue={paymentModeFilter}
+        onPaymentModeChange={handleFilterChange(setPaymentModeFilter)}
+        distinctBankAccounts={distinctBankAccounts}
+        bankValue={bankFilter}
+        onBankChange={handleBankFilter}
+        distinctSubCategories={distinctSubCategories}
+        subCategoryValue={subCategoryFilter}
+        onSubCategoryChange={handleSubCategoryFilter}
+        amountMin={amountMin}
+        amountMax={amountMax}
+        onAmountMinChange={handleAmountMinFilter}
+        onAmountMaxChange={handleAmountMaxFilter}
+        distinctRecurrenceTypes={distinctRecurrenceTypes}
+        recurrenceValue={recurrenceFilter}
+        onRecurrenceChange={handleFilterChange(setRecurrenceFilter)}
+        onClear={handleClearFilters}
+      />
+
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-xs">
           <p className="text-muted-foreground">
@@ -541,101 +609,6 @@ export default function ExpensesPage() {
                     <th className="px-1.5 py-1 text-right"></th>
                     <th className="px-1.5 py-1">Type</th>
                     <th className="px-1.5 py-1">Other</th>
-                  </tr>
-                  <tr className="border-b text-muted-foreground">
-                    <td className="px-1.5 py-0.5">
-                      <select className="w-full h-5 text-[9px] rounded border border-input bg-transparent focus:outline-none focus:ring-1 focus:ring-primary"
-                        value={datePreset} onChange={(e) => handleDatePreset(e.target.value)}>
-                        <option value="all">All</option>
-                        <option value="this-month">This Mo</option>
-                        <option value="prev-month">Prev Mo</option>
-                        <option value="this-quarter">Quarter</option>
-                        <option value="custom">Custom</option>
-                      </select>
-                      {datePreset !== "all" && (
-                        <div className="flex gap-0.5 mt-0.5">
-                          <input type="date" className="w-full h-5 text-[8px] px-0.5 rounded border border-input bg-transparent"
-                            value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1) }} />
-                          <input type="date" className="w-full h-5 text-[8px] px-0.5 rounded border border-input bg-transparent"
-                            value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1) }} />
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-1.5 py-0.5">
-                      <select className="w-full h-6 text-[10px] px-1 rounded border border-input bg-transparent focus:outline-none focus:ring-1 focus:ring-primary"
-                        value={vendorFilter} onChange={(e) => { setVendorFilter(e.target.value); setPage(1) }}>
-                        <option value="">All</option>
-                        <option value="__blank__">(Blank)</option>
-                        {distinctVendors.map((v) => <option key={v} value={v}>{v}</option>)}
-                      </select>
-                    </td>
-                    <td className="px-1.5 py-0.5">
-                      <input list="category-list" className="w-full h-6 text-[10px] px-1 rounded border border-input bg-transparent focus:outline-none focus:ring-1 focus:ring-primary"
-                        placeholder="Category..." value={categoryFilter === "all" ? "" : categories.find(c => String(c.id) === categoryFilter)?.name || categoryFilter}
-                        onChange={(e) => {
-                          const val = e.target.value
-                          const match = categories.find(c => c.name.toLowerCase() === val.toLowerCase())
-                          setCategoryFilter(match ? String(match.id) : val)
-                          setPage(1)
-                        }} />
-                      <datalist id="category-list">
-                        {categories.map((c) => <option key={c.id} value={c.name} />)}
-                      </datalist>
-                    </td>
-                    <td className="px-1.5 py-0.5">
-                      <input list="subcat-list" className="w-full h-6 text-[10px] px-1 rounded border border-input bg-transparent focus:outline-none focus:ring-1 focus:ring-primary"
-                        placeholder="Sub..." value={subCategoryFilter}
-                        onChange={(e) => { setSubCategoryFilter(e.target.value); setPage(1) }} />
-                      <datalist id="subcat-list">
-                        {distinctSubCategories.map((s) => <option key={s} value={s} />)}
-                      </datalist>
-                    </td>
-                    <td className="px-1.5 py-0.5">
-                      <Select value={personFilter} onValueChange={handleFilterChange(setPersonFilter)}>
-                        <SelectTrigger className="h-6 text-[10px]"><SelectValue placeholder="All" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All</SelectItem>
-                          {distinctPersons.map((p) => (<SelectItem key={p} value={p}>{p}</SelectItem>))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="px-1.5 py-0.5">
-                      <Select value={paymentModeFilter} onValueChange={handleFilterChange(setPaymentModeFilter)}>
-                        <SelectTrigger className="h-6 text-[10px]"><SelectValue placeholder="All" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All</SelectItem>
-                          {distinctPaymentModes.map((m) => (<SelectItem key={m} value={m}>{m}</SelectItem>))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="px-1.5 py-0.5">
-                      <input list="bank-list" className="w-full h-6 text-[10px] px-1 rounded border border-input bg-transparent focus:outline-none focus:ring-1 focus:ring-primary"
-                        placeholder="Bank..." value={bankFilter}
-                        onChange={(e) => { setBankFilter(e.target.value); setPage(1) }} />
-                      <datalist id="bank-list">
-                        {distinctBankAccounts.map((b) => <option key={b} value={b} />)}
-                      </datalist>
-                    </td>
-                    <td className="px-1.5 py-0.5">
-                      <input type="number" className="w-full h-6 text-[10px] px-1 rounded border border-input bg-transparent focus:outline-none focus:ring-1 focus:ring-primary"
-                        placeholder="Amount..." value={amountMin}
-                        onChange={(e) => { setAmountMin(e.target.value); setPage(1) }} />
-                    </td>
-                    <td className="px-1.5 py-0.5"></td>
-                    <td className="px-1.5 py-0.5"></td>
-                    <td className="px-1.5 py-0.5">
-                      <Select value={recurrenceFilter} onValueChange={handleFilterChange(setRecurrenceFilter)}>
-                        <SelectTrigger className="h-6 text-[10px]"><SelectValue placeholder="All" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All</SelectItem>
-                          {distinctRecurrenceTypes.map((r) => (<SelectItem key={r} value={r}>{r}</SelectItem>))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="px-1.5 py-0.5">
-                      <input className="w-full h-6 text-[10px] px-1 rounded border border-input bg-transparent focus:outline-none focus:ring-1 focus:ring-primary"
-                        placeholder="..." />
-                    </td>
                   </tr>
                 </thead>
                 <tbody>

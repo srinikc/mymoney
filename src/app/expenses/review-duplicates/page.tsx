@@ -5,8 +5,9 @@ import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
+import { DataTable } from "@/components/ui/data-table"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { ReviewDuplicatesSkeleton } from "@/components/ui/page-skeleton"
 import {
@@ -159,57 +160,82 @@ export default function ReviewDuplicatesPage() {
             ) : (
               <>
                 <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b bg-muted/50">
-                        <th className="w-10 p-3 text-left">
+                  <DataTable
+                    columns={[
+                      {
+                        id: "select",
+                        header: () => (
                           <Checkbox
                             checked={selected.size === expenses.length && expenses.length > 0}
                             onCheckedChange={toggleSelectAll}
                           />
-                        </th>
-                        <th className="p-3 text-left font-medium">Date</th>
-                        <th className="p-3 text-left font-medium">Vendor</th>
-                        <th className="p-3 text-left font-medium">Description</th>
-                        <th className="p-3 text-right font-medium">Amount</th>
-                        <th className="p-3 text-left font-medium">Category</th>
-                        <th className="p-3 text-left font-medium">Person</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {expenses.map((expense) => (
-                        <tr
-                          key={expense.id}
-                          className={`border-b last:border-0 hover:bg-muted/30 transition-colors ${
-                            selected.has(expense.id) ? "bg-muted/50" : ""
-                          }`}
-                        >
-                          <td className="p-3">
-                            <Checkbox
-                              checked={selected.has(expense.id)}
-                              onCheckedChange={() => toggleSelect(expense.id)}
-                            />
-                          </td>
-                          <td className="p-3 whitespace-nowrap">{formatDate(expense.date)}</td>
-                          <td className="p-3 max-w-[200px] truncate" title={expense.vendor || ""}>
-                            {expense.vendor || "-"}
-                          </td>
-                          <td className="p-3 max-w-[300px] truncate" title={expense.description || ""}>
-                            {expense.description || "-"}
-                          </td>
-                          <td className="p-3 text-right whitespace-nowrap font-mono">
-                            {formatCurrency(expense.amount)}
-                          </td>
-                          <td className="p-3">
-                            <Badge variant="outline">
-                              {expense.category?.name || "Uncategorized"}
-                            </Badge>
-                          </td>
-                          <td className="p-3">{expense.person || "-"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                        ),
+                        cell: ({ row }) => (
+                          <Checkbox
+                            checked={selected.has(row.original.id)}
+                            onCheckedChange={() => toggleSelect(row.original.id)}
+                          />
+                        ),
+                        enableSorting: false,
+                      },
+                      {
+                        accessorKey: "date",
+                        header: "Date",
+                        cell: ({ row }) => (
+                          <span className="whitespace-nowrap">{formatDate(row.original.date)}</span>
+                        ),
+                        enableSorting: false,
+                      },
+                      {
+                        accessorKey: "vendor",
+                        header: "Vendor",
+                        cell: ({ row }) => (
+                          <span className="max-w-[200px] truncate block" title={row.original.vendor || ""}>
+                            {row.original.vendor || "-"}
+                          </span>
+                        ),
+                        enableSorting: false,
+                      },
+                      {
+                        accessorKey: "description",
+                        header: "Description",
+                        cell: ({ row }) => (
+                          <span className="max-w-[300px] truncate block" title={row.original.description || ""}>
+                            {row.original.description || "-"}
+                          </span>
+                        ),
+                        enableSorting: false,
+                      },
+                      {
+                        accessorKey: "amount",
+                        header: "Amount",
+                        cell: ({ row }) => (
+                          <span className="text-right whitespace-nowrap font-mono block">
+                            {formatCurrency(row.original.amount)}
+                          </span>
+                        ),
+                        enableSorting: false,
+                      },
+                      {
+                        accessorKey: "category",
+                        header: "Category",
+                        cell: ({ row }) => (
+                          <Badge variant="outline">
+                            {row.original.category?.name || "Uncategorized"}
+                          </Badge>
+                        ),
+                        enableSorting: false,
+                      },
+                      {
+                        accessorKey: "person",
+                        header: "Person",
+                        cell: ({ row }) => row.original.person || "-",
+                        enableSorting: false,
+                      },
+                    ]}
+                    data={expenses}
+                    showPagination={false}
+                  />
                 </div>
 
                 {/* Pagination */}

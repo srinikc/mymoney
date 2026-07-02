@@ -7,6 +7,7 @@ import { formatCurrency } from "@/lib/utils"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid,
 } from "recharts"
+import { ChartTooltip } from "@/components/charts/chart-tooltip"
 import { Lightbulb, Users, Store, Sparkles } from "lucide-react"
 import { InsightsSkeleton } from "@/components/ui/page-skeleton"
 
@@ -59,8 +60,8 @@ export default function InsightsPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" stroke="#888" fontSize={11} />
                 <YAxis stroke="#888" fontSize={11} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                <Line type="monotone" dataKey="amount" stroke="#6366f1" strokeWidth={2} dot={false} />
+                <Tooltip content={<ChartTooltip formatter={(v) => formatCurrency(v)} />} />
+                <Line type="monotone" dataKey="amount" stroke="#6366f1" strokeWidth={2} dot={false} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -78,8 +79,8 @@ export default function InsightsPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="year" stroke="#888" />
                   <YAxis tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`} stroke="#888" />
-                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                  <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                  <Tooltip content={<ChartTooltip formatter={(v) => formatCurrency(v)} />} />
+                  <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -94,12 +95,13 @@ export default function InsightsPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie data={data.categoryBreakdown.slice(0, 8)} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
-                      dataKey="amount" nameKey="name">
+                      dataKey="amount" nameKey="name"
+                      isAnimationActive={true} animationDuration={800} animationEasing="ease-out" animationBegin={200}>
                       {data.categoryBreakdown.slice(0, 8).map((_, i) => (
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                    <Tooltip content={<ChartTooltip formatter={(v) => formatCurrency(v)} />} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -133,8 +135,8 @@ export default function InsightsPage() {
                 <BarChart data={selectedCat.subCategories.slice(0, 10)} layout="vertical">
                   <XAxis type="number" tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} stroke="#888" />
                   <YAxis type="category" dataKey="name" stroke="#888" width={100} fontSize={11} />
-                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                  <Bar dataKey="amount" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                  <Tooltip content={<ChartTooltip formatter={(v) => formatCurrency(v)} />} />
+                  <Bar dataKey="amount" fill="#6366f1" radius={[0, 4, 4, 0]} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
                 </BarChart>
               </ResponsiveContainer>
             </div>

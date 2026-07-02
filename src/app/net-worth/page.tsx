@@ -28,8 +28,14 @@ export default function NetWorthPage() {
   const [liabForm, setLiabForm] = useState({ name: "", type: "other", amount: "", interestRate: "", dueDate: "", notes: "" })
 
   const load = useCallback(async () => {
-    const [a, l] = await Promise.all([fetch("/api/assets").then(r => r.json()), fetch("/api/liabilities").then(r => r.json())])
-    setAssets(a); setLiabilities(l); setLoading(false)
+    try {
+      const [a, l] = await Promise.all([fetch("/api/assets").then(r => r.json()), fetch("/api/liabilities").then(r => r.json())])
+      setAssets(a); setLiabilities(l)
+    } catch {
+      setAssets([]); setLiabilities([])
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { load() }, [load])

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatCurrency } from "@/lib/utils"
+import { formatIndianCurrency } from "@/lib/format"
 import type { DashboardInsights } from "@/types"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line,
@@ -267,8 +268,8 @@ export default function ReportsPage() {
                     <LineChart data={insights.monthlyTrend}>
                       <XAxis dataKey="month" stroke="#888" fontSize={12} />
                       <YAxis stroke="#888" fontSize={12} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                      <Tooltip content={<ChartTooltip formatter={(v) => formatCurrency(v)} />} />
-                      <Line type="monotone" dataKey="amount" stroke="#6366f1" strokeWidth={3} dot={{ fill: "#6366f1" }} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
+<Tooltip content={<ChartTooltip formatter={(v) => formatIndianCurrency(v)} />} />
+          <Line type="monotone" dataKey="amount" stroke="#6366f1" strokeWidth={3} dot={{ fill: "#6366f1" }} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -286,30 +287,30 @@ export default function ReportsPage() {
                           <Cell key={i} fill={COLORS[i % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip content={<ChartTooltip formatter={(v) => formatCurrency(v)} />} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+                       <Tooltip content={<ChartTooltip formatter={(v) => formatIndianCurrency(v)} />} />
+                     </PieChart>
+                   </ResponsiveContainer>
+                 </div>
+               </CardContent>
+             </Card>
+           </div>
+         </TabsContent>
 
-        <TabsContent value="expenses" className="space-y-6 mt-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Expense Analysis</CardTitle>
-              <Button variant="outline" size="sm" onClick={() => handleExportXLSX("expenses")}>
-                <Download className="mr-2 h-4 w-4" /> XLSX
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[350px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={insights.monthlyTrend}>
-                    <XAxis dataKey="month" stroke="#888" />
-                    <YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} stroke="#888" />
-                    <Tooltip content={<ChartTooltip formatter={(v) => formatCurrency(v)} />} />
+         <TabsContent value="expenses" className="space-y-6 mt-6">
+           <Card>
+             <CardHeader className="flex flex-row items-center justify-between">
+               <CardTitle>Expense Analysis</CardTitle>
+               <Button variant="outline" size="sm" onClick={() => handleExportXLSX("expenses")}>
+                 <Download className="mr-2 h-4 w-4" /> XLSX
+               </Button>
+             </CardHeader>
+             <CardContent>
+               <div className="h-[350px]">
+                 <ResponsiveContainer width="100%" height="100%">
+                   <BarChart data={insights.monthlyTrend}>
+                     <XAxis dataKey="month" stroke="#888" />
+                     <YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} stroke="#888" />
+                     <Tooltip content={<ChartTooltip formatter={(v) => formatIndianCurrency(v)} />} />
                     <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]} isAnimationActive={true} animationDuration={800} animationEasing="ease-out">
                       {insights.monthlyTrend.map((_, i) => (
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />

@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react"
 import { cn } from "@/lib/utils"
+import { formatIndianCurrency } from "@/lib/format"
 
 interface ChartTooltipProps {
   active?: boolean
@@ -13,6 +14,8 @@ interface ChartTooltipProps {
 
 export function ChartTooltip({ active, payload, label, formatter, className }: ChartTooltipProps) {
   if (!active || !payload?.length) return null
+
+  const fmt = formatter ?? formatIndianCurrency
 
   return (
     <motion.div
@@ -29,7 +32,7 @@ export function ChartTooltip({ active, payload, label, formatter, className }: C
       {payload.map((entry, i) => (
         <p key={i} className="flex items-center gap-2">
           {entry.name && <span className="text-muted-foreground">{entry.name}:</span>}
-          <span className="font-semibold">{formatter ? formatter(entry.value ?? 0) : entry.value}</span>
+          <span className="font-semibold">{fmt(entry.value ?? 0)}</span>
         </p>
       ))}
     </motion.div>

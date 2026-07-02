@@ -5,8 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { formatIndianCurrency } from "@/lib/format"
 import { DashboardSkeleton } from "@/components/ui/page-skeleton"
 import { AnimatedCounter } from "@/components/ui/animated-counter"
+import { HealthGauge } from "@/components/charts/health-gauge"
 import type { DashboardInsights } from "@/types"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area,
@@ -18,9 +20,16 @@ export default function DashboardPage() {
   const [insights, setInsights] = useState<DashboardInsights | null>(null)
   const [loading, setLoading] = useState(true)
   const [years, setYears] = useState<number[]>([])
+  const [healthScore, setHealthScore] = useState<{
+    score: number
+    savingsRate: number
+    budgetAdherence: number
+    diversification: number
+    emergencyFund: number
+  } | null>(null)
 
   const currentYear = new Date().getFullYear()
-  const [selectedYear, setSelectedYear] = useState(currentYear)
+  const [selectedYear, setSelectedYear] = useState<string>("all")
   const [selectedMonth, setSelectedMonth] = useState("")
   const [selectedQuarter, setSelectedQuarter] = useState("")
 
@@ -29,17 +38,21 @@ export default function DashboardPage() {
       .then((r) => r.json())
       .then((data) => {
         setYears(data.years)
-        if (data.years.length > 0 && !data.years.includes(currentYear)) {
-          setSelectedYear(data.years[data.years.length - 1])
-        }
       })
       .catch(() => setYears([]))
   }, [currentYear])
 
+  useEffect(() => {
+    fetch("/api/health-score")
+      .then((r) => r.json())
+      .then(setHealthScore)
+      .catch(() => setHealthScore(null))
+  }, [])
+
   const fetchInsights = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams()
-    params.set("year", String(selectedYear ?? new Date().getFullYear()))
+    if (selectedYear !== "all") params.set("year", selectedYear)
     if (selectedMonth) params.set("month", selectedMonth)
     if (selectedQuarter) params.set("quarter", selectedQuarter)
     const res = await fetch(`/api/insights?${params.toString()}`)
@@ -51,6 +64,17 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchInsights()
   }, [fetchInsights])
+
+  // Fetch yearly comparison data (P4.2)
+  const [yearlyData, setYearlyData] = useState<{ year: number; amount: number; count: number }[]>([])
+  useEffect(() => {
+    fetch("/api/insights/deep")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.yearlyComparison) setYearlyData(data.yearlyComparison)
+      })
+      .catch(() => {})
+  }, [])
 
   if (loading) return <DashboardSkeleton />
 
@@ -101,42 +125,47 @@ export default function DashboardPage() {
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Year</span>
-          <Select value={String(selectedYear ?? new Date().getFullYear())} onValueChange={(v) => setSelectedYear(parseInt(v))}>
-            <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+          <Select value={selectedYear} onValueChange={(v) => setSelectedYear(v)}>
+            <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">All Years</SelectItem>
               {years.map((y) => (
                 <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-        {!selectedQuarter && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Month</span>
-            <Select value={selectedMonth} onValueChange={(v) => { setSelectedMonth(v); if (v) setSelectedQuarter("") }}>
-              <SelectTrigger className="w-28"><SelectValue placeholder="All" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All</SelectItem>
-                {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => (
-                  <SelectItem key={i} value={(i + 1).toString()}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-        {!selectedMonth && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Quarter</span>
-            <Select value={selectedQuarter} onValueChange={(v) => { setSelectedQuarter(v); if (v) setSelectedMonth("") }}>
-              <SelectTrigger className="w-24"><SelectValue placeholder="All" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All</SelectItem>
-                {[1, 2, 3, 4].map((q) => (
-                  <SelectItem key={q} value={q.toString()}>Q{q}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        {selectedYear !== "all" && (
+          <>
+            {!selectedQuarter && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Month</span>
+                <Select value={selectedMonth} onValueChange={(v) => { setSelectedMonth(v); if (v) setSelectedQuarter("") }}>
+                  <SelectTrigger className="w-28"><SelectValue placeholder="All" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All</SelectItem>
+                    {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => (
+                      <SelectItem key={i} value={(i + 1).toString()}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {!selectedMonth && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Quarter</span>
+                <Select value={selectedQuarter} onValueChange={(v) => { setSelectedQuarter(v); if (v) setSelectedMonth("") }}>
+                  <SelectTrigger className="w-24"><SelectValue placeholder="All" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All</SelectItem>
+                    {[1, 2, 3, 4].map((q) => (
+                      <SelectItem key={q} value={q.toString()}>Q{q}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -173,6 +202,19 @@ export default function DashboardPage() {
         })}
       </div>
 
+      {/* Health Score Gauge */}
+      {healthScore && (
+        <HealthGauge
+          score={healthScore.score}
+          metrics={[
+            { label: "Savings Rate", value: healthScore.savingsRate },
+            { label: "Budget Adherence", value: healthScore.budgetAdherence },
+            { label: "Diversification", value: healthScore.diversification },
+            { label: "Emergency Fund", value: healthScore.emergencyFund },
+          ]}
+        />
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -190,7 +232,7 @@ export default function DashboardPage() {
                   </defs>
                   <XAxis dataKey="month" stroke="#888" fontSize={12} />
                   <YAxis stroke="#888" fontSize={12} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip content={<ChartTooltip formatter={(value) => formatCurrency(value)} />} />
+                  <Tooltip content={<ChartTooltip formatter={(value) => formatIndianCurrency(value)} />} />
                   <Area type="monotone" dataKey="amount" stroke="#6366f1" fill="url(#colorAmount)" strokeWidth={2} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
                 </AreaChart>
               </ResponsiveContainer>
@@ -221,7 +263,7 @@ export default function DashboardPage() {
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip content={<ChartTooltip formatter={(value) => formatCurrency(value)} />} />
+                    <Tooltip content={<ChartTooltip formatter={(value) => formatIndianCurrency(value)} />} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -241,6 +283,27 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* Yearly Comparison Chart (P4.2) */}
+      {yearlyData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Yearly Comparison</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={yearlyData}>
+                  <XAxis dataKey="year" stroke="#888" fontSize={12} />
+                  <YAxis stroke="#888" fontSize={12} tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`} />
+                  <Tooltip content={<ChartTooltip formatter={(value) => formatIndianCurrency(value)} />} />
+                  <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -252,7 +315,7 @@ export default function DashboardPage() {
                 <BarChart data={insights.topCategories} layout="vertical">
                   <XAxis type="number" stroke="#888" fontSize={12} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
                   <YAxis type="category" dataKey="name" stroke="#888" fontSize={12} width={100} />
-                  <Tooltip content={<ChartTooltip formatter={(value) => formatCurrency(value)} />} />
+                  <Tooltip content={<ChartTooltip formatter={(value) => formatIndianCurrency(value)} />} />
                   <Bar dataKey="amount" fill="#6366f1" radius={[0, 4, 4, 0]} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
                 </BarChart>
               </ResponsiveContainer>

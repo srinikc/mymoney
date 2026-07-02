@@ -16,3 +16,5 @@ tsconfig.tsbuildinfo
 test-results/
 playwright-report/
 e2e-results/
+.gpay-profile/
+data/

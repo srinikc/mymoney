@@ -21,6 +21,7 @@ import {
   Gift,
   WalletCards,
   Settings,
+  Heart,
 } from "lucide-react"
 import { useUIStore } from "@/lib/store"
 
@@ -31,6 +32,7 @@ const navItems = [
   { href: "/investments", label: "Investments", icon: TrendingUp },
   { href: "/plans", label: "Plans", icon: ClipboardList },
   { href: "/insights", label: "Insights", icon: BarChart3 },
+  { href: "/health", label: "Health", icon: Heart },
   { href: "/reminders", label: "Reminders", icon: Bell },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/deals", label: "Deals", icon: Gift },

@@ -22,23 +22,35 @@ import {
   WalletCards,
   Settings,
   Heart,
+  Shield,
+  Users,
+  UserCircle,
+  ToggleLeft,
+  ScrollText,
 } from "lucide-react"
 import { useUIStore } from "@/lib/store"
 import { ProfileSwitcher } from "./profile-switcher"
-const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/budgets", label: "Budgets", icon: Wallet },
-  { href: "/goals", label: "Goals", icon: Target },
-  { href: "/investments", label: "Investments", icon: TrendingUp },
-  { href: "/plans", label: "Plans", icon: ClipboardList },
-  { href: "/insights", label: "Insights", icon: BarChart3 },
-  { href: "/health", label: "Health", icon: Heart },
-  { href: "/reminders", label: "Reminders", icon: Bell },
-  { href: "/reports", label: "Reports", icon: FileText },
-  { href: "/deals", label: "Deals", icon: Gift },
-  { href: "/net-worth", label: "Net Worth", icon: WalletCards },
-  { href: "/settings", label: "Settings", icon: Settings },
-]
+  const navItems = [
+    { href: "/", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/budgets", label: "Budgets", icon: Wallet },
+    { href: "/goals", label: "Goals", icon: Target },
+    { href: "/investments", label: "Investments", icon: TrendingUp },
+    { href: "/plans", label: "Plans", icon: ClipboardList },
+    { href: "/insights", label: "Insights", icon: BarChart3 },
+    { href: "/health", label: "Health", icon: Heart },
+    { href: "/reminders", label: "Reminders", icon: Bell },
+    { href: "/reports", label: "Reports", icon: FileText },
+    { href: "/deals", label: "Deals", icon: Gift },
+    { href: "/net-worth", label: "Net Worth", icon: WalletCards },
+    { href: "/settings", label: "Settings", icon: Settings },
+  ]
+
+  const adminItems = [
+    { href: "/admin/users", label: "Users", icon: Users },
+    { href: "/admin/profiles", label: "Profiles", icon: UserCircle },
+    { href: "/admin/features", label: "Feature Flags", icon: ToggleLeft },
+    { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText },
+  ]
 
 const expenseSubItems = [
   { href: "/expenses", label: "All Expenses", icon: Receipt },
@@ -57,6 +69,7 @@ export function Sidebar() {
   }
 
   const isInExpenses = pathname.startsWith("/expenses")
+  const isInAdmin = pathname.startsWith("/admin")
 
   return (
     <aside
@@ -167,6 +180,39 @@ export function Sidebar() {
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                 active
                   ? "bg-primary/20 text-primary-foreground"
+                  : "text-white/60 hover:bg-white/10 hover:text-white",
+                !sidebarOpen && "justify-center px-2"
+              )}
+              title={!sidebarOpen ? item.label : undefined}
+            >
+              <Icon className="h-5 w-5 shrink-0" />
+              {sidebarOpen && <span>{item.label}</span>}
+            </Link>
+          )
+        })}
+
+        {/* Admin Section */}
+        {sidebarOpen && (
+          <div className="pt-4">
+            <div className="flex items-center gap-2 px-3 py-1.5">
+              <Shield className="h-4 w-4 text-amber-400" />
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400/70">
+                Admin
+              </span>
+            </div>
+          </div>
+        )}
+        {adminItems.map((item) => {
+          const Icon = item.icon
+          const active = isActive(item.href)
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                active
+                  ? "bg-amber-500/20 text-amber-400"
                   : "text-white/60 hover:bg-white/10 hover:text-white",
                 !sidebarOpen && "justify-center px-2"
               )}

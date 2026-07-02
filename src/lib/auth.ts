@@ -32,11 +32,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // Attach user ID and profile info to the session
       const sUser = session.user as unknown as {
         id: number
+        role?: string
         profileId?: number
         profileName?: string
       }
       if (sUser) {
         sUser.id = Number(user.id)
+        ;(sUser as Record<string, unknown>).role = (user as unknown as Record<string, unknown>).role as string || "user"
 
         // Fetch the user's default profile
         try {

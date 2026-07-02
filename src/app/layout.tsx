@@ -4,6 +4,7 @@ import { Suspense } from "react"
 import "./globals.css"
 import { AppShell } from "@/components/layout/app-shell"
 import { SessionProvider } from "@/components/auth/session-provider"
+import { FloatingChat } from "@/components/chat/floating-chat"
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SessionProvider>
           <Suspense fallback={<div className="min-h-screen" />}>
             <AppShell>{children}</AppShell>
+            <FloatingChat />
           </Suspense>
         </SessionProvider>
       </body>

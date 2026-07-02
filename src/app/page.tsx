@@ -9,6 +9,7 @@ import { formatIndianCurrency } from "@/lib/format"
 import { DashboardSkeleton } from "@/components/ui/page-skeleton"
 import { AnimatedCounter } from "@/components/ui/animated-counter"
 import { HealthGauge } from "@/components/charts/health-gauge"
+import { TutorialOverlay } from "@/components/tutorial-overlay"
 import type { DashboardInsights } from "@/types"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area,
@@ -115,6 +116,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      <TutorialOverlay />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>

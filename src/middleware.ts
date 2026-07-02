@@ -1,18 +1,162 @@
 ﻿import { auth } from "@/lib/auth"
 import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
 
+// ── Rate Limiter ───────────────────────────────────────────────────────────
+// Simple in-memory rate limiter using a sliding window.
+
+interface RateLimitEntry {
+  count: number
+  resetAt: number
+}
+
+const rateLimitMap = new Map<string, RateLimitEntry>()
+
+// Cleanup stale entries periodically
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, entry] of rateLimitMap) {
+    if (entry.resetAt < now) {
+      rateLimitMap.delete(key)
+    }
+  }
+}, 60_000)
+
+function getRateLimitKey(req: NextRequest, prefix: string): string {
+  // Use X-Forwarded-For, then X-Real-IP, then fallback to local
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "127.0.0.1"
+  return `${prefix}:${ip}`
+}
+
+function checkRateLimit(
+  req: NextRequest,
+  prefix: string,
+  limit: number,
+  windowMs: number
+): { allowed: boolean; retryAfter: number } {
+  const now = Date.now()
+  const key = getRateLimitKey(req, prefix)
+  const entry = rateLimitMap.get(key)
+
+  if (!entry || entry.resetAt < now) {
+    // New window
+    rateLimitMap.set(key, { count: 1, resetAt: now + windowMs })
+    return { allowed: true, retryAfter: 0 }
+  }
+
+  entry.count++
+  if (entry.count > limit) {
+    const retryAfter = Math.ceil((entry.resetAt - now) / 1000)
+    return { allowed: false, retryAfter }
+  }
+
+  return { allowed: true, retryAfter: 0 }
+}
+
+// ── Rate limit configurations ──────────────────────────────────────────────
+interface RateLimitConfig {
+  limit: number
+  windowMs: number
+}
+
+const RATE_LIMITS: Record<string, RateLimitConfig> = {
+  api: { limit: 100, windowMs: 60_000 },       // 100 req/min for API
+  auth: { limit: 10, windowMs: 60_000 },        // 10 req/min for auth
+  default: { limit: 50, windowMs: 60_000 },     // 50 req/min for other routes
+}
+
+// ── Admin / Manager route patterns ─────────────────────────────────────────
+const ADMIN_PREFIX = "/admin"
+const MANAGER_PREFIX = "/manager"
+const API_PREFIX = "/api"
+const AUTH_PREFIX = "/api/auth"
+const AUDIT_LOG_PREFIX = "/audit-log"
+
+// ── Middleware ─────────────────────────────────────────────────────────────
 export default auth((req) => {
   const { pathname } = req.nextUrl
 
+  // ── 1. Rate limiting ──────────────────────────────────────────────────
+  let rateLimitConfig = RATE_LIMITS.default
+  if (pathname.startsWith(API_PREFIX)) {
+    rateLimitConfig = pathname.startsWith(AUTH_PREFIX)
+      ? RATE_LIMITS.auth
+      : RATE_LIMITS.api
+  }
+
+  const rateLimitResult = checkRateLimit(
+    req,
+    "rl",
+    rateLimitConfig.limit,
+    rateLimitConfig.windowMs
+  )
+
+  if (!rateLimitResult.allowed) {
+    return new NextResponse(
+      JSON.stringify({ error: "Too many requests. Please try again later." }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(rateLimitResult.retryAfter),
+          "X-RateLimit-Limit": String(rateLimitConfig.limit),
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": String(
+            Math.ceil((Date.now() + rateLimitConfig.windowMs) / 1000)
+          ),
+        },
+      }
+    )
+  }
+
+  // ── 2. Public route check ─────────────────────────────────────────────
   const publicRoutes = ["/api/auth", "/api/drive", "/"]
   const isPublic = publicRoutes.some((r) => pathname.startsWith(r))
 
+  // Static assets and images are always public
+  if (
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/icons/") ||
+    pathname.startsWith("/manifest.json") ||
+    pathname.startsWith("/sw.js")
+  ) {
+    return NextResponse.next()
+  }
+
   if (isPublic) return NextResponse.next()
 
+  // ── 3. Authentication check ───────────────────────────────────────────
   if (!req.auth?.user) {
     const loginUrl = new URL("/login", req.url)
     loginUrl.searchParams.set("callbackUrl", pathname)
     return Response.redirect(loginUrl)
+  }
+
+  // ── 4. RBAC: Role-based access control ────────────────────────────────
+  const userRole = (req.auth.user as { role?: string }).role ?? "user"
+
+  // Admin-only routes
+  if (pathname.startsWith(ADMIN_PREFIX) && userRole !== "admin") {
+    return NextResponse.redirect(new URL("/", req.url))
+  }
+
+  // Manager routes (admin or manager)
+  if (
+    pathname.startsWith(MANAGER_PREFIX) &&
+    !["admin", "manager"].includes(userRole)
+  ) {
+    return NextResponse.redirect(new URL("/", req.url))
+  }
+
+  // Audit log routes (admin or manager)
+  if (
+    pathname.startsWith(AUDIT_LOG_PREFIX) &&
+    !["admin", "manager"].includes(userRole)
+  ) {
+    return NextResponse.redirect(new URL("/", req.url))
   }
 
   return NextResponse.next()

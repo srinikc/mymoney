@@ -6,19 +6,19 @@ test.describe("Expenses Filters", () => {
     await page.waitForLoadState("networkidle")
   })
 
-  test("filter bar renders above the table, not inside table header", async ({ page }) => {
+  test("filter bar renders above the transactions section", async ({ page }) => {
     const filterBar = page.getByTestId("filter-bar")
     await expect(filterBar).toBeVisible()
 
-    const table = page.locator("table")
-    await expect(table).toBeVisible()
+    const transactionsHeading = page.locator("h3", { hasText: "Transactions" })
+    await expect(transactionsHeading).toBeVisible()
 
     const filterBarBox = await filterBar.boundingBox()
-    const tableBox = await table.boundingBox()
+    const headingBox = await transactionsHeading.boundingBox()
 
     expect(filterBarBox).not.toBeNull()
-    expect(tableBox).not.toBeNull()
-    expect(filterBarBox!.y + filterBarBox!.height).toBeLessThanOrEqual(tableBox!.y)
+    expect(headingBox).not.toBeNull()
+    expect(filterBarBox!.y + filterBarBox!.height).toBeLessThanOrEqual(headingBox!.y)
   })
 
   test("category filter is interactive", async ({ page }) => {

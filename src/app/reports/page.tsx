@@ -10,6 +10,7 @@ import type { DashboardInsights } from "@/types"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line,
 } from "recharts"
+import { ChartTooltip } from "@/components/charts/chart-tooltip"
 import { Download, FileText } from "lucide-react"
 import { ReportsSkeleton } from "@/components/ui/page-skeleton"
 
@@ -266,8 +267,8 @@ export default function ReportsPage() {
                     <LineChart data={insights.monthlyTrend}>
                       <XAxis dataKey="month" stroke="#888" fontSize={12} />
                       <YAxis stroke="#888" fontSize={12} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                      <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                      <Line type="monotone" dataKey="amount" stroke="#6366f1" strokeWidth={3} dot={{ fill: "#6366f1" }} />
+                      <Tooltip content={<ChartTooltip formatter={(v) => formatCurrency(v)} />} />
+                      <Line type="monotone" dataKey="amount" stroke="#6366f1" strokeWidth={3} dot={{ fill: "#6366f1" }} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -280,12 +281,12 @@ export default function ReportsPage() {
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={insights.categoryBreakdown.slice(0, 6)} cx="50%" cy="50%" outerRadius={100} dataKey="amount" nameKey="name" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                      <Pie data={insights.categoryBreakdown.slice(0, 6)} cx="50%" cy="50%" outerRadius={100} dataKey="amount" nameKey="name" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" animationBegin={200}>
                         {insights.categoryBreakdown.slice(0, 6).map((_, i) => (
                           <Cell key={i} fill={COLORS[i % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                      <Tooltip content={<ChartTooltip formatter={(v) => formatCurrency(v)} />} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -308,8 +309,8 @@ export default function ReportsPage() {
                   <BarChart data={insights.monthlyTrend}>
                     <XAxis dataKey="month" stroke="#888" />
                     <YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} stroke="#888" />
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                    <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]}>
+                    <Tooltip content={<ChartTooltip formatter={(v) => formatCurrency(v)} />} />
+                    <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]} isAnimationActive={true} animationDuration={800} animationEasing="ease-out">
                       {insights.monthlyTrend.map((_, i) => (
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}

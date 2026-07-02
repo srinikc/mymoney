@@ -11,6 +11,7 @@ import type { DashboardInsights } from "@/types"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area,
 } from "recharts"
+import { ChartTooltip } from "@/components/charts/chart-tooltip"
 import { IndianRupee, TrendingUp, TrendingDown, Target, Wallet } from "lucide-react"
 
 export default function DashboardPage() {
@@ -189,11 +190,8 @@ export default function DashboardPage() {
                   </defs>
                   <XAxis dataKey="month" stroke="#888" fontSize={12} />
                   <YAxis stroke="#888" fontSize={12} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip
-                    formatter={(value: number) => [formatCurrency(value), "Amount"]}
-                    contentStyle={{ background: "#1a1a2e", border: "none", borderRadius: "8px", color: "#fff" }}
-                  />
-                  <Area type="monotone" dataKey="amount" stroke="#6366f1" fill="url(#colorAmount)" strokeWidth={2} />
+                  <Tooltip content={<ChartTooltip formatter={(value) => formatCurrency(value)} />} />
+                  <Area type="monotone" dataKey="amount" stroke="#6366f1" fill="url(#colorAmount)" strokeWidth={2} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -217,12 +215,13 @@ export default function DashboardPage() {
                       outerRadius={90}
                       dataKey="amount"
                       nameKey="name"
+                      isAnimationActive={true} animationDuration={800} animationEasing="ease-out" animationBegin={200}
                     >
                       {insights.categoryBreakdown.slice(0, 6).map((_, i) => (
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                    <Tooltip content={<ChartTooltip formatter={(value) => formatCurrency(value)} />} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -253,8 +252,8 @@ export default function DashboardPage() {
                 <BarChart data={insights.topCategories} layout="vertical">
                   <XAxis type="number" stroke="#888" fontSize={12} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
                   <YAxis type="category" dataKey="name" stroke="#888" fontSize={12} width={100} />
-                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                  <Bar dataKey="amount" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                  <Tooltip content={<ChartTooltip formatter={(value) => formatCurrency(value)} />} />
+                  <Bar dataKey="amount" fill="#6366f1" radius={[0, 4, 4, 0]} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
                 </BarChart>
               </ResponsiveContainer>
             </div>

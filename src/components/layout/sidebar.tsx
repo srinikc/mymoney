@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -23,7 +23,7 @@ import {
   Settings,
 } from "lucide-react"
 import { useUIStore } from "@/lib/store"
-
+import { ProfileSwitcher } from "./profile-switcher"
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/budgets", label: "Budgets", icon: Wallet },
@@ -82,6 +82,13 @@ export function Sidebar() {
           <ChevronLeft className={cn("h-5 w-5 transition-transform", !sidebarOpen && "rotate-180")} />
         </button>
       </div>
+
+      {/* Profile Switcher */}
+
+
+      <ProfileSwitcher />
+
+
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {/* Dashboard always on top */}
@@ -176,3 +183,5 @@ export function Sidebar() {
     </aside>
   )
 }
+
+

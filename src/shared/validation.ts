@@ -168,3 +168,42 @@ export const MerchantBatchSchema = z.object({
     person: z.string().optional().default(""),
   })).min(1, "At least one mapping is required"),
 })
+
+// ── Auth & Profile Schemas ──────────────────────────────────────────
+
+export const ProfileCreateSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100),
+  userId: z.union([z.string(), z.number()]).transform((v) => Number(v)),
+  isDefault: z.boolean().optional().default(false),
+})
+
+export const ProfileUpdateSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  isDefault: z.boolean().optional(),
+})
+
+export const UserUpdateSchema = z.object({
+  name: z.string().max(100).optional(),
+  image: z.string().url().optional().nullable(),
+  role: z.enum(["user", "admin", "manager", "viewer"]).optional(),
+  tier: z.enum(["free", "pro", "premium"]).optional(),
+})
+
+export const FeatureFlagCreateSchema = z.object({
+  name: z.string().min(1).max(100),
+  enabled: z.boolean().optional().default(false),
+  tier: z.enum(["free", "pro", "premium"]).optional().default("free"),
+})
+
+export const FeatureFlagUpdateSchema = z.object({
+  enabled: z.boolean().optional(),
+  tier: z.enum(["free", "pro", "premium"]).optional(),
+})
+
+export const AuditLogCreateSchema = z.object({
+  profileId: z.union([z.string(), z.number()]).transform((v) => Number(v)),
+  action: z.enum(["create", "update", "delete", "view", "export", "import"]),
+  entity: z.string().min(1),
+  entityId: z.union([z.string(), z.number()]).optional().nullable(),
+  metadata: z.string().optional().nullable(),
+})

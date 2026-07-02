@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import { Suspense } from "react"
 import "./globals.css"
 import { AppShell } from "@/components/layout/app-shell"
+import { SessionProvider } from "@/components/auth/session-provider"
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -42,9 +43,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
-        <Suspense fallback={<div className="min-h-screen" />}>
-          <AppShell>{children}</AppShell>
-        </Suspense>
+        <SessionProvider>
+          <Suspense fallback={<div className="min-h-screen" />}>
+            <AppShell>{children}</AppShell>
+          </Suspense>
+        </SessionProvider>
       </body>
     </html>
   )

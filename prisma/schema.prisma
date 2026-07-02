@@ -3,9 +3,108 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// ── Auth & Multi-Profile ──────────────────────────────────────────────
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  name      String?
+  image     String?
+  role      String    @default("user") // user | admin | manager | viewer
+  tier      String    @default("free") // free | pro | premium
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  profiles  Profile[]
+  accounts  Account[]
+  sessions  Session[]
+}
+
+model Profile {
+  id        Int      @id @default(autoincrement())
+  name      String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations to all data tables
+  expenses    Expense[]
+  budgets     Budget[]
+  goals       Goal[]
+  investments Investment[]
+  plans       Plan[]
+  reminders   Reminder[]
+  deals       Deal[]
+  assets      Asset[]
+  liabilities Liability[]
+  auditLogs   AuditLog[]
+}
+
+model Account {
+  id                Int      @id @default(autoincrement())
+  userId            Int
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           Int      @id @default(autoincrement())
+  sessionToken String   @unique
+  userId       Int
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model FeatureFlag {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  enabled   Boolean  @default(false)
+  tier      String   @default("free") // free | pro | premium
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  profileId Int
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  action    String   // create | update | delete | view | export | import
+  entity    String   // expense | budget | goal | etc.
+  entityId  Int?
+  metadata  String?  // JSON string with extra context
+  createdAt DateTime @default(now())
+
+  @@index([profileId])
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+}
+
+// ── Categories ────────────────────────────────────────────────────────
 
 model Category {
   id        Int       @id @default(autoincrement())
@@ -18,6 +117,8 @@ model Category {
   budgets   Budget[]
   reminders Reminder[]
 }
+
+// ── Expense ───────────────────────────────────────────────────────────
 
 model Expense {
   id              Int             @id @default(autoincrement())
@@ -42,6 +143,8 @@ model Expense {
   importSessionId Int?
   importSession   ImportSession?  @relation(fields: [importSessionId], references: [id])
   flagged         Boolean         @default(false)
+  profileId       Int?
+  profile         Profile?        @relation(fields: [profileId], references: [id])
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -50,7 +153,10 @@ model Expense {
   @@index([vendor])
   @@index([person])
   @@index([importSessionId])
+  @@index([profileId])
 }
+
+// ── Budget ────────────────────────────────────────────────────────────
 
 model Budget {
   id         Int      @id @default(autoincrement())
@@ -59,12 +165,17 @@ model Budget {
   month      Int
   year       Int
   amount     Float
+  profileId  Int?
+  profile    Profile? @relation(fields: [profileId], references: [id])
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   @@unique([categoryId, month, year])
   @@index([categoryId])
+  @@index([profileId])
 }
+
+// ── Goal ──────────────────────────────────────────────────────────────
 
 model Goal {
   id            Int      @id @default(autoincrement())
@@ -75,9 +186,15 @@ model Goal {
   category      String   @default("savings")
   notes         String?
   status        String   @default("active")
+  profileId     Int?
+  profile       Profile? @relation(fields: [profileId], references: [id])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@index([profileId])
 }
+
+// ── Investment ────────────────────────────────────────────────────────
 
 model Investment {
   id             Int      @id @default(autoincrement())
@@ -89,24 +206,36 @@ model Investment {
   returnRate     Float?
   notes          String?
   status         String   @default("active")
+  profileId      Int?
+  profile        Profile? @relation(fields: [profileId], references: [id])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  @@index([profileId])
 }
 
+// ── Plan ──────────────────────────────────────────────────────────────
+
 model Plan {
-  id           Int      @id @default(autoincrement())
-  name         String
-  description  String?
-  category     String   @default("general")
-  amountNeeded Float
-  amountSaved  Float    @default(0)
+  id                  Int      @id @default(autoincrement())
+  name                String
+  description         String?
+  category            String   @default("general")
+  amountNeeded        Float
+  amountSaved         Float    @default(0)
   monthlyContribution Float?
-  deadline     DateTime?
-  status       String   @default("active")
-  notes        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  deadline            DateTime?
+  status              String   @default("active")
+  notes               String?
+  profileId           Int?
+  profile             Profile? @relation(fields: [profileId], references: [id])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([profileId])
 }
+
+// ── Merchant Mapping ──────────────────────────────────────────────────
 
 model MerchantMapping {
   id          Int      @id @default(autoincrement())
@@ -122,6 +251,8 @@ model MerchantMapping {
   @@index([merchantKey])
 }
 
+// ── Import Session ────────────────────────────────────────────────────
+
 model ImportSession {
   id           Int       @id @default(autoincrement())
   source       String
@@ -134,6 +265,8 @@ model ImportSession {
   createdAt    DateTime  @default(now())
   expenses     Expense[]
 }
+
+// ── Reminder ──────────────────────────────────────────────────────────
 
 model Reminder {
   id          Int       @id @default(autoincrement())
@@ -149,13 +282,18 @@ model Reminder {
   recurring   String    @default("none")
   isCompleted Boolean   @default(false)
   completedAt DateTime?
+  profileId   Int?
+  profile     Profile?  @relation(fields: [profileId], references: [id])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   @@index([dueDate])
   @@index([isCompleted])
   @@index([categoryId])
+  @@index([profileId])
 }
+
+// ── Deal ──────────────────────────────────────────────────────────────
 
 model Deal {
   id          Int       @id @default(autoincrement())
@@ -168,11 +306,16 @@ model Deal {
   validUntil  DateTime?
   category    String?
   isActive    Boolean   @default(true)
+  profileId   Int?
+  profile     Profile?  @relation(fields: [profileId], references: [id])
   createdAt   DateTime  @default(now())
 
   @@index([merchant])
   @@index([isActive])
+  @@index([profileId])
 }
+
+// ── Asset ─────────────────────────────────────────────────────────────
 
 model Asset {
   id        Int      @id @default(autoincrement())
@@ -180,9 +323,15 @@ model Asset {
   type      String   @default("other")
   amount    Float
   notes     String?
+  profileId Int?
+  profile   Profile? @relation(fields: [profileId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([profileId])
 }
+
+// ── Liability ─────────────────────────────────────────────────────────
 
 model Liability {
   id           Int      @id @default(autoincrement())
@@ -192,9 +341,15 @@ model Liability {
   interestRate Float?
   dueDate      DateTime?
   notes        String?
+  profileId    Int?
+  profile      Profile? @relation(fields: [profileId], references: [id])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@index([profileId])
 }
+
+// ── Alerts & Notifications ────────────────────────────────────────────
 
 model AlertRule {
   id        Int      @id @default(autoincrement())
@@ -214,18 +369,4 @@ model NotificationConfig {
   alertTypes String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-}
-
-model AuditLog {
-  id         Int      @id @default(autoincrement())
-  action     String
-  entityType String
-  entityId   Int?
-  metadata   String?
-  ip         String?
-  createdAt  DateTime @default(now())
-
-  @@index([action])
-  @@index([entityType])
-  @@index([createdAt])
 }

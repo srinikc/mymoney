@@ -1,20 +1,20 @@
 import { prisma } from "@/lib/prisma"
 
 export async function logAudit(
+  profileId: number,
   action: string,
-  entityType: string,
-  entityId?: number,
-  metadata?: Record<string, unknown>,
-  ip?: string
+  entity: string,
+  entityId?: number | null,
+  metadata?: Record<string, unknown> | string | null,
 ) {
   try {
     await prisma.auditLog.create({
       data: {
+        profileId,
         action,
-        entityType,
-        entityId: entityId || null,
-        metadata: metadata ? JSON.stringify(metadata) : null,
-        ip: ip || null,
+        entity,
+        entityId: entityId ?? null,
+        metadata: typeof metadata === "string" ? metadata : (metadata ? JSON.stringify(metadata) : null),
       },
     })
   } catch {
@@ -23,8 +23,6 @@ export async function logAudit(
 }
 
 // Helper to get client IP from request
-export function getClientIp(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for")
-  if (forwarded) return forwarded.split(",")[0].trim()
-  return req.headers.get("x-real-ip") || "127.0.0.1"
+export function getClientIp(_req: Request): string {
+  return "127.0.0.1"
 }

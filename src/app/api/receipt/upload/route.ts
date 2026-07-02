@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
 import * as fs from "fs"
 import * as path from "path"
+import { extractReceiptData, extractReceiptText } from "@/shared/receipt-ocr"
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
-const MAX_SIZE = 10 * 1024 * 1024 // 10MB
+const MAX_SIZE = 15 * 1024 * 1024 // 15MB
 
 export async function POST(req: Request) {
   try {
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
     }
 
     if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: "File too large. Max 10MB" }, { status: 400 })
+      return NextResponse.json({ error: "File too large. Max 15MB" }, { status: 400 })
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
@@ -31,51 +32,39 @@ export async function POST(req: Request) {
       fs.mkdirSync(uploadDir, { recursive: true })
     }
 
-    const filePath = path.join(uploadDir, fileName)
     // eslint-disable-next-line security/detect-non-literal-fs-filename
+    const filePath = path.join(uploadDir, fileName)
     fs.writeFileSync(filePath, buffer)
 
     const receiptUrl = `/uploads/${fileName}`
 
-    // OCR extraction (best-effort)
-    const extracted = { amount: null as number | null, date: null as string | null, merchant: null as string | null }
+    // Receipt data extraction using the shared module
+    const extracted = {
+      merchant: null as string | null,
+      date: null as string | null,
+      total: null as number | null,
+      items: [] as { name: string; price: number }[],
+      tax: null as number | null,
+      confidence: 0,
+      rawText: null as string | null,
+    }
 
     if (file.type !== "application/pdf") {
       try {
-        // Use Tesseract.js for OCR if available
-        const Tesseract = await import("tesseract.js")
-        const { data } = await Tesseract.recognize(buffer, "eng", {
-          logger: () => {},
-        })
+        const receiptData = await extractReceiptData(buffer, file.type)
 
-        const text = data.text
+        extracted.merchant = receiptData.merchant || null
+        extracted.date = receiptData.date || null
+        extracted.total = receiptData.total
+        extracted.items = receiptData.items
+        extracted.tax = receiptData.tax
+        extracted.confidence = receiptData.confidence
 
-        // Extract amount: look for ₹, Rs., INR patterns
-        // eslint-disable-next-line security/detect-unsafe-regex
-        const amtMatch = text.match(/[₹Rs.\s]*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/)
-        if (amtMatch) {
-          extracted.amount = parseFloat(amtMatch[1].replace(/,/g, ""))
-        }
-
-        // Extract date: DD/MM/YYYY or YYYY-MM-DD
-        const dateMatch = text.match(/(\d{2}[/-]\d{2}[/-]\d{4})/)
-        if (dateMatch) {
-          extracted.date = dateMatch[1]
-        }
-
-        // Extract merchant: first line of text that looks like a business name
-        const lines = text.split("\n").filter((l) => l.trim().length > 3)
-        if (lines.length > 0) {
-          // Skip first line if it looks like header (date, time, etc.)
-          for (const line of lines.slice(0, 5)) {
-            const trimmed = line.trim()
-            if (trimmed.length > 3 && !trimmed.match(/^\d/) && !trimmed.toLowerCase().includes("receipt") && !trimmed.toLowerCase().includes("invoice")) {
-              extracted.merchant = trimmed
-              break
-            }
-          }
-        }
-      } catch {
+        // Get raw text for reference/editing
+        const rawText = await extractReceiptText(buffer)
+        extracted.rawText = rawText.slice(0, 2000)
+      } catch (ocrError) {
+        console.error("Receipt OCR failed:", ocrError)
         // OCR failed silently — user can fill manually
       }
     }
@@ -84,7 +73,7 @@ export async function POST(req: Request) {
       success: true,
       receiptUrl,
       extracted,
-      message: "Receipt uploaded" + (extracted.amount ? " and scanned" : ""),
+      message: "Receipt uploaded" + (extracted.total ? ` and scanned (₹${extracted.total})` : ""),
     })
   } catch (error) {
     console.error("Upload error:", error)

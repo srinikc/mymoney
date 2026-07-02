@@ -44,6 +44,7 @@ interface PaginatedResponse {
 
 type SortField = "date" | "amount" | "vendor" | "person"
 type SortDir = "asc" | "desc"
+type FilterMode = "contains" | "not-contains"
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
@@ -52,11 +53,21 @@ export default function ExpensesPage() {
   const [flaggedCount, setFlaggedCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState("all")
-  const [personFilter, setPersonFilter] = useState("all")
-  const [recurrenceFilter, setRecurrenceFilter] = useState("all")
+
+  // Multi-select filter state (arrays of selected values)
+  const [categoryFilter, setCategoryFilter] = useState<string[]>([])
+  const [personFilter, setPersonFilter] = useState<string[]>([])
+  const [recurrenceFilter, setRecurrenceFilter] = useState<string[]>([])
+  const [paymentModeFilter, setPaymentModeFilter] = useState<string[]>([])
+  const [vendorFilter, setVendorFilter] = useState<string[]>([])
+  const [subCategoryFilter, setSubCategoryFilter] = useState<string[]>([])
+  const [bankFilter, setBankFilter] = useState<string[]>([])
+
+  // Filter modes for text-based fields (P3.6)
+  const [vendorFilterMode, setVendorFilterMode] = useState<FilterMode>("contains")
+  const [subCategoryFilterMode, setSubCategoryFilterMode] = useState<FilterMode>("contains")
+
   const [sessionFilter, setSessionFilter] = useState("")
-  const [paymentModeFilter, setPaymentModeFilter] = useState("all")
   const [sortField, setSortField] = useState<SortField>("date")
   const [sortDir, setSortDir] = useState<SortDir>("desc")
   const [page, setPage] = useState(1)
@@ -68,9 +79,6 @@ export default function ExpensesPage() {
   const [distinctVendors, setDistinctVendors] = useState<string[]>([])
   const [distinctSubCategories, setDistinctSubCategories] = useState<string[]>([])
   const [distinctBankAccounts, setDistinctBankAccounts] = useState<string[]>([])
-  const [vendorFilter, setVendorFilter] = useState("")
-  const [subCategoryFilter, setSubCategoryFilter] = useState("")
-  const [bankFilter, setBankFilter] = useState("")
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
   const [datePreset, setDatePreset] = useState("all")
@@ -107,14 +115,23 @@ export default function ExpensesPage() {
       pageSize: "100",
     })
     if (search) params.set("search", search)
-    if (categoryFilter !== "all") params.set("categoryId", categoryFilter)
     if (sessionFilter) params.set("importSessionId", sessionFilter)
-    if (personFilter !== "all") params.set("person", personFilter)
-    if (recurrenceFilter !== "all") params.set("recurrenceType", recurrenceFilter)
-    if (paymentModeFilter !== "all") params.set("paymentMode", paymentModeFilter)
-    if (vendorFilter) params.set("vendor", vendorFilter)
-    if (subCategoryFilter) params.set("subCategory", subCategoryFilter)
-    if (bankFilter) params.set("bankAccount", bankFilter)
+
+    // Multi-select filters: send comma-separated values
+    if (categoryFilter.length > 0) params.set("categoryIds", categoryFilter.join(","))
+    if (personFilter.length > 0) params.set("persons", personFilter.join(","))
+    if (recurrenceFilter.length > 0) params.set("recurrenceTypes", recurrenceFilter.join(","))
+    if (paymentModeFilter.length > 0) params.set("paymentModes", paymentModeFilter.join(","))
+    if (vendorFilter.length > 0) {
+      params.set("vendors", vendorFilter.join(","))
+      params.set("vendorMode", vendorFilterMode)
+    }
+    if (subCategoryFilter.length > 0) {
+      params.set("subCategories", subCategoryFilter.join(","))
+      params.set("subCategoryMode", subCategoryFilterMode)
+    }
+    if (bankFilter.length > 0) params.set("bankAccounts", bankFilter.join(","))
+
     if (dateFrom) params.set("dateFrom", dateFrom)
     if (dateTo) params.set("dateTo", dateTo)
     if (amountMin) params.set("amountMin", amountMin)
@@ -140,7 +157,7 @@ export default function ExpensesPage() {
     setTotalAmount(result.totalAmount || 0)
     setCategories(await catRes.json())
     setLoading(false)
-  }, [search, categoryFilter, sessionFilter, personFilter, recurrenceFilter, paymentModeFilter, vendorFilter, subCategoryFilter, bankFilter, dateFrom, dateTo, amountMin, amountMax, sortField, sortDir, page, refreshKey])
+  }, [search, categoryFilter, sessionFilter, personFilter, recurrenceFilter, paymentModeFilter, vendorFilter, subCategoryFilter, bankFilter, vendorFilterMode, subCategoryFilterMode, dateFrom, dateTo, amountMin, amountMax, sortField, sortDir, page, refreshKey])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -181,15 +198,15 @@ export default function ExpensesPage() {
       const res = await fetch("/api/import", { method: "POST", body: formData })
       const result = await res.json()
       console.log("[FILE IMPORT] Response:", result)
-      if (!res.ok) {
-        setImportResult(result.error || "Import failed (" + res.status + ")")
-      } else {
+      if (res.ok) {
         setImportResult(result.message || "Imported successfully")
         setPage(1)
         fetch("/api/import-sessions").then(r => r.json()).then(setImportSessions)
+      } else {
+        setImportResult(result.error || "Import failed (" + res.status + ")")
       }
-    } catch (err) {
-      setImportResult("Import failed: " + String(err))
+    } catch (error) {
+      setImportResult("Import failed: " + String(error))
     } finally { setImporting(false); e.target.value = "" }
   }
 
@@ -212,7 +229,7 @@ export default function ExpensesPage() {
       if (!res.ok) { setImportResult("Drive error: " + (data.errorDetail || data.error)); return }
       setDriveFiles(data.files || [])
       setDriveDialogOpen(true)
-    } catch (err) { setImportResult("Failed: " + String(err)) }
+    } catch (error) { setImportResult("Failed: " + String(error)) }
     finally { setScanning(false) }
   }
 
@@ -225,8 +242,8 @@ export default function ExpensesPage() {
         return null
       }
       return data
-    } catch (err) {
-      setImportResult("Preview failed: " + String(err))
+    } catch (error) {
+      setImportResult("Preview failed: " + String(error))
       return null
     }
   }
@@ -242,7 +259,7 @@ export default function ExpensesPage() {
       setPage(1)
       loadData(1)
       fetch("/api/import-sessions").then(r => r.json()).then(setImportSessions)
-    } catch (err) { setImportResult("Drive import failed: " + String(err)) }
+    } catch (error) { setImportResult("Drive import failed: " + String(error)) }
     finally { setDriveImporting(false) }
   }
 
@@ -266,12 +283,11 @@ export default function ExpensesPage() {
     const form = editForm[expense.id]
     if (!form) return
     try {
-      const cat = categories.find((c) => String(c.id) === form.categoryId)
       const res = await fetch(`/api/expenses/${expense.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          categoryId: parseInt(form.categoryId),
+          categoryId: Number.parseInt(form.categoryId),
           subCategory: form.subCategory || null,
           person: form.person || null,
           vendor: expense.vendor || "",
@@ -282,8 +298,8 @@ export default function ExpensesPage() {
         setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)))
         setEditingId(null)
       }
-    } catch (err) {
-      console.error("Save failed:", err)
+    } catch (error) {
+      console.error("Save failed:", error)
     }
   }
 
@@ -298,11 +314,6 @@ export default function ExpensesPage() {
     setPage(1)
   }
 
-  const handleFilterChange = (setter: (val: string) => void) => (val: string) => {
-    setter(val)
-    setPage(1)
-  }
-
   const handleDatePreset = (preset: string) => {
     setDatePreset(preset)
     setPage(1)
@@ -311,54 +322,42 @@ export default function ExpensesPage() {
     const m = now.getMonth()
     if (preset === "all") { setDateFrom(""); setDateTo(""); return }
     if (preset === "custom") { setDateFrom(""); setDateTo(""); return }
-    if (preset === "this-month") {
+    switch (preset) {
+    case "this-month": {
       setDateFrom(new Date(y, m, 1).toISOString().split("T")[0])
       setDateTo(new Date(y, m + 1, 0).toISOString().split("T")[0])
-    } else if (preset === "prev-month") {
+    
+    break;
+    }
+    case "prev-month": {
       setDateFrom(new Date(y, m - 1, 1).toISOString().split("T")[0])
       setDateTo(new Date(y, m, 0).toISOString().split("T")[0])
-    } else if (preset === "this-quarter") {
+    
+    break;
+    }
+    case "this-quarter": {
       const q = Math.floor(m / 3) * 3
       setDateFrom(new Date(y, q, 1).toISOString().split("T")[0])
       setDateTo(new Date(y, q + 3, 0).toISOString().split("T")[0])
+    
+    break;
+    }
+    // No default
     }
   }
 
   const handleClearFilters = () => {
-    setCategoryFilter("all")
-    setVendorFilter("")
-    setPersonFilter("all")
-    setPaymentModeFilter("all")
-    setBankFilter("")
-    setSubCategoryFilter("")
+    setCategoryFilter([])
+    setVendorFilter([])
+    setPersonFilter([])
+    setPaymentModeFilter([])
+    setBankFilter([])
+    setSubCategoryFilter([])
     setAmountMin("")
     setAmountMax("")
-    setRecurrenceFilter("all")
-    setPage(1)
-  }
-
-  const handleVendorFilter = (val: string) => {
-    setVendorFilter(val)
-    setPage(1)
-  }
-
-  const handleSubCategoryFilter = (val: string) => {
-    setSubCategoryFilter(val)
-    setPage(1)
-  }
-
-  const handleBankFilter = (val: string) => {
-    setBankFilter(val)
-    setPage(1)
-  }
-
-  const handleAmountMinFilter = (val: string) => {
-    setAmountMin(val)
-    setPage(1)
-  }
-
-  const handleAmountMaxFilter = (val: string) => {
-    setAmountMax(val)
+    setRecurrenceFilter([])
+    setVendorFilterMode("contains")
+    setSubCategoryFilterMode("contains")
     setPage(1)
   }
 
@@ -534,29 +533,33 @@ export default function ExpensesPage() {
       <FilterBar
         categories={categories}
         categoryValue={categoryFilter}
-        onCategoryChange={handleFilterChange(setCategoryFilter)}
+        onCategoryChange={(vals) => { setCategoryFilter(vals); setPage(1) }}
         distinctVendors={distinctVendors}
         vendorValue={vendorFilter}
-        onVendorChange={handleVendorFilter}
+        onVendorChange={(vals) => { setVendorFilter(vals); setPage(1) }}
+        vendorMode={vendorFilterMode}
+        onVendorModeToggle={() => setVendorFilterMode((prev) => (prev === "contains" ? "not-contains" : "contains"))}
         distinctPersons={distinctPersons}
         personValue={personFilter}
-        onPersonChange={handleFilterChange(setPersonFilter)}
+        onPersonChange={(vals) => { setPersonFilter(vals); setPage(1) }}
         distinctPaymentModes={distinctPaymentModes}
         paymentModeValue={paymentModeFilter}
-        onPaymentModeChange={handleFilterChange(setPaymentModeFilter)}
+        onPaymentModeChange={(vals) => { setPaymentModeFilter(vals); setPage(1) }}
         distinctBankAccounts={distinctBankAccounts}
         bankValue={bankFilter}
-        onBankChange={handleBankFilter}
+        onBankChange={(vals) => { setBankFilter(vals); setPage(1) }}
         distinctSubCategories={distinctSubCategories}
         subCategoryValue={subCategoryFilter}
-        onSubCategoryChange={handleSubCategoryFilter}
+        onSubCategoryChange={(vals) => { setSubCategoryFilter(vals); setPage(1) }}
+        subCategoryMode={subCategoryFilterMode}
+        onSubCategoryModeToggle={() => setSubCategoryFilterMode((prev) => (prev === "contains" ? "not-contains" : "contains"))}
         amountMin={amountMin}
         amountMax={amountMax}
-        onAmountMinChange={handleAmountMinFilter}
-        onAmountMaxChange={handleAmountMaxFilter}
+        onAmountMinChange={(val) => { setAmountMin(val); setPage(1) }}
+        onAmountMaxChange={(val) => { setAmountMax(val); setPage(1) }}
         distinctRecurrenceTypes={distinctRecurrenceTypes}
         recurrenceValue={recurrenceFilter}
-        onRecurrenceChange={handleFilterChange(setRecurrenceFilter)}
+        onRecurrenceChange={(vals) => { setRecurrenceFilter(vals); setPage(1) }}
         onClear={handleClearFilters}
       />
 

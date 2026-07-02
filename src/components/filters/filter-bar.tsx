@@ -1,34 +1,38 @@
 "use client"
 
+import { MultiSelect, type MultiSelectOption } from "@/components/ui/multi-select"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { X } from "lucide-react"
 
 interface FilterBarProps {
   categories: Array<{ id: number; name: string; color?: string }>
-  categoryValue: string
-  onCategoryChange: (value: string) => void
+  categoryValue: string[]
+  onCategoryChange: (value: string[]) => void
 
   distinctVendors: string[]
-  vendorValue: string
-  onVendorChange: (value: string) => void
+  vendorValue: string[]
+  onVendorChange: (value: string[]) => void
+  vendorMode: "contains" | "not-contains"
+  onVendorModeToggle: () => void
 
   distinctPersons: string[]
-  personValue: string
-  onPersonChange: (value: string) => void
+  personValue: string[]
+  onPersonChange: (value: string[]) => void
 
   distinctPaymentModes: string[]
-  paymentModeValue: string
-  onPaymentModeChange: (value: string) => void
+  paymentModeValue: string[]
+  onPaymentModeChange: (value: string[]) => void
 
   distinctBankAccounts: string[]
-  bankValue: string
-  onBankChange: (value: string) => void
+  bankValue: string[]
+  onBankChange: (value: string[]) => void
 
   distinctSubCategories: string[]
-  subCategoryValue: string
-  onSubCategoryChange: (value: string) => void
+  subCategoryValue: string[]
+  onSubCategoryChange: (value: string[]) => void
+  subCategoryMode: "contains" | "not-contains"
+  onSubCategoryModeToggle: () => void
 
   amountMin: string
   amountMax: string
@@ -36,8 +40,8 @@ interface FilterBarProps {
   onAmountMaxChange: (value: string) => void
 
   distinctRecurrenceTypes: string[]
-  recurrenceValue: string
-  onRecurrenceChange: (value: string) => void
+  recurrenceValue: string[]
+  onRecurrenceChange: (value: string[]) => void
 
   onClear: () => void
 }
@@ -49,6 +53,8 @@ export function FilterBar({
   distinctVendors,
   vendorValue,
   onVendorChange,
+  vendorMode,
+  onVendorModeToggle,
   distinctPersons,
   personValue,
   onPersonChange,
@@ -61,6 +67,8 @@ export function FilterBar({
   distinctSubCategories,
   subCategoryValue,
   onSubCategoryChange,
+  subCategoryMode,
+  onSubCategoryModeToggle,
   amountMin,
   amountMax,
   onAmountMinChange,
@@ -71,99 +79,128 @@ export function FilterBar({
   onClear,
 }: FilterBarProps) {
   const hasActiveFilters =
-    categoryValue !== "all" ||
-    vendorValue !== "" ||
-    personValue !== "all" ||
-    paymentModeValue !== "all" ||
-    bankValue !== "" ||
-    subCategoryValue !== "" ||
+    categoryValue.length > 0 ||
+    vendorValue.length > 0 ||
+    personValue.length > 0 ||
+    paymentModeValue.length > 0 ||
+    bankValue.length > 0 ||
+    subCategoryValue.length > 0 ||
     amountMin !== "" ||
     amountMax !== "" ||
-    recurrenceValue !== "all"
+    recurrenceValue.length > 0
+
+  // Map arrays to MultiSelectOption[]
+  const categoryOptions: MultiSelectOption[] = categories.map((c) => ({
+    label: c.name,
+    value: String(c.id),
+  }))
+
+  const vendorOptions: MultiSelectOption[] = distinctVendors.map((v) => ({
+    label: v,
+    value: v,
+  }))
+
+  const personOptions: MultiSelectOption[] = distinctPersons.map((p) => ({
+    label: p,
+    value: p,
+  }))
+
+  const paymentModeOptions: MultiSelectOption[] = distinctPaymentModes.map((m) => ({
+    label: m,
+    value: m,
+  }))
+
+  const bankOptions: MultiSelectOption[] = distinctBankAccounts.map((b) => ({
+    label: b,
+    value: b,
+  }))
+
+  const subCategoryOptions: MultiSelectOption[] = distinctSubCategories.map((s) => ({
+    label: s,
+    value: s,
+  }))
+
+  const recurrenceTypeOptions: MultiSelectOption[] = distinctRecurrenceTypes.map((r) => ({
+    label: r,
+    value: r,
+  }))
 
   return (
     <div className="flex flex-wrap gap-x-3 gap-y-2 items-end" data-testid="filter-bar">
-      <div className="space-y-0.5">
-        <label htmlFor="filter-category" className="text-[10px] font-medium text-muted-foreground">Category</label>
-        <Select value={categoryValue} onValueChange={onCategoryChange}>
-          <SelectTrigger id="filter-category" className="h-9 text-sm w-32" aria-label="Category">
-            <SelectValue placeholder="All" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            {categories.map((c) => (
-              <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-0.5">
-        <label htmlFor="filter-vendor" className="text-[10px] font-medium text-muted-foreground">Vendor</label>
-        <Input
-          id="filter-vendor"
-          aria-label="Vendor"
-          list="fb-vendor-list"
-          placeholder="All"
-          className="h-9 text-sm w-32"
-          value={vendorValue}
-          onChange={(e) => onVendorChange(e.target.value)}
+      {/* Category filter */}
+      <div className="space-y-0.5 min-w-0">
+        <label className="text-[10px] font-medium text-muted-foreground">Category</label>
+        <MultiSelect
+          label="Category"
+          options={categoryOptions}
+          selected={categoryValue}
+          onChange={onCategoryChange}
+          placeholder="All Categories"
+          className="w-36"
+          showBlankOption
         />
-        <datalist id="fb-vendor-list">
-          {distinctVendors.map((v) => (
-            <option key={v} value={v} />
-          ))}
-        </datalist>
       </div>
 
-      <div className="space-y-0.5">
-        <label htmlFor="filter-person" className="text-[10px] font-medium text-muted-foreground">Person</label>
-        <Select value={personValue} onValueChange={onPersonChange}>
-          <SelectTrigger id="filter-person" className="h-9 text-sm w-28" aria-label="Person">
-            <SelectValue placeholder="All" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            {distinctPersons.map((p) => (
-              <SelectItem key={p} value={p}>{p}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-0.5">
-        <label htmlFor="filter-mode" className="text-[10px] font-medium text-muted-foreground">Mode</label>
-        <Select value={paymentModeValue} onValueChange={onPaymentModeChange}>
-          <SelectTrigger id="filter-mode" className="h-9 text-sm w-28" aria-label="Mode">
-            <SelectValue placeholder="All" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            {distinctPaymentModes.map((m) => (
-              <SelectItem key={m} value={m}>{m}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-0.5">
-        <label htmlFor="filter-bank" className="text-[10px] font-medium text-muted-foreground">Bank</label>
-        <Input
-          id="filter-bank"
-          aria-label="Bank"
-          list="fb-bank-list"
-          placeholder="All"
-          className="h-9 text-sm w-32"
-          value={bankValue}
-          onChange={(e) => onBankChange(e.target.value)}
+      {/* Vendor filter (with mode toggle) */}
+      <div className="space-y-0.5 min-w-0">
+        <label className="text-[10px] font-medium text-muted-foreground">Vendor</label>
+        <MultiSelect
+          label="Vendor"
+          options={vendorOptions}
+          selected={vendorValue}
+          onChange={onVendorChange}
+          placeholder="All Vendors"
+          className="w-36"
+          showBlankOption
+          showModeToggle
+          mode={vendorMode}
+          onModeToggle={onVendorModeToggle}
         />
-        <datalist id="fb-bank-list">
-          {distinctBankAccounts.map((b) => (
-            <option key={b} value={b} />
-          ))}
-        </datalist>
       </div>
 
+      {/* Person filter */}
+      <div className="space-y-0.5 min-w-0">
+        <label className="text-[10px] font-medium text-muted-foreground">Person</label>
+        <MultiSelect
+          label="Person"
+          options={personOptions}
+          selected={personValue}
+          onChange={onPersonChange}
+          placeholder="All Persons"
+          className="w-32"
+          showBlankOption
+        />
+      </div>
+
+      {/* Mode filter */}
+      <div className="space-y-0.5 min-w-0">
+        <label className="text-[10px] font-medium text-muted-foreground">Mode</label>
+        <MultiSelect
+          label="Mode"
+          options={paymentModeOptions}
+          selected={paymentModeValue}
+          onChange={onPaymentModeChange}
+          placeholder="All Modes"
+          className="w-32"
+          showBlankOption
+        />
+      </div>
+
+      {/* Bank filter */}
+      <div className="space-y-0.5 min-w-0">
+        <label className="text-[10px] font-medium text-muted-foreground">Bank</label>
+        <MultiSelect
+          label="Bank"
+          options={bankOptions}
+          selected={bankValue}
+          onChange={onBankChange}
+          placeholder="All Banks"
+          className="w-36"
+          showBlankOption
+        />
+      </div>
+
+      {/* Amount range */}
       <div className="space-y-0.5">
         <label className="text-[10px] font-medium text-muted-foreground">Amount</label>
         <div className="flex items-center gap-1">
@@ -187,39 +224,38 @@ export function FilterBar({
         </div>
       </div>
 
-      <div className="space-y-0.5">
-        <label htmlFor="filter-type" className="text-[10px] font-medium text-muted-foreground">Type</label>
-        <Select value={recurrenceValue} onValueChange={onRecurrenceChange}>
-          <SelectTrigger id="filter-type" className="h-9 text-sm w-28" aria-label="Type">
-            <SelectValue placeholder="All" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            {distinctRecurrenceTypes.map((r) => (
-              <SelectItem key={r} value={r}>{r}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-0.5">
-        <label htmlFor="filter-subcat" className="text-[10px] font-medium text-muted-foreground">Sub Cat</label>
-        <Input
-          id="filter-subcat"
-          aria-label="Sub Cat"
-          list="fb-subcat-list"
-          placeholder="All"
-          className="h-9 text-sm w-28"
-          value={subCategoryValue}
-          onChange={(e) => onSubCategoryChange(e.target.value)}
+      {/* Type (recurrence) filter */}
+      <div className="space-y-0.5 min-w-0">
+        <label className="text-[10px] font-medium text-muted-foreground">Type</label>
+        <MultiSelect
+          label="Type"
+          options={recurrenceTypeOptions}
+          selected={recurrenceValue}
+          onChange={onRecurrenceChange}
+          placeholder="All Types"
+          className="w-32"
+          showBlankOption
         />
-        <datalist id="fb-subcat-list">
-          {distinctSubCategories.map((s) => (
-            <option key={s} value={s} />
-          ))}
-        </datalist>
       </div>
 
+      {/* Sub Cat filter (with mode toggle) */}
+      <div className="space-y-0.5 min-w-0">
+        <label className="text-[10px] font-medium text-muted-foreground">Sub Cat</label>
+        <MultiSelect
+          label="Sub-Cat"
+          options={subCategoryOptions}
+          selected={subCategoryValue}
+          onChange={onSubCategoryChange}
+          placeholder="All Sub Cats"
+          className="w-36"
+          showBlankOption
+          showModeToggle
+          mode={subCategoryMode}
+          onModeToggle={onSubCategoryModeToggle}
+        />
+      </div>
+
+      {/* Clear all button */}
       {hasActiveFilters && (
         <div className="space-y-0.5">
           <label className="text-[10px] font-medium text-muted-foreground">&nbsp;</label>

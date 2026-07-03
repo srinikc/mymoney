@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { AlertCircle, CheckCircle2, Link2, RefreshCw, LogOut, Building2 } from "lucide-react"
+import { AlertCircle, CheckCircle2, Link2, RefreshCw, LogOut, Building2, Wallet, Loader2 } from "lucide-react"
 
 type BrokerStatus = {
   configured: boolean
@@ -22,6 +22,8 @@ export default function IntegrationsPage() {
   const [loading, setLoading] = useState(true)
   const [importingZerodha, setImportingZerodha] = useState(false)
   const [importingSharekhan, setImportingSharekhan] = useState(false)
+  const [gpayRefreshing, setGpayRefreshing] = useState(false)
+  const [gpayJobId, setGpayJobId] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
   useEffect(() => {
@@ -150,6 +152,44 @@ export default function IntegrationsPage() {
           importing={importingSharekhan}
         />
       </div>
+
+      <Card>
+        <CardHeader><CardTitle>GPay Takeout Auto-Refresh</CardTitle></CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            Automatically trigger a Google Takeout export for GPay transactions.
+            Requires an active Google session saved in the browser profile.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="default"
+              onClick={async () => {
+                setGpayRefreshing(true)
+                setGpayJobId(null)
+                try {
+                  const res = await fetch("/api/refresh-gpay", { method: "POST" })
+                  const data = await res.json()
+                  setGpayJobId(data.jobId)
+                  setMessage("GPay refresh started! Check back in a few minutes.")
+                } catch (error) {
+                  setMessage("GPay refresh failed to start.")
+                } finally {
+                  setGpayRefreshing(false)
+                }
+              }}
+              disabled={gpayRefreshing}
+            >
+              {gpayRefreshing ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1.5 h-4 w-4" />}
+              {gpayRefreshing ? "Starting..." : "Refresh GPay"}
+            </Button>
+            {gpayJobId && (
+              <Button variant="outline" onClick={() => window.open("/expenses", "_blank")}>
+                Go to Expenses
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle>Manual Stock Entry</CardTitle></CardHeader>

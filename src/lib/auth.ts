@@ -1,9 +1,11 @@
 import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
 import Resend from "next-auth/providers/resend"
+import Credentials from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
 import type { Adapter } from "next-auth/adapters"
+import bcrypt from "bcryptjs"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma) as Adapter,
@@ -26,6 +28,51 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }),
         ]
       : []),
+    Credentials({
+      id: "credentials",
+      name: "Credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          return null
+        }
+
+        const email = String(credentials.email)
+        const password = String(credentials.password)
+
+        const user = await prisma.user.findUnique({
+          where: { email },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            image: true,
+            role: true,
+            hashedPassword: true,
+          },
+        })
+
+        if (!user || !user.hashedPassword) {
+          return null
+        }
+
+        const isValid = await bcrypt.compare(password, user.hashedPassword)
+        if (!isValid) {
+          return null
+        }
+
+        return {
+          id: String(user.id),
+          email: user.email,
+          name: user.name,
+          image: user.image,
+          role: user.role,
+        }
+      },
+    }),
   ],
   callbacks: {
     async session({ session, user }) {

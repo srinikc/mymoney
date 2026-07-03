@@ -2,8 +2,8 @@
 // Run: npx tsx scripts/generate-icons.ts
 
 import sharp from "sharp"
-import * as fs from "fs"
-import * as path from "path"
+import * as fs from "node:fs"
+import * as path from "node:path"
 
 const SIZES = [192, 512]
 const OUT_DIR = path.join(__dirname, "..", "public", "icons")

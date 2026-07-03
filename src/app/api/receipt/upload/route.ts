@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
-import * as fs from "fs"
-import * as path from "path"
+import * as fs from "node:fs"
+import * as path from "node:path"
 import { extractReceiptData, extractReceiptText } from "@/shared/receipt-ocr"
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"]

@@ -40,14 +40,13 @@ export async function POST(req: Request) {
       const zip = new AdmZip(buffer)
       const allEntries = zip.getEntries() as Array<{ entryName: string; getData: () => Buffer }>
       const htmlEntry = allEntries.find((e) =>
-        e.entryName.replace(/\\/g, "/").toLowerCase().includes("my activity")
+        e.entryName.replaceAll('\\', "/").toLowerCase().includes("my activity")
       )
       if (htmlEntry) {
         const content = htmlEntry.getData().toString("utf-8")
         const htmlTxns = parseGpayTakeoutHtml(content)
         const maxDate = await prisma.expense.aggregate({ _max: { date: true } }).then((r) => r._max.date)
-        if (maxDate) transactions = htmlTxns.filter((t) => t.date >= maxDate).map((t) => ({ ...t }))
-        else transactions = htmlTxns.map((t) => ({ ...t }))
+        transactions = maxDate ? htmlTxns.filter((t) => t.date >= maxDate).map((t) => ({ ...t })) : htmlTxns.map((t) => ({ ...t }));
       }
     } catch { /* not a ZIP */ }
 
@@ -57,8 +56,7 @@ export async function POST(req: Request) {
         const text = buffer.toString("utf-8")
         const htmlTxns = parseGpayTakeoutHtml(text)
         const maxDate = await prisma.expense.aggregate({ _max: { date: true } }).then((r) => r._max.date)
-        if (maxDate) transactions = htmlTxns.filter((t) => t.date >= maxDate).map((t) => ({ ...t }))
-        else transactions = htmlTxns.map((t) => ({ ...t }))
+        transactions = maxDate ? htmlTxns.filter((t) => t.date >= maxDate).map((t) => ({ ...t })) : htmlTxns.map((t) => ({ ...t }));
       } catch { /* not HTML */ }
     }
 

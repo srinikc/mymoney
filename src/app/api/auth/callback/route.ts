@@ -30,8 +30,8 @@ export async function GET(req: Request) {
     })
 
     return NextResponse.redirect(new URL("/expenses?gdrive=connected", req.url))
-  } catch (err) {
-    console.error("Auth callback error:", err)
+  } catch (error_) {
+    console.error("Auth callback error:", error_)
     return NextResponse.redirect(new URL("/expenses?gdrive=error", req.url))
   }
 }

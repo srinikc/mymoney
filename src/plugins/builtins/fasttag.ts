@@ -23,7 +23,7 @@ export function isFastTag(vendor: string, description: string): boolean {
 
 export function getFastTagCategoryId(categories: Array<{ id: number; name: string }>): number {
   const vehicleExpense = categories.find(
-    (c) => c.name.toLowerCase().replace(/[\s-]/g, "") === "vehicleexpense"
+    (c) => c.name.toLowerCase().replaceAll(/[\s-]/g, "") === "vehicleexpense"
   )
   return vehicleExpense?.id || 0
 }

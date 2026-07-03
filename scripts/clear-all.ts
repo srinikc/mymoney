@@ -7,4 +7,4 @@ async function main() {
   console.log(`Cleared: ${e.count} expenses, ${m.count} merchant mappings, ${s.count} import sessions`)
   await p.$disconnect()
 }
-main().catch((e) => { console.error(e); p.$disconnect() })
+main().catch((error) => { console.error(error); p.$disconnect() })

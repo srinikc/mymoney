@@ -93,7 +93,7 @@ export default function BudgetsPage() {
       </div>
 
       <div className="flex items-center gap-4">
-        <Select value={String(month)} onValueChange={(v) => setMonth(parseInt(v))}>
+        <Select value={String(month)} onValueChange={(v) => setMonth(Number.parseInt(v))}>
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
             {Array.from({ length: 12 }, (_, i) => (
@@ -103,7 +103,7 @@ export default function BudgetsPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={String(year)} onValueChange={(v) => setYear(parseInt(v))}>
+        <Select value={String(year)} onValueChange={(v) => setYear(Number.parseInt(v))}>
           <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
           <SelectContent>
             {Array.from({ length: 5 }, (_, i) => (
@@ -130,7 +130,7 @@ export default function BudgetsPage() {
         <CardContent>
           {loading ? (
             <div className="p-4"><CardGridSkeleton /></div>
-          ) : budgets.length === 0 ? (
+          ) : (budgets.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">
               No budgets set for this month. Add one to start tracking!
             </div>
@@ -153,7 +153,7 @@ export default function BudgetsPage() {
                         <span className="text-xs text-muted-foreground">of</span>
                         <span className="font-medium">{formatCurrency(budget.amount)}</span>
                         <span className={`text-xs font-semibold min-w-[3rem] text-right ${
-                          isOver ? "text-red-500" : isWarning ? "text-amber-500" : "text-emerald-500"
+                          isOver ? "text-red-500" : (isWarning ? "text-amber-500" : "text-emerald-500")
                         }`}>
                           {utilization.toFixed(0)}%
                         </span>
@@ -161,14 +161,14 @@ export default function BudgetsPage() {
                     </div>
                     <Progress value={Math.min(utilization, 100)} className={`h-2 ${
                       isOver ? "bg-red-500/20 [&>div]:bg-red-500" :
-                      isWarning ? "bg-amber-500/20 [&>div]:bg-amber-500" :
-                      "bg-primary/20"
+                      (isWarning ? "bg-amber-500/20 [&>div]:bg-amber-500" :
+                      "bg-primary/20")
                     }`} />
                   </div>
                 )
               })}
             </div>
-          )}
+          ))}
         </CardContent>
       </Card>
     </div>

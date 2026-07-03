@@ -54,10 +54,10 @@ export async function PUT(req: Request) {
       description: body.description,
       priority: body.priority,
       dueDate: body.dueDate ? new Date(body.dueDate) : null,
-      amount: body.amount !== undefined ? (body.amount ? Number(body.amount) : null) : undefined,
+      amount: body.amount === undefined ? undefined : (body.amount ? Number(body.amount) : null),
       categoryId: body.categoryId ? Number(body.categoryId) : null,
       recurring: body.recurring,
-      isCompleted: body.isCompleted !== undefined ? body.isCompleted : undefined,
+      isCompleted: body.isCompleted === undefined ? undefined : body.isCompleted,
       completedAt: body.isCompleted ? new Date() : null,
     },
   })
@@ -68,6 +68,6 @@ export async function DELETE(req: Request) {
   const { searchParams } = new URL(req.url)
   const id = searchParams.get("id")
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })
-  await prisma.reminder.delete({ where: { id: parseInt(id) } })
+  await prisma.reminder.delete({ where: { id: Number.parseInt(id) } })
   return NextResponse.json({ success: true })
 }

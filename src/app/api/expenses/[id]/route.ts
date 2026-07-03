@@ -29,7 +29,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (body.paidThrough !== undefined) data.paidThrough = body.paidThrough
 
   const expense = await prisma.expense.update({
-    where: { id: parseInt(id) },
+    where: { id: Number.parseInt(id) },
     data,
     include: { category: true },
   })

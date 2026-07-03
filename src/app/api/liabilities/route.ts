@@ -13,8 +13,8 @@ export async function POST(req: Request) {
       data: {
         name: body.name,
         type: body.type || "other",
-        amount: parseFloat(body.amount),
-        interestRate: body.interestRate ? parseFloat(body.interestRate) : null,
+        amount: Number.parseFloat(body.amount),
+        interestRate: body.interestRate ? Number.parseFloat(body.interestRate) : null,
         dueDate: body.dueDate ? new Date(body.dueDate) : null,
         notes: body.notes || null,
       },

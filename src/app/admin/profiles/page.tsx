@@ -44,14 +44,14 @@ export default function AdminProfilesPage() {
     setLoading(true)
     try {
       const res = await fetch("/api/admin/profiles")
-      if (!res.ok) {
-        if (res.status === 403) setError("Admin access required")
-        else setError("Failed to load profiles")
-        setProfiles([])
-      } else {
+      if (res.ok) {
         const data = await res.json()
         setProfiles(data)
         setError(null)
+      } else {
+        if (res.status === 403) setError("Admin access required")
+        else setError("Failed to load profiles")
+        setProfiles([])
       }
     } catch {
       setError("Failed to load profiles")
@@ -77,12 +77,12 @@ export default function AdminProfilesPage() {
 
   const createProfile = async () => {
     setCreateError(null)
-    const userId = parseInt(newProfileUserId)
+    const userId = Number.parseInt(newProfileUserId)
     if (!newProfileName.trim()) {
       setCreateError("Profile name is required")
       return
     }
-    if (isNaN(userId) || userId <= 0) {
+    if (Number.isNaN(userId) || userId <= 0) {
       setCreateError("Valid user ID is required")
       return
     }

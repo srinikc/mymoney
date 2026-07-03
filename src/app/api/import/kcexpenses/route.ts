@@ -34,7 +34,7 @@ function parseDate(raw: unknown): Date | null {
   if (!raw) return null
   if (typeof raw === "number") {
     const excelEpoch = new Date(1899, 11, 30)
-    return new Date(excelEpoch.getTime() + raw * 86400000)
+    return new Date(excelEpoch.getTime() + raw * 86_400_000)
   }
   const str = String(raw).trim()
 
@@ -55,8 +55,8 @@ function parseDate(raw: unknown): Date | null {
 function parseAmount(raw: unknown): number | null {
   if (!raw) return null
   if (typeof raw === "number") return Math.abs(raw)
-  const cleaned = String(raw).replace(/[^0-9.-]/g, "")
-  const n = parseFloat(cleaned)
+  const cleaned = String(raw).replaceAll(/[^\d.-]/g, "")
+  const n = Number.parseFloat(cleaned)
   return isNaN(n) ? null : Math.abs(n)
 }
 
@@ -233,12 +233,12 @@ export async function POST(req: Request) {
         total: parsed.length,
         dateRange: {
           from: parsed[0].date.toISOString().split("T")[0],
-          to: parsed[parsed.length - 1].date.toISOString().split("T")[0],
+          to: parsed.at(-1).date.toISOString().split("T")[0],
         },
         totalAmount: Math.round(totalAmount),
         uniqueTypes: types.size,
         uniquePersons: persons.size,
-        years: Array.from(years).sort(),
+        years: [...years].sort(),
         sample: parsed.slice(0, 5).map((p) => ({
           date: p.date.toISOString().split("T")[0],
           vendor: p.vendor,

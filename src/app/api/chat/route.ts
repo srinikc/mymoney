@@ -27,13 +27,11 @@ export async function POST(req: NextRequest) {
     const currentMonth = now.getMonth() + 1
     const currentYear = now.getFullYear()
     const startOfMonth = new Date(currentYear, currentMonth - 1, 1)
-    const startOfLastMonth = new Date(currentYear, currentMonth - 2, 1)
 
     // Gather financial context data in parallel
     const [
       totalExpensesAgg,
       monthlyExpensesAgg,
-      lastMonthExpensesAgg,
       incomeAgg,
       categoryData,
       budgets,
@@ -51,11 +49,6 @@ export async function POST(req: NextRequest) {
       // Current month expenses
       prisma.expense.aggregate({
         where: { ...profileFilter, date: { gte: startOfMonth }, amount: { gt: 0 } },
-        _sum: { amount: true },
-      }),
-      // Last month expenses
-      prisma.expense.aggregate({
-        where: { ...profileFilter, date: { gte: startOfLastMonth, lt: startOfMonth }, amount: { gt: 0 } },
         _sum: { amount: true },
       }),
       // Income (negative amounts as income proxy)

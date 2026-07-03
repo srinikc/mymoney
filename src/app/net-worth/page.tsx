@@ -172,7 +172,7 @@ export default function NetWorthPage() {
                     <div>
                       <p className="font-medium text-sm">{l.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {l.type}{l.interestRate ? ` - ${l.interestRate}%` : ""}{l.dueDate ? ` due ${new Date(l.dueDate).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")}` : ""}
+                        {l.type}{l.interestRate ? ` - ${l.interestRate}%` : ""}{l.dueDate ? ` due ${new Date(l.dueDate).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }).replaceAll('/', "-")}` : ""}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

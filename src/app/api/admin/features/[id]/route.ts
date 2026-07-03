@@ -26,7 +26,7 @@ export async function PUT(
 
   const { id } = await params
   const featureId = Number(id)
-  if (isNaN(featureId)) {
+  if (Number.isNaN(featureId)) {
     return NextResponse.json({ error: "Invalid feature ID" }, { status: 400 })
   }
 
@@ -71,7 +71,7 @@ export async function DELETE(
 
   const { id } = await params
   const featureId = Number(id)
-  if (isNaN(featureId)) {
+  if (Number.isNaN(featureId)) {
     return NextResponse.json({ error: "Invalid feature ID" }, { status: 400 })
   }
 

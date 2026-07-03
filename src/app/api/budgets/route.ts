@@ -5,15 +5,15 @@ import { BudgetCreateSchema } from "@/shared/validation"
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
-  const month = parseInt(searchParams.get("month") || "")
-  const year = parseInt(searchParams.get("year") || "")
+  const month = Number.parseInt(searchParams.get("month") || "")
+  const year = Number.parseInt(searchParams.get("year") || "")
 
   const where: Record<string, unknown> = {}
   if (month) where.month = month
   if (year) where.year = year
 
   const budgets = await prisma.budget.findMany({
-    where: Object.keys(where).length ? where : undefined,
+    where: Object.keys(where).length > 0 ? where : undefined,
     include: { category: true },
     orderBy: { category: { name: "asc" } },
   })
@@ -59,8 +59,8 @@ export async function PUT(req: Request) {
   const body = await req.json()
   if (!body.id) return NextResponse.json({ error: "id required" }, { status: 400 })
   const budget = await prisma.budget.update({
-    where: { id: parseInt(body.id) },
-    data: { amount: parseFloat(body.amount) },
+    where: { id: Number.parseInt(body.id) },
+    data: { amount: Number.parseFloat(body.amount) },
     include: { category: true },
   })
   return NextResponse.json(budget)
@@ -70,6 +70,6 @@ export async function DELETE(req: Request) {
   const { searchParams } = new URL(req.url)
   const id = searchParams.get("id")
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })
-  await prisma.budget.delete({ where: { id: parseInt(id) } })
+  await prisma.budget.delete({ where: { id: Number.parseInt(id) } })
   return NextResponse.json({ success: true })
 }

@@ -4,8 +4,8 @@ import type { Prisma } from "@prisma/client"
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
-  const page = Math.max(1, parseInt(searchParams.get("page") || "1"))
-  const pageSize = Math.max(1, Math.min(200, parseInt(searchParams.get("pageSize") || "100")))
+  const page = Math.max(1, Number.parseInt(searchParams.get("page") || "1"))
+  const pageSize = Math.max(1, Math.min(200, Number.parseInt(searchParams.get("pageSize") || "100")))
   const search = searchParams.get("search") || ""
 
   const where: Prisma.ExpenseWhereInput = { flagged: true }

@@ -5,7 +5,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const q = searchParams.get("q") || ""
 
-  if (!q || q.length < 1) {
+  if (!q || q.length === 0) {
     return NextResponse.json({ results: [] })
   }
 

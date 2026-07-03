@@ -23,7 +23,7 @@ export async function GET() {
   }
 
   // Check which vendors are already mapped
-  const vendors = Array.from(vendorMap.entries()).map(([key, data]) => ({ key, ...data }))
+  const vendors = [...vendorMap.entries()].map(([key, data]) => ({ key, ...data }))
   const batchSize = 50
   const unmapped = []
   for (let i = 0; i < vendors.length; i += batchSize) {
@@ -44,9 +44,9 @@ export async function GET() {
   unmapped.sort((a, b) => b.count - a.count)
 
   // Get category names
-  const allCatIds = new Set<number>(unmapped.flatMap((v) => Array.from(v.categoryIds)))
+  const allCatIds = new Set<number>(unmapped.flatMap((v) => [...v.categoryIds]))
   const categories = await prisma.category.findMany({
-    where: { id: { in: Array.from(allCatIds) } },
+    where: { id: { in: [...allCatIds] } },
     select: { id: true, name: true },
   })
   const catNameMap = new Map(categories.map((c) => [c.id, c.name]))
@@ -56,7 +56,7 @@ export async function GET() {
       key: v.key,
       count: v.count,
       total: Math.round(v.total),
-      categoryName: catNameMap.get(Array.from(v.categoryIds)[0] as number) || "",
+      categoryName: catNameMap.get([...v.categoryIds][0] as number) || "",
     })),
     total: unmapped.length,
   })

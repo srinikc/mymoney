@@ -34,10 +34,10 @@ export async function PUT(req: Request) {
     data: {
       type: body.type,
       name: body.name,
-      amount: body.amount !== undefined ? Number(body.amount) : undefined,
-      currentValue: body.currentValue !== undefined ? Number(body.currentValue) : undefined,
+      amount: body.amount === undefined ? undefined : Number(body.amount),
+      currentValue: body.currentValue === undefined ? undefined : Number(body.currentValue),
       purchaseDate: body.purchaseDate ? new Date(body.purchaseDate) : undefined,
-      returnRate: body.returnRate !== undefined ? (body.returnRate ? Number(body.returnRate) : null) : undefined,
+      returnRate: body.returnRate === undefined ? undefined : (body.returnRate ? Number(body.returnRate) : null),
       notes: body.notes,
       status: body.status,
     },
@@ -49,6 +49,6 @@ export async function DELETE(req: Request) {
   const { searchParams } = new URL(req.url)
   const id = searchParams.get("id")
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })
-  await prisma.investment.delete({ where: { id: parseInt(id) } })
+  await prisma.investment.delete({ where: { id: Number.parseInt(id) } })
   return NextResponse.json({ success: true })
 }

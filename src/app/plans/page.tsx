@@ -116,7 +116,7 @@ export default function PlansPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {loading ? (
           <div className="col-span-full"><CardGridSkeleton /></div>
-        ) : plans.length === 0 ? (
+        ) : (plans.length === 0 ? (
           <div className="col-span-full py-12 text-center text-muted-foreground">No plans yet. Create a financial plan!</div>
         ) : plans.map((plan) => (
           <Card key={plan.id}>
@@ -161,7 +161,7 @@ export default function PlansPage() {
               )}
             </CardContent>
           </Card>
-        ))}
+        )))}
       </div>
     </div>
   )

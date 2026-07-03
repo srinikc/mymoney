@@ -8,7 +8,7 @@ export function parseGpayTakeoutEntry(txn: Record<string, unknown>): { date: Dat
 
   let rawDate = txn.transactionDate || txn.transactionTime || txn.date
   let rawAmount = amountObj?.value ?? txn.amount
-  if (typeof rawAmount === "string") rawAmount = parseFloat(rawAmount)
+  if (typeof rawAmount === "string") rawAmount = Number.parseFloat(rawAmount)
   let vendor = merchant?.name as string | undefined || merchantName || txn.description as string || ""
 
   if (typeof rawDate === "string") {
@@ -20,7 +20,7 @@ export function parseGpayTakeoutEntry(txn: Record<string, unknown>): { date: Dat
   let date: Date
   if (typeof rawDate === "number") {
     const excelEpoch = new Date(1899, 11, 30)
-    date = new Date(excelEpoch.getTime() + rawDate * 86400000)
+    date = new Date(excelEpoch.getTime() + rawDate * 86_400_000)
   } else {
     date = new Date(String(rawDate))
   }
@@ -32,7 +32,7 @@ export function parseGpayTakeoutEntry(txn: Record<string, unknown>): { date: Dat
   vendor = String(vendor).trim()
   if (vendor.startsWith("Paid to ")) vendor = vendor.slice(8)
   if (vendor.startsWith("Paid via ")) vendor = ""
-  if (/^(Sent|Received|Paid|Recharge)/i.test(vendor)) vendor = ""
+  if (/^(sent|received|paid|recharge)/i.test(vendor)) vendor = ""
 
   return { date, amount, vendor }
 }
@@ -57,24 +57,24 @@ export function parseGpayTakeoutJson(json: Record<string, unknown>): Record<stri
 export function parseGpayTakeoutHtml(html: string): { date: Date; amount: number; vendor: string; bankAccount: string }[] {
   const results: { date: Date; amount: number; vendor: string; bankAccount: string }[] = []
 
-  const text = html.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ")
+  const text = html.replaceAll(/<[^>]+>/g, " ").replaceAll('&nbsp;', " ").replaceAll('&amp;', "&").replaceAll(/\s+/g, " ")
 
   // Match with or without merchant name:
   // "Paid ₹300 to Merchant using Bank Account ... Completed"
   // "Paid ₹300 using Bank Account ... Completed"
-  const txnRegex = /(Paid|Sent|Received)\s+₹([\d,]+\.?\d*)\s+(?:(?:to|from)\s+(.+?)\s+)?using\s+(bank account\s*x+\d+)\s+(.*?)(?=\s+(?:Paid|Sent|Received)\b|\s*$)/gi
+  const txnRegex = /(paid|sent|received)\s+₹([\d,]+\.?\d*)\s+(?:(?:to|from)\s+(.+?)\s+)?using\s+(bank account\s*x+\d+)\s+(.*?)(?=\s+(?:paid|sent|received)\b|\s*$)/gi
   let match: RegExpExecArray | null
 
   while ((match = txnRegex.exec(text)) !== null) {
-    const amount = parseFloat(match[2].replace(/,/g, ""))
+    const amount = Number.parseFloat(match[2].replaceAll(',', ""))
     const vendor = match[3] ? match[3].trim() : ""
     const bankAccount = match[4]
     const remainder = match[5]
 
-    const dateMatch = remainder.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}\b/i)
+    const dateMatch = remainder.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{4}\b/i)
     const date = dateMatch ? new Date(dateMatch[0]) : null
 
-    const isCompleted = /\bCompleted\b/i.test(remainder)
+    const isCompleted = /\bcompleted\b/i.test(remainder)
 
     if (date && !isNaN(date.getTime()) && amount > 0 && isCompleted) {
       results.push({ date, amount, vendor, bankAccount })

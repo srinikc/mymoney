@@ -11,19 +11,19 @@ export async function GET(request: Request) {
   const monthParam = searchParams.get("month")
   const quarterParam = searchParams.get("quarter")
 
-  const year = yearParam ? parseInt(yearParam) : currentYear
-  const month = monthParam ? parseInt(monthParam) - 1 : undefined
-  const quarter = quarterParam ? parseInt(quarterParam) : undefined
+  const year = yearParam ? Number.parseInt(yearParam) : currentYear
+  const month = monthParam ? Number.parseInt(monthParam) - 1 : undefined
+  const quarter = quarterParam ? Number.parseInt(quarterParam) : undefined
 
   const yearStart = new Date(year, 0, 1)
   const yearEnd = new Date(year + 1, 0, 1)
   const yearFilter = { gte: yearStart, lt: yearEnd }
 
-  const monthlyFilter = month !== undefined
-    ? { gte: new Date(year, month, 1), lt: new Date(year, month + 1, 1) }
-    : quarter !== undefined
-      ? { gte: new Date(year, (quarter - 1) * 3, 1), lt: new Date(year, quarter * 3, 1) }
-      : yearFilter
+  const monthlyFilter = month === undefined
+    ? (quarter === undefined
+      ? yearFilter
+      : { gte: new Date(year, (quarter - 1) * 3, 1), lt: new Date(year, quarter * 3, 1) })
+    : { gte: new Date(year, month, 1), lt: new Date(year, month + 1, 1) }
 
   const [
     totalExpensesAgg,

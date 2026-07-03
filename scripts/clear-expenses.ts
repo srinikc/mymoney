@@ -3,7 +3,7 @@ const p = new PrismaClient()
 p.expense.deleteMany().then(r => {
   console.log("Deleted", r.count, "expenses")
   return p.$disconnect()
-}).catch(e => {
-  console.error(e)
+}).catch(error => {
+  console.error(error)
   return p.$disconnect()
 })

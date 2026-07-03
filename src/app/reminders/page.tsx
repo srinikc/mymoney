@@ -186,7 +186,7 @@ export default function RemindersPage() {
       <div className="flex gap-2">
         {["upcoming", "completed", "all"].map((f) => (
           <Button key={f} variant={filter === f ? "default" : "outline"} size="sm" onClick={() => setFilter(f)}>
-            {f === "upcoming" ? "Upcoming" : f === "completed" ? "Completed" : "All"}
+            {f === "upcoming" ? "Upcoming" : (f === "completed" ? "Completed" : "All")}
           </Button>
         ))}
       </div>
@@ -194,7 +194,7 @@ export default function RemindersPage() {
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {loading ? (
           <div className="col-span-full"><CardGridSkeleton /></div>
-        ) : reminders.length === 0 ? (
+        ) : (reminders.length === 0 ? (
           <div className="col-span-full py-12 text-center text-muted-foreground">
             {filter === "upcoming" ? "No upcoming reminders. Add one or auto-detect from expenses!" : "No reminders found."}
           </div>
@@ -233,7 +233,7 @@ export default function RemindersPage() {
               </div>
             </CardContent>
           </Card>
-        ))}
+        )))}
       </div>
     </div>
   )

@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth"
 import { z } from "zod"
 
 const TierChangeSchema = z.object({
-  userId: z.union([z.string(), z.number()]).transform((v) => Number(v)),
+  userId: z.union([z.string(), z.number()]).transform(Number),
   tier: z.enum(["free", "pro", "premium"]),
 })
 

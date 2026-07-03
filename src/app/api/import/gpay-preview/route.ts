@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       }
       const entries = zip.getEntries() as Array<{ entryName: string; getData: () => Buffer }>
       const htmlEntry = entries.find((e) =>
-        e.entryName.replace(/\\/g, "/").toLowerCase().includes("my activity")
+        e.entryName.replaceAll('\\', "/").toLowerCase().includes("my activity")
       )
       if (htmlEntry) {
         const content = htmlEntry.getData().toString("utf-8")

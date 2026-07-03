@@ -120,7 +120,7 @@ export default function GoalsPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {loading ? (
           <div className="col-span-full"><CardGridSkeleton /></div>
-        ) : goals.length === 0 ? (
+        ) : (goals.length === 0 ? (
           <div className="col-span-full py-12 text-center text-muted-foreground">No goals yet. Create your first financial goal!</div>
         ) : goals.map((goal) => (
           <Card key={goal.id}>
@@ -156,7 +156,7 @@ export default function GoalsPage() {
               )}
             </CardContent>
           </Card>
-        ))}
+        )))}
       </div>
     </div>
   )

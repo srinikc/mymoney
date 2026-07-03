@@ -5,7 +5,7 @@ import * as XLSX from "xlsx"
 function parseDate(raw: unknown): Date | null {
   if (!raw) return null
   if (typeof raw === "number") {
-    return new Date(new Date(1899, 11, 30).getTime() + raw * 86400000)
+    return new Date(new Date(1899, 11, 30).getTime() + raw * 86_400_000)
   }
   const str = String(raw).trim()
   let d = new Date(str)
@@ -21,8 +21,8 @@ function parseDate(raw: unknown): Date | null {
 function parseAmount(raw: unknown): number | null {
   if (!raw) return null
   if (typeof raw === "number") return Math.abs(raw)
-  const cleaned = String(raw).replace(/[^0-9.-]/g, "")
-  const n = parseFloat(cleaned)
+  const cleaned = String(raw).replaceAll(/[^\d.-]/g, "")
+  const n = Number.parseFloat(cleaned)
   return isNaN(n) ? null : Math.abs(n)
 }
 

@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client"
 import * as XLSX from "xlsx"
-import * as path from "path"
+import * as path from "node:path"
 
 const p = new PrismaClient()
 
@@ -8,7 +8,7 @@ function parseDate(raw: unknown): string | null {
   if (!raw) return null
   if (typeof raw === "number") {
     const excelEpoch = new Date(1899, 11, 30)
-    return new Date(excelEpoch.getTime() + raw * 86400000).toISOString().split("T")[0]
+    return new Date(excelEpoch.getTime() + raw * 86_400_000).toISOString().split("T")[0]
   }
   const str = String(raw).trim()
   let d = new Date(str)
@@ -24,8 +24,8 @@ function parseDate(raw: unknown): string | null {
 function parseAmount(raw: unknown): number | null {
   if (!raw) return null
   if (typeof raw === "number") return Math.abs(raw)
-  const cleaned = String(raw).replace(/[^0-9.-]/g, "")
-  const n = parseFloat(cleaned)
+  const cleaned = String(raw).replaceAll(/[^\d.-]/g, "")
+  const n = Number.parseFloat(cleaned)
   return isNaN(n) ? null : Math.abs(n)
 }
 
@@ -163,7 +163,7 @@ async function main() {
     } else if (!date || !amount) {
       invalidCount++
       valid = false
-      skipReason = !date ? "Invalid date" : "Invalid amount"
+      skipReason = date ? "Invalid amount" : "Invalid date"
     } else {
       validCount++
     }
@@ -281,7 +281,7 @@ async function main() {
   await p.$disconnect().catch(() => {})
 }
 
-main().catch((e) => {
-  console.error("Error:", e)
+main().catch((error) => {
+  console.error("Error:", error)
   process.exit(1)
 })

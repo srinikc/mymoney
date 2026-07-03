@@ -69,7 +69,6 @@ export function Sidebar() {
   }
 
   const isInExpenses = pathname.startsWith("/expenses")
-  const isInAdmin = pathname.startsWith("/admin")
 
   return (
     <aside
@@ -116,7 +115,7 @@ export function Sidebar() {
               : "text-white/60 hover:bg-white/10 hover:text-white",
             !sidebarOpen && "justify-center px-2"
           )}
-          title={!sidebarOpen ? "Dashboard" : undefined}
+          title={sidebarOpen ? undefined : "Dashboard"}
         >
           <LayoutDashboard className="h-5 w-5 shrink-0" />
           {sidebarOpen && <span>Dashboard</span>}
@@ -133,7 +132,7 @@ export function Sidebar() {
                 : "text-white/60 hover:bg-white/10 hover:text-white",
               !sidebarOpen && "justify-center px-2"
             )}
-            title={!sidebarOpen ? "Expenses" : undefined}
+            title={sidebarOpen ? undefined : "Expenses"}
           >
             <Receipt className="h-5 w-5 shrink-0" />
             {sidebarOpen && (
@@ -183,7 +182,7 @@ export function Sidebar() {
                   : "text-white/60 hover:bg-white/10 hover:text-white",
                 !sidebarOpen && "justify-center px-2"
               )}
-              title={!sidebarOpen ? item.label : undefined}
+              title={sidebarOpen ? undefined : item.label}
             >
               <Icon className="h-5 w-5 shrink-0" />
               {sidebarOpen && <span>{item.label}</span>}
@@ -216,7 +215,7 @@ export function Sidebar() {
                   : "text-white/60 hover:bg-white/10 hover:text-white",
                 !sidebarOpen && "justify-center px-2"
               )}
-              title={!sidebarOpen ? item.label : undefined}
+              title={sidebarOpen ? undefined : item.label}
             >
               <Icon className="h-5 w-5 shrink-0" />
               {sidebarOpen && <span>{item.label}</span>}

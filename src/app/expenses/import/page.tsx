@@ -78,8 +78,8 @@ export default function ImportPage() {
       const data = await res.json()
       if (!res.ok) { setError(data.error || "Preview failed"); return }
       setPreview(data)
-    } catch (err) {
-      setError("Failed to preview: " + String(err))
+    } catch (error_) {
+      setError("Failed to preview: " + String(error_))
     }
   }
 
@@ -99,8 +99,8 @@ export default function ImportPage() {
       if (!res.ok) { setError(data.error || "Import failed"); setImporting(false); return }
       setResult(data)
       setPreview(null)
-    } catch (err) {
-      setError("Import failed: " + String(err))
+    } catch (error_) {
+      setError("Import failed: " + String(error_))
     } finally {
       setImporting(false)
     }
@@ -120,8 +120,8 @@ export default function ImportPage() {
       const data = await res.json()
       if (!res.ok) { setError(data.error || "Preview failed"); setGpayPreviews(false); return }
       setGpayPreview(data)
-    } catch (err) {
-      setError("Preview failed: " + String(err))
+    } catch (error_) {
+      setError("Preview failed: " + String(error_))
     } finally {
       setGpayPreviews(false)
       e.target.value = ""
@@ -137,14 +137,14 @@ export default function ImportPage() {
     try {
       const res = await fetch("/api/import", { method: "POST", body: formData })
       const data = await res.json()
-      if (!res.ok) {
-        setGpayResult({ message: data.error || "GPay import failed", imported: 0, total: data.total || 0, skipped: 0 })
-      } else {
+      if (res.ok) {
         setGpayResult({ message: data.message || "", imported: data.imported || 0, total: data.total || 0, skipped: data.skipped || 0, importSessionId: data.importSessionId })
+      } else {
+        setGpayResult({ message: data.error || "GPay import failed", imported: 0, total: data.total || 0, skipped: 0 })
       }
       setGpayPreview(null)
-    } catch (err) {
-      setGpayResult({ message: "Import failed: " + String(err), imported: 0, total: 0, skipped: 0 })
+    } catch (error_) {
+      setGpayResult({ message: "Import failed: " + String(error_), imported: 0, total: 0, skipped: 0 })
     } finally {
       setGpayImporting(false)
     }

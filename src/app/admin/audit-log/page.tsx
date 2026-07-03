@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DataTable } from "@/components/ui/data-table"
-import { formatDate } from "@/lib/utils"
+
 import type { ColumnDef } from "@tanstack/react-table"
 import { Shield, Download, ChevronLeft, ChevronRight } from "lucide-react"
 
@@ -61,15 +61,15 @@ export default function AdminAuditLogPage() {
       if (toDate) params.set("to", new Date(toDate).toISOString())
 
       const res = await fetch(`/api/admin/audit-log?${params.toString()}`)
-      if (!res.ok) {
-        if (res.status === 403) setError("Admin access required")
-        else setError("Failed to load audit log")
-        setLogs([])
-      } else {
+      if (res.ok) {
         const data = await res.json()
         setLogs(data.logs)
         setPagination(data.pagination)
         setError(null)
+      } else {
+        if (res.status === 403) setError("Admin access required")
+        else setError("Failed to load audit log")
+        setLogs([])
       }
     } catch {
       setError("Failed to load audit log")

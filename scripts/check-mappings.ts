@@ -9,7 +9,7 @@ Promise.all([
   console.log("Total expenses:", expenses)
   console.log("Flagged expenses:", flagged)
   return p.$disconnect()
-}).catch((e) => {
-  console.error(e)
+}).catch((error) => {
+  console.error(error)
   return p.$disconnect()
 })

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
-import type { Prisma } from "@prisma/client"
 
 /**
  * GET /api/admin/audit-log — List audit logs with pagination (admin-only)
@@ -30,8 +29,8 @@ export async function GET(req: Request) {
   }
 
   const url = new URL(req.url)
-  const page = Math.max(1, parseInt(url.searchParams.get("page") || "1"))
-  const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get("limit") || "50")))
+  const page = Math.max(1, Number.parseInt(url.searchParams.get("page") || "1"))
+  const limit = Math.min(200, Math.max(1, Number.parseInt(url.searchParams.get("limit") || "50")))
   const actionFilter = url.searchParams.get("action")
   const entityFilter = url.searchParams.get("entity")
   const userIdFilter = url.searchParams.get("userId")

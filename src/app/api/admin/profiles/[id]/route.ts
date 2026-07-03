@@ -24,7 +24,7 @@ export async function DELETE(
 
   const { id } = await params
   const profileId = Number(id)
-  if (isNaN(profileId)) {
+  if (Number.isNaN(profileId)) {
     return NextResponse.json({ error: "Invalid profile ID" }, { status: 400 })
   }
 

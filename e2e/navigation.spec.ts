@@ -28,8 +28,8 @@ test.describe("Sidebar Navigation", () => {
     test(`navigates to ${p.label} (${p.href})`, async ({ page }) => {
       if (p.href === "/") return
 
-      await page.goto(p.href, { waitUntil: "load", timeout: 20000 })
-      await expect(page).toHaveURL(new RegExp(p.href.slice(1).replace("/", "\\/")), { timeout: 10000 })
+      await page.goto(p.href, { waitUntil: "load", timeout: 20_000 })
+      await expect(page).toHaveURL(new RegExp(p.href.slice(1).replace("/", "\\/")), { timeout: 10_000 })
       await expect(page.locator("body")).not.toHaveClass(/error/)
     })
   }

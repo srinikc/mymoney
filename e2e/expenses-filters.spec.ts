@@ -47,7 +47,7 @@ test.describe("Expenses Filters", () => {
     await amountMin.fill("100")
     await expect(amountMin).toHaveValue("100")
 
-    const clearButton = page.getByRole("button", { name: /Clear/i })
+    const clearButton = page.getByRole("button", { name: /clear/i })
     await expect(clearButton).toBeVisible()
     await clearButton.click()
 

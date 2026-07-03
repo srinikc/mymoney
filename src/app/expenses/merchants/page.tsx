@@ -96,7 +96,7 @@ export default function MerchantsPage() {
           merchantKey: key,
           ...val,
         })),
-        ...Array.from(selectedKeys).filter((k) => !assigned.has(k)).map((key) => ({
+        ...[...selectedKeys].filter((k) => !assigned.has(k)).map((key) => ({
           merchantKey: key,
         })),
       ]
@@ -114,8 +114,8 @@ export default function MerchantsPage() {
         await Promise.all([loadUnmapped(), loadAll()])
         await loadLastUpdated()
       }
-    } catch (err) {
-      setSaveResult("Error: " + String(err))
+    } catch (error) {
+      setSaveResult("Error: " + String(error))
     } finally {
       setSaving(false)
     }
@@ -136,8 +136,8 @@ export default function MerchantsPage() {
         await Promise.all([loadUnmapped(), loadAll()])
         await loadLastUpdated()
       }
-    } catch (err) {
-      setSaveResult("Error: " + String(err))
+    } catch (error) {
+      setSaveResult("Error: " + String(error))
     } finally { setMappingUploading(false); e.target.value = "" }
   }
 
@@ -191,7 +191,7 @@ export default function MerchantsPage() {
       const res = await fetch("/api/merchants/batch", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keys: Array.from(selectedKeys) }),
+        body: JSON.stringify({ keys: [...selectedKeys] }),
       })
       const data = await res.json()
       setSaveResult(data.success ? `Dismissed ${data.dismissed} merchants from Unmapped` : data.error || "Dismiss failed")
@@ -200,8 +200,8 @@ export default function MerchantsPage() {
         await Promise.all([loadUnmapped(), loadAll()])
         await loadLastUpdated()
       }
-    } catch (err) {
-      setSaveResult("Error: " + String(err))
+    } catch (error) {
+      setSaveResult("Error: " + String(error))
     } finally {
       setDismissing(false)
     }
@@ -290,7 +290,7 @@ export default function MerchantsPage() {
           <CardContent className="p-0">
             {loading ? (
               <div className="p-4"><MerchantsSkeleton /></div>
-            ) : merchants.length === 0 ? (
+            ) : (merchants.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
                 All merchants are mapped! No pending review items.
               </div>
@@ -357,7 +357,7 @@ export default function MerchantsPage() {
                   </tbody>
                 </table>
               </div>
-            )}
+            ))}
           </CardContent>
         </Card>
       ) : (
@@ -379,7 +379,7 @@ export default function MerchantsPage() {
           <CardContent className="p-0">
             {loading ? (
               <div className="p-4"><MerchantsSkeleton /></div>
-            ) : filteredMappings.length === 0 ? (
+            ) : (filteredMappings.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
                 {searchTerm ? "No mappings match your search." : "No merchant mappings yet."}
               </div>
@@ -410,7 +410,7 @@ export default function MerchantsPage() {
                           <Badge variant="outline" className="text-[10px]">{m.source}</Badge>
                         </td>
                         <td className="px-3 py-2.5 text-[10px] text-muted-foreground whitespace-nowrap">
-                          {m.updatedAt ? new Date(m.updatedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-") + " " + new Date(m.updatedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                          {m.updatedAt ? new Date(m.updatedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }).replaceAll('/', "-") + " " + new Date(m.updatedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "—"}
                         </td>
                         <td className="px-3 py-2.5">
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary"
@@ -423,7 +423,7 @@ export default function MerchantsPage() {
                   </tbody>
                 </table>
               </div>
-            )}
+            ))}
           </CardContent>
         </Card>
       )}

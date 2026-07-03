@@ -65,7 +65,7 @@ export default function OnboardingPage() {
   const [savingsTarget, setSavingsTarget] = useState("")
 
   // Step 5: Risk profile
-  const [riskScore, setRiskScore] = useState<number | null>(null)
+  const [riskScore] = useState<number | null>(null)
 
   useEffect(() => {
     // Check if onboarding already completed
@@ -107,7 +107,7 @@ export default function OnboardingPage() {
 
     if (currentStep === 2) {
       // Save budgets
-      const budgetEntries = Object.entries(budgets).filter(([, v]) => v && parseFloat(v) > 0)
+      const budgetEntries = Object.entries(budgets).filter(([, v]) => v && Number.parseFloat(v) > 0)
       if (budgetEntries.length > 0) {
         try {
           const cats = await fetch("/api/categories").then((r) => r.json())
@@ -121,7 +121,7 @@ export default function OnboardingPage() {
                   categoryId: cat.id,
                   month: new Date().getMonth() + 1,
                   year: new Date().getFullYear(),
-                  amount: parseFloat(amount),
+                  amount: Number.parseFloat(amount),
                 }),
               })
             }
@@ -134,14 +134,14 @@ export default function OnboardingPage() {
 
     if (currentStep === 3) {
       // Save goals
-      if (parseFloat(emergencyFund) > 0) {
+      if (Number.parseFloat(emergencyFund) > 0) {
         try {
           await fetch("/api/goals", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               name: "Emergency Fund",
-              targetAmount: parseFloat(emergencyFund),
+              targetAmount: Number.parseFloat(emergencyFund),
               category: "emergency",
             }),
           })
@@ -149,14 +149,14 @@ export default function OnboardingPage() {
           // continue
         }
       }
-      if (parseFloat(savingsTarget) > 0) {
+      if (Number.parseFloat(savingsTarget) > 0) {
         try {
           await fetch("/api/goals", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               name: "Savings Target",
-              targetAmount: parseFloat(savingsTarget),
+              targetAmount: Number.parseFloat(savingsTarget),
               category: "savings",
             }),
           })
@@ -241,9 +241,9 @@ export default function OnboardingPage() {
                   className={`flex h-8 w-8 items-center justify-center rounded-full text-xs transition-all ${
                     isActive
                       ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
-                      : isCompleted
+                      : (isCompleted
                       ? "bg-primary/20 text-primary"
-                      : "bg-muted text-muted-foreground"
+                      : "bg-muted text-muted-foreground")
                   }`}
                 >
                   {isCompleted ? (
@@ -451,7 +451,7 @@ export default function OnboardingPage() {
                   <CheckCircle2 className="h-10 w-10 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold">You're All Set! 🎉</h3>
+                  <h3 className="text-xl font-bold">You&apos;re All Set! 🎉</h3>
                   <p className="mt-2 text-muted-foreground">
                     Your MyMoney account is ready. Head to your dashboard to start managing your
                     finances!

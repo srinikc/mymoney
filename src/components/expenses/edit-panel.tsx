@@ -76,16 +76,16 @@ export function EditPanel({ expense, open, onClose, onSave, categories }: EditPa
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
-          amount: parseFloat(form.amount),
-          categoryId: parseInt(form.categoryId),
+          amount: Number.parseFloat(form.amount),
+          categoryId: Number.parseInt(form.categoryId),
           saveMapping: form.saveMapping,
         }),
       })
       const updated = await res.json()
       onSave(updated)
       onClose()
-    } catch (err) {
-      console.error("Save failed:", err)
+    } catch (error) {
+      console.error("Save failed:", error)
     } finally {
       setSaving(false)
     }

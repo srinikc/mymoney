@@ -138,7 +138,7 @@ export default function InvestmentsPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {loading ? (
           <div className="col-span-full"><CardGridSkeleton /></div>
-        ) : investments.length === 0 ? (
+        ) : (investments.length === 0 ? (
           <div className="col-span-full py-12 text-center text-muted-foreground">No investments tracked yet.</div>
         ) : investments.map((inv) => (
           <Card key={inv.id}>
@@ -171,7 +171,7 @@ export default function InvestmentsPage() {
               <p className="text-xs text-muted-foreground">Since {formatDate(inv.purchaseDate)}</p>
             </CardContent>
           </Card>
-        ))}
+        )))}
       </div>
     </div>
   )

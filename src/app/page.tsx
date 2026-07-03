@@ -86,8 +86,8 @@ export default function DashboardPage() {
       title: "Total Expenses",
       value: insights.totalExpenses,
       icon: IndianRupee,
-      change: `${insights.monthlyTrend[insights.monthlyTrend.length - 1]?.amount > insights.monthlyTrend[insights.monthlyTrend.length - 2]?.amount ? "+" : ""}${formatCurrency(insights.monthlyTrend[insights.monthlyTrend.length - 1]?.amount - insights.monthlyTrend[insights.monthlyTrend.length - 2]?.amount)}`,
-      up: insights.monthlyTrend[insights.monthlyTrend.length - 1]?.amount > insights.monthlyTrend[insights.monthlyTrend.length - 2]?.amount,
+      change: `${insights.monthlyTrend.at(-1)?.amount > insights.monthlyTrend.at(-2)?.amount ? "+" : ""}${formatCurrency(insights.monthlyTrend.at(-1)?.amount - insights.monthlyTrend.at(-2)?.amount)}`,
+      up: insights.monthlyTrend.at(-1)?.amount > insights.monthlyTrend.at(-2)?.amount,
     },
     {
       title: "This Month",
@@ -195,9 +195,9 @@ export default function DashboardPage() {
                     {stat.up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                     {stat.change} vs last month
                   </p>
-                ) : "sub" in stat && stat.sub ? (
+                ) : ("sub" in stat && stat.sub ? (
                   <p className="text-xs text-muted-foreground">{stat.sub}</p>
-                ) : null}
+                ) : null)}
               </CardContent>
             </Card>
           )
@@ -296,7 +296,7 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={yearlyData}>
                   <XAxis dataKey="year" stroke="#888" fontSize={12} />
-                  <YAxis stroke="#888" fontSize={12} tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`} />
+                  <YAxis stroke="#888" fontSize={12} tickFormatter={(v) => `₹${(v / 100_000).toFixed(1)}L`} />
                   <Tooltip content={<ChartTooltip formatter={(value) => formatIndianCurrency(value)} />} />
                   <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
                 </BarChart>

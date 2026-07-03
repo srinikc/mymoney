@@ -5,11 +5,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const { id } = await params
   try {
     const body = await req.json()
-    const mapping = await prisma.merchantMapping.findUnique({ where: { id: parseInt(id) } })
+    const mapping = await prisma.merchantMapping.findUnique({ where: { id: Number.parseInt(id) } })
     if (!mapping) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
     const updated = await prisma.merchantMapping.update({
-      where: { id: parseInt(id) },
+      where: { id: Number.parseInt(id) },
       data: {
         expenseType: body.expenseType ?? null,
         subCategory: body.subCategory ?? null,

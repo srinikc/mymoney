@@ -43,8 +43,8 @@ async function main() {
 }
 
 main()
-  .catch((e) => {
-    console.error("Dedup failed:", e)
+  .catch((error) => {
+    console.error("Dedup failed:", error)
     process.exit(1)
   })
   .finally(() => prisma.$disconnect())

@@ -2,8 +2,8 @@ import { z } from "zod"
 
 export const ExpenseCreateSchema = z.object({
   date: z.string().min(1, "Date is required"),
-  amount: z.union([z.string(), z.number()]).transform((v) => typeof v === "string" ? parseFloat(v) : v),
-  categoryId: z.union([z.string(), z.number()]).transform((v) => typeof v === "string" ? parseInt(v) : v),
+  amount: z.union([z.string(), z.number()]).transform((v) => typeof v === "string" ? Number.parseFloat(v) : v),
+  categoryId: z.union([z.string(), z.number()]).transform((v) => typeof v === "string" ? Number.parseInt(v) : v),
   categoryName: z.string().optional(),
   vendor: z.string().max(200).optional().default(""),
   description: z.string().max(500).optional().default(""),
@@ -40,10 +40,10 @@ export const ExpenseUpdateSchema = z.object({
 })
 
 export const BudgetCreateSchema = z.object({
-  categoryId: z.union([z.string(), z.number()]).transform((v) => Number(v)),
-  month: z.union([z.string(), z.number()]).transform((v) => Number(v)),
-  year: z.union([z.string(), z.number()]).transform((v) => Number(v)),
-  amount: z.union([z.string(), z.number()]).transform((v) => Number(v)),
+  categoryId: z.union([z.string(), z.number()]).transform(Number),
+  month: z.union([z.string(), z.number()]).transform(Number),
+  year: z.union([z.string(), z.number()]).transform(Number),
+  amount: z.union([z.string(), z.number()]).transform(Number),
 })
 
 export const GoalCreateSchema = z.object({
@@ -173,7 +173,7 @@ export const MerchantBatchSchema = z.object({
 
 export const ProfileCreateSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
-  userId: z.union([z.string(), z.number()]).transform((v) => Number(v)),
+  userId: z.union([z.string(), z.number()]).transform(Number),
   isDefault: z.boolean().optional().default(false),
 })
 
@@ -201,7 +201,7 @@ export const FeatureFlagUpdateSchema = z.object({
 })
 
 export const AuditLogCreateSchema = z.object({
-  profileId: z.union([z.string(), z.number()]).transform((v) => Number(v)),
+  profileId: z.union([z.string(), z.number()]).transform(Number),
   action: z.enum(["create", "update", "delete", "view", "export", "import"]),
   entity: z.string().min(1),
   entityId: z.union([z.string(), z.number()]).optional().nullable(),

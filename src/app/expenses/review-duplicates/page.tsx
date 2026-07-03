@@ -153,7 +153,7 @@ export default function ReviewDuplicatesPage() {
           <CardContent>
             {loading ? (
               <div className="p-4"><ReviewDuplicatesSkeleton /></div>
-            ) : expenses.length === 0 ? (
+            ) : (expenses.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 {search ? "No flagged records match your search." : "No flagged records to review."}
               </div>
@@ -268,7 +268,7 @@ export default function ReviewDuplicatesPage() {
                   </div>
                 </div>
               </>
-            )}
+            ))}
           </CardContent>
         </Card>
       </main>

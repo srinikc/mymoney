@@ -29,7 +29,10 @@ export function formatResponse(text: string): string {
   )
 
   // Convert bullet points to clean markdown
-  formatted = formatted.replaceAll(/^[*\-]\s+/gm, "• ")
+  // Convert asterisk bullet points to clean markdown
+  formatted = formatted.replaceAll(/^\*\s+/gm, "• ")
+  // Convert dash bullet points to clean markdown
+  formatted = formatted.replaceAll(/^-\s+/gm, "• ")
 
   // Ensure numbered lists are clean
   formatted = formatted.replaceAll(/^(\d+)\.\s+/gm, "$1. ")

@@ -6,11 +6,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   try {
     const body = await req.json()
     const asset = await prisma.asset.update({
-      where: { id: parseInt(id) },
+      where: { id: Number.parseInt(id) },
       data: {
         name: body.name,
         type: body.type,
-        amount: parseFloat(body.amount),
+        amount: Number.parseFloat(body.amount),
         notes: body.notes ?? null,
       },
     })
@@ -22,6 +22,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  await prisma.asset.delete({ where: { id: parseInt(id) } })
+  await prisma.asset.delete({ where: { id: Number.parseInt(id) } })
   return NextResponse.json({ success: true })
 }

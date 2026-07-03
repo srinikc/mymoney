@@ -6,12 +6,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   try {
     const body = await req.json()
     const liability = await prisma.liability.update({
-      where: { id: parseInt(id) },
+      where: { id: Number.parseInt(id) },
       data: {
         name: body.name,
         type: body.type,
-        amount: parseFloat(body.amount),
-        interestRate: body.interestRate ? parseFloat(body.interestRate) : null,
+        amount: Number.parseFloat(body.amount),
+        interestRate: body.interestRate ? Number.parseFloat(body.interestRate) : null,
         dueDate: body.dueDate ? new Date(body.dueDate) : null,
         notes: body.notes ?? null,
       },
@@ -24,6 +24,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  await prisma.liability.delete({ where: { id: parseInt(id) } })
+  await prisma.liability.delete({ where: { id: Number.parseInt(id) } })
   return NextResponse.json({ success: true })
 }

@@ -36,12 +36,12 @@ export async function PUT(req: Request) {
       name: body.name,
       description: body.description,
       category: body.category,
-      amountNeeded: body.amountNeeded !== undefined ? Number(body.amountNeeded) : undefined,
-      amountSaved: body.amountSaved !== undefined ? Number(body.amountSaved) : undefined,
-      monthlyContribution: body.monthlyContribution !== undefined
-        ? (body.monthlyContribution ? Number(body.monthlyContribution) : null)
-        : undefined,
-      deadline: body.deadline !== undefined ? (body.deadline ? new Date(body.deadline) : null) : undefined,
+      amountNeeded: body.amountNeeded === undefined ? undefined : Number(body.amountNeeded),
+      amountSaved: body.amountSaved === undefined ? undefined : Number(body.amountSaved),
+      monthlyContribution: body.monthlyContribution === undefined
+        ? undefined
+        : (body.monthlyContribution ? Number(body.monthlyContribution) : null),
+      deadline: body.deadline === undefined ? undefined : (body.deadline ? new Date(body.deadline) : null),
       status: body.status,
       notes: body.notes,
     },
@@ -53,6 +53,6 @@ export async function DELETE(req: Request) {
   const { searchParams } = new URL(req.url)
   const id = searchParams.get("id")
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })
-  await prisma.plan.delete({ where: { id: parseInt(id) } })
+  await prisma.plan.delete({ where: { id: Number.parseInt(id) } })
   return NextResponse.json({ success: true })
 }

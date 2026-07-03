@@ -26,7 +26,7 @@ export async function GET(
 
   const { id } = await params
   const userId = Number(id)
-  if (isNaN(userId)) {
+  if (Number.isNaN(userId)) {
     return NextResponse.json({ error: "Invalid user ID" }, { status: 400 })
   }
 
@@ -83,7 +83,7 @@ export async function PATCH(
 
   const { id } = await params
   const userId = Number(id)
-  if (isNaN(userId)) {
+  if (Number.isNaN(userId)) {
     return NextResponse.json({ error: "Invalid user ID" }, { status: 400 })
   }
 
@@ -162,7 +162,7 @@ export async function DELETE(
 
   const { id } = await params
   const userId = Number(id)
-  if (isNaN(userId)) {
+  if (Number.isNaN(userId)) {
     return NextResponse.json({ error: "Invalid user ID" }, { status: 400 })
   }
 

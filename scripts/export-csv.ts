@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client"
-import * as fs from "fs"
+import * as fs from "node:fs"
 
 const p = new PrismaClient()
 async function main() {
@@ -36,14 +36,14 @@ async function main() {
       e.id,
       e.date.toISOString().split("T")[0],
       e.amount,
-      `"${(e.vendor ?? "").replace(/"/g, '""')}"`,
-      `"${(e.description ?? "").replace(/"/g, '""')}"`,
-      `"${(e.category?.name ?? "").replace(/"/g, '""')}"`,
-      `"${(e.subCategory ?? "").replace(/"/g, '""')}"`,
-      `"${(e.person ?? "").replace(/"/g, '""')}"`,
+      `"${(e.vendor ?? "").replaceAll('"', '""')}"`,
+      `"${(e.description ?? "").replaceAll('"', '""')}"`,
+      `"${(e.category?.name ?? "").replaceAll('"', '""')}"`,
+      `"${(e.subCategory ?? "").replaceAll('"', '""')}"`,
+      `"${(e.person ?? "").replaceAll('"', '""')}"`,
       e.paymentMode,
       e.recurrenceType ?? "",
-      `"${(e.notes ?? "").replace(/"/g, '""')}"`,
+      `"${(e.notes ?? "").replaceAll('"', '""')}"`,
       e.importSessionId ?? "",
     ].join(",")
   )

@@ -163,7 +163,7 @@ export async function POST(req: Request) {
 
       // First pass: find and parse My Activity.html from GPay Takeout structure
       const htmlEntry = entries.find((e) =>
-        e.entryName.replace(/\\/g, "/").toLowerCase().includes("my activity")
+        e.entryName.replaceAll('\\', "/").toLowerCase().includes("my activity")
       )
       console.log("[ZIP IMPORT] Found HTML entry:", htmlEntry?.entryName || "NONE")
 
@@ -174,7 +174,7 @@ export async function POST(req: Request) {
       if (htmlEntry) {
         const content = htmlEntry.getData().toString("utf-8")
         console.log("[ZIP IMPORT] HTML content length:", content.length)
-        console.log("[ZIP IMPORT] HTML first 800 chars:", content.substring(0, 800))
+        console.log("[ZIP IMPORT] HTML first 800 chars:", content.slice(0, 800))
         let htmlTxns = parseGpayTakeoutHtml(content)
         // Filter to only transactions after last DB entry
         const maxDate = await getMaxExpenseDate()
@@ -398,7 +398,7 @@ export async function POST(req: Request) {
       let date: Date
       if (typeof rawDate === "number") {
         const excelEpoch = new Date(1899, 11, 30)
-        date = new Date(excelEpoch.getTime() + rawDate * 86400000)
+        date = new Date(excelEpoch.getTime() + rawDate * 86_400_000)
       } else if (typeof rawDate === "string") {
         date = new Date(rawDate)
       } else if (rawDate instanceof Date) {
@@ -408,11 +408,7 @@ export async function POST(req: Request) {
       if (isNaN(date.getTime())) { skipped++; continue }
 
       let amount: number
-      if (typeof rawAmount === "number") {
-        amount = Math.abs(rawAmount)
-      } else {
-        amount = Math.abs(parseFloat(String(rawAmount).replace(/[^0-9.-]/g, "")))
-      }
+      amount = typeof rawAmount === "number" ? Math.abs(rawAmount) : Math.abs(Number.parseFloat(String(rawAmount).replaceAll(/[^\d.-]/g, "")));
       if (isNaN(amount) || amount === 0) { skipped++; continue }
 
       const categoryId = (await autoCategorizeByExact(categoryName)) || (await autoCategorize(vendor))

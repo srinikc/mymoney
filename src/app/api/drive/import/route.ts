@@ -47,19 +47,19 @@ export async function POST(req: Request) {
 
       // First pass: find My Activity.html in GPay Takeout structure
       const htmlEntry = allEntries.find((e) =>
-        e.entryName.replace(/\\/g, "/").toLowerCase().includes("my activity")
+        e.entryName.replaceAll('\\', "/").toLowerCase().includes("my activity")
       )
 
       if (htmlEntry) {
         console.log("[DRIVE IMPORT] Found HTML entry:", htmlEntry.entryName)
         const content = htmlEntry.getData().toString("utf-8")
-        console.log("[DRIVE IMPORT] HTML size:", content.length, "First 800 chars:", content.substring(0, 800))
+        console.log("[DRIVE IMPORT] HTML size:", content.length, "First 800 chars:", content.slice(0, 800))
         // Debug: search for transaction data in stripped text
-        const stripped = content.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ")
-        const paidMatch = stripped.match(/Paid|Sent|Received/gi)
+        const stripped = content.replaceAll(/<[^>]+>/g, " ").replaceAll('&nbsp;', " ")
+        const paidMatch = stripped.match(/paid|sent|received/gi)
         console.log("[DRIVE IMPORT] 'Paid/Sent/Received' occurrences:", paidMatch?.length || 0)
         if (paidMatch) {
-          const idx = stripped.search(/Paid|Sent|Received/i)
+          const idx = stripped.search(/paid|sent|received/i)
           console.log("[DRIVE IMPORT] First occurrence around:", stripped.substring(Math.max(0, idx - 50), idx + 200))
         }
         let htmlTxns = parseGpayTakeoutHtml(content)
@@ -109,7 +109,7 @@ export async function POST(req: Request) {
           return NextResponse.json({ success: true, imported, skipped, total, message: `Imported ${imported} GPay transactions from Drive, skipped ${skipped}` })
         }
       }
-    } catch (e) { console.log("[DRIVE IMPORT] ZIP error:", e); /* not a ZIP, try as standalone HTML */ }
+    } catch (error) { console.log("[DRIVE IMPORT] ZIP error:", error); /* not a ZIP, try as standalone HTML */ }
 
     // Try as standalone HTML (not zipped)
       try {
@@ -149,17 +149,17 @@ export async function POST(req: Request) {
 
 function parseGpayTakeoutHtml(html: string): { date: Date; amount: number; vendor: string; bankAccount: string }[] {
   const results: { date: Date; amount: number; vendor: string; bankAccount: string }[] = []
-  const text = html.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ")
-  const txnRegex = /(Paid|Sent|Received)\s+₹([\d,]+\.?\d*)\s+(?:(?:to|from)\s+(.+?)\s+)?using\s+(bank account\s*x+\d+)\s+(.*?)(?=\s+(?:Paid|Sent|Received)\b|\s*$)/gi
+  const text = html.replaceAll(/<[^>]+>/g, " ").replaceAll('&nbsp;', " ").replaceAll('&amp;', "&").replaceAll(/\s+/g, " ")
+  const txnRegex = /(paid|sent|received)\s+₹([\d,]+\.?\d*)\s+(?:(?:to|from)\s+(.+?)\s+)?using\s+(bank account\s*x+\d+)\s+(.*?)(?=\s+(?:paid|sent|received)\b|\s*$)/gi
   let match: RegExpExecArray | null
   while ((match = txnRegex.exec(text)) !== null) {
-    const amount = parseFloat(match[2].replace(/,/g, ""))
+    const amount = Number.parseFloat(match[2].replaceAll(',', ""))
     const vendor = match[3] ? match[3].trim() : ""
     const bankAccount = match[4]
     const remainder = match[5]
-    const dateMatch = remainder.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}\b/i)
+    const dateMatch = remainder.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{4}\b/i)
     const date = dateMatch ? new Date(dateMatch[0]) : null
-    const isCompleted = /\bCompleted\b/i.test(remainder)
+    const isCompleted = /\bcompleted\b/i.test(remainder)
     if (date && !isNaN(date.getTime()) && amount > 0 && isCompleted) {
       results.push({ date, amount, vendor, bankAccount })
     }
@@ -185,7 +185,7 @@ function parseGPayEntry(txn: Record<string, unknown>): { date: Date; amount: num
 
   let vendorName = String(vendor).trim()
   if (vendorName.startsWith("Paid to ")) vendorName = vendorName.slice(8)
-  if (/^(Sent|Received|Paid|Recharge)/i.test(vendorName)) vendorName = ""
+  if (/^(sent|received|paid|recharge)/i.test(vendorName)) vendorName = ""
   if (vendorName === "undefined" || vendorName === "null") vendorName = ""
 
   return { date, amount, vendor: vendorName }

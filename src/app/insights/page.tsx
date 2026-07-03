@@ -49,14 +49,25 @@ export default function InsightsPage() {
   const fetchDeepInsights = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams()
-    if (period === "year") params.set("year", String(periodYear))
-    else if (period === "quarter") {
+    switch (period) {
+    case "year": {
+    params.set("year", String(periodYear))
+    break;
+    }
+    case "quarter": {
       const q = Math.floor((new Date().getMonth()) / 3) + 1
       params.set("year", String(periodYear))
       params.set("quarter", String(q))
-    } else if (period === "month") {
+    
+    break;
+    }
+    case "month": {
       params.set("year", String(periodYear))
       params.set("month", String(new Date().getMonth() + 1))
+    
+    break;
+    }
+    // No default
     }
     const res = await fetch(`/api/insights/deep${params.toString() ? `?${params.toString()}` : ""}`)
     const result = await res.json()
@@ -134,7 +145,7 @@ export default function InsightsPage() {
         {(period === "year" || period === "quarter" || period === "month") && (
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Year</span>
-            <Select value={String(periodYear)} onValueChange={(v) => setPeriodYear(parseInt(v))}>
+            <Select value={String(periodYear)} onValueChange={(v) => setPeriodYear(Number.parseInt(v))}>
               <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
@@ -177,7 +188,7 @@ export default function InsightsPage() {
                 <BarChart data={data.yearlyComparison}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="year" stroke="#888" />
-                  <YAxis tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`} stroke="#888" />
+                  <YAxis tickFormatter={(v) => `₹${(v / 100_000).toFixed(1)}L`} stroke="#888" />
                   <Tooltip content={<ChartTooltip formatter={(v) => formatIndianCurrency(v)} />} />
                   <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
                 </BarChart>
@@ -331,8 +342,8 @@ export default function InsightsPage() {
                       ))}
                       <td className="py-2.5 text-right">
                         {yoyData.length >= 2 ? (() => {
-                          const latest = yoyData[yoyData.length - 1].amount
-                          const prev = yoyData[yoyData.length - 2].amount
+                          const latest = yoyData.at(-1).amount
+                          const prev = yoyData.at(-2).amount
                           const chg = prev > 0 ? ((latest - prev) / prev) * 100 : 0
                           const isGood = chg <= 0
                           return (
@@ -344,8 +355,8 @@ export default function InsightsPage() {
                       </td>
                       <td className="py-2.5 text-right">
                         {yoyData.length >= 2 ? (() => {
-                          const latest = yoyData[yoyData.length - 1].amount
-                          const prev = yoyData[yoyData.length - 2].amount
+                          const latest = yoyData.at(-1).amount
+                          const prev = yoyData.at(-2).amount
                           const isDown = latest <= prev
                           return isDown ? (
                             <ArrowDownRight className="inline h-4 w-4 text-emerald-500" />
@@ -524,7 +535,7 @@ export default function InsightsPage() {
                   </div>
                   <p className="mt-1 font-medium">{deal.title}</p>
                   {deal.description && <p className="text-xs text-muted-foreground mt-0.5">{deal.description}</p>}
-                  {deal.validUntil && <p className="text-xs text-muted-foreground mt-1">Valid until {new Date(deal.validUntil).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")}</p>}
+                  {deal.validUntil && <p className="text-xs text-muted-foreground mt-1">Valid until {new Date(deal.validUntil).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }).replaceAll('/', "-")}</p>}
                 </div>
               ))}
             </div>

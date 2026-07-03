@@ -2,10 +2,8 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DataTable } from "@/components/ui/data-table"
 import { formatDate } from "@/lib/utils"
@@ -45,14 +43,14 @@ export default function AdminFeaturesPage() {
     setLoading(true)
     try {
       const res = await fetch("/api/admin/features")
-      if (!res.ok) {
-        if (res.status === 403) setError("Admin access required")
-        else setError("Failed to load features")
-        setFeatures([])
-      } else {
+      if (res.ok) {
         const data = await res.json()
         setFeatures(data)
         setError(null)
+      } else {
+        if (res.status === 403) setError("Admin access required")
+        else setError("Failed to load features")
+        setFeatures([])
       }
     } catch {
       setError("Failed to load features")

@@ -2,8 +2,8 @@
 // Generates a categorized HTML code review report
 // Run: npx tsx scripts/code-review.ts
 
-import * as fs from "fs"
-import * as path from "path"
+import * as fs from "node:fs"
+import * as path from "node:path"
 
 const SRC_DIR = path.join(__dirname, "..", "src")
 const PRISMA_SCHEMA = path.join(__dirname, "..", "prisma", "schema.prisma")
@@ -32,7 +32,7 @@ function add(category: ReviewFinding["category"], domain: string, file: string, 
 // 1. PRISMA SCHEMA REVIEW
 // ══════════════════════════════════════════════════════════
 function reviewPrismaSchema() {
-  const schema = fs.readFileSync(PRISMA_SCHEMA, "utf-8")
+  const schema = fs.readFileSync(PRISMA_SCHEMA, "utf8")
 
   // Check for missing indexes on foreign keys
   const fkChecks = [
@@ -77,7 +77,7 @@ function reviewPrismaSchema() {
 function reviewSecurity() {
   const files = getAllFiles(SRC_DIR)
   for (const file of files) {
-    const content = fs.readFileSync(file, "utf-8")
+    const content = fs.readFileSync(file, "utf8")
     const relativePath = path.relative(SRC_DIR, file)
 
     // Check for console.log in production code
@@ -124,7 +124,7 @@ function reviewAPIRoutes() {
   const apiDir = path.join(SRC_DIR, "app", "api")
   const files = getAllFiles(apiDir)
   for (const file of files) {
-    const content = fs.readFileSync(file, "utf-8")
+    const content = fs.readFileSync(file, "utf8")
     const relativePath = path.relative(SRC_DIR, file)
 
     // Check for proper error handling
@@ -157,7 +157,7 @@ function reviewUI() {
   const files = getAllFiles(SRC_DIR)
   for (const file of files) {
     if (!file.endsWith(".tsx")) continue
-    const content = fs.readFileSync(file, "utf-8")
+    const content = fs.readFileSync(file, "utf8")
     const relativePath = path.relative(SRC_DIR, file)
 
     // Check for missing key props in lists
@@ -165,10 +165,10 @@ function reviewUI() {
     // Too complex to check via regex — rely on TypeScript
 
     // Check for proper effect dependencies
-    const effectMatches = content.match(/useEffect\(\(\)\s*=>\s*\{[^}]+\},\s*\[([^\]]*)\]/g)
+    const effectMatches = content.match(/useEffect\(\(\)\s*=>\s*{[^}]+},\s*\[([^\]]*)]/g)
     if (effectMatches) {
       for (const match of effectMatches) {
-        const deps = match.match(/\[([^\]]*)\]/)?.[1] || ""
+        const deps = match.match(/\[([^\]]*)]/)?.[1] || ""
         if (deps.includes("loading") || deps.includes("set")) {
           add("info", "UI", relativePath,
             "useEffect dependency check",
@@ -196,7 +196,7 @@ function reviewPipeline() {
   const importDir = path.join(SRC_DIR, "app", "api", "import")
   const files = getAllFiles(importDir)
   for (const file of files) {
-    const content = fs.readFileSync(file, "utf-8")
+    const content = fs.readFileSync(file, "utf8")
     const relativePath = path.relative(SRC_DIR, file)
 
     // Check for batch insert usage (performance)
@@ -250,7 +250,7 @@ function reviewTestCoverage() {
 function reviewPerformance() {
   const files = getAllFiles(SRC_DIR)
   for (const file of files) {
-    const content = fs.readFileSync(file, "utf-8")
+    const content = fs.readFileSync(file, "utf8")
     const relativePath = path.relative(SRC_DIR, file)
 
     // Check for N+1 query patterns
@@ -297,16 +297,16 @@ function parseESLintReport() {
   const reportPath = path.join(__dirname, "..", "eslint-report.json")
   if (!fs.existsSync(reportPath)) return
 
-  let reportRaw = fs.readFileSync(reportPath, "utf-8")
+  let reportRaw = fs.readFileSync(reportPath, "utf8")
   // Strip BOM if present
-  if (reportRaw.charCodeAt(0) === 0xFEFF) reportRaw = reportRaw.slice(1)
+  if (reportRaw.charCodeAt(0) === 0xFE_FF) reportRaw = reportRaw.slice(1)
   const report = JSON.parse(reportRaw)
   for (const file of report) {
     if (!file.messages || file.messages.length === 0) continue
     const relativePath = path.relative(SRC_DIR, file.filePath)
 
     for (const msg of file.messages) {
-      const cat = msg.severity === 2 ? "warning" : msg.severity === 1 ? "info" : "suggestion"
+      const cat = msg.severity === 2 ? "warning" : (msg.severity === 1 ? "info" : "suggestion")
       const domain = msg.ruleId?.startsWith("@typescript-eslint") ? "TypeScript"
         : msg.ruleId?.startsWith("react") ? "React"
         : msg.ruleId?.startsWith("unicorn") ? "Code Style"
@@ -352,7 +352,7 @@ function generateHTML() {
     </tr>`
   }).join("\n")
 
-  const domainSummary = Array.from(domainCounts.entries())
+  const domainSummary = [...domainCounts.entries()]
     .sort((a, b) => b[1] - a[1])
     .map(([name, count]) => `<span class="domain-tag">${name}: ${count}</span>`)
     .join("\n")

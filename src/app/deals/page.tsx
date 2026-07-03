@@ -93,7 +93,7 @@ export default function DealsPage() {
 
       {loading ? (
         <div className="p-4"><CardGridSkeleton /></div>
-      ) : deals.length === 0 ? (
+      ) : (deals.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">No deals yet. Add one!</CardContent></Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -127,7 +127,7 @@ export default function DealsPage() {
             </Card>
           ))}
         </div>
-      )}
+      ))}
     </div>
   )
 }

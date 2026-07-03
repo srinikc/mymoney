@@ -18,13 +18,18 @@ const isSetup = process.argv.includes("--setup")
 
 async function refreshGPay() {
   log(`Launching browser (${isSetup ? "VISIBLE — login manually" : "headless"})...`)
-  const browser = await chromium.launch({
+  const context = await chromium.launchPersistentContext(PROFILE_DIR, {
     headless: !isSetup,
-    userDataDir: PROFILE_DIR,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    channel: "chrome",
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-blink-features=AutomationControlled",
+    ],
   })
+  const browser = context.browser()
 
-  const page = await browser.newPage()
+  const page = await context.newPage()
   page.setDefaultTimeout(15000)
 
   try {
@@ -146,7 +151,7 @@ async function refreshGPay() {
     await page.screenshot({ path: join(DATA_DIR, "gpay-error.png") })
     return { status: "error", error: err.message }
   } finally {
-    await browser.close()
+    await context.close()
     log("Browser closed")
   }
 }

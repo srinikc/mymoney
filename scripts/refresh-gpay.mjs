@@ -14,10 +14,12 @@ function log(msg) {
   console.log(`[${ts}] ${msg}`)
 }
 
+const isSetup = process.argv.includes("--setup")
+
 async function refreshGPay() {
-  log("Launching browser...")
+  log(`Launching browser (${isSetup ? "VISIBLE — login manually" : "headless"})...`)
   const browser = await chromium.launch({
-    headless: true,
+    headless: !isSetup,
     userDataDir: PROFILE_DIR,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   })
@@ -28,6 +30,15 @@ async function refreshGPay() {
   try {
     log("Navigating to takeout.google.com...")
     await page.goto("https://takeout.google.com", { waitUntil: "networkidle" })
+
+    if (isSetup) {
+      log("=== SETUP MODE ===")
+      log("A browser window is open. Log into your Google account.")
+      log("After logging in, you'll be redirected to Google Takeout.")
+      log("Close the browser window when done. The session will be saved.")
+      await page.pause()
+      return { status: "setup_complete" }
+    }
 
     const currentUrl = page.url()
     if (currentUrl.includes("accounts.google.com")) {
@@ -142,4 +153,4 @@ async function refreshGPay() {
 
 const result = await refreshGPay()
 console.log("RESULT:" + JSON.stringify(result))
-process.exit(result.status === "success" ? 0 : 1)
+process.exit(result.status === "success" || result.status === "setup_complete" ? 0 : 1)

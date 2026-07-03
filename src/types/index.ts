@@ -82,6 +82,22 @@ export interface Plan {
   progress: number
 }
 
+export interface Subscription {
+  id: number
+  name: string
+  provider: string
+  amount: number
+  billingCycle: string
+  nextDueDate: string | null
+  category: string
+  status: string
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+  daysUntilDue?: number
+  nextBillingDate?: string | null
+}
+
 export interface DashboardInsights {
   totalExpenses: number
   totalIncome: number

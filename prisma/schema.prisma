@@ -43,6 +43,7 @@ model Profile {
   assets      Asset[]
   liabilities Liability[]
   auditLogs   AuditLog[]
+  subscriptions Subscription[]
 }
 
 model Account {
@@ -347,6 +348,28 @@ model Liability {
   updatedAt    DateTime @updatedAt
 
   @@index([profileId])
+}
+
+// ── Subscription ──────────────────────────────────────────────────────
+
+model Subscription {
+  id           Int       @id @default(autoincrement())
+  name         String
+  provider     String
+  amount       Float
+  billingCycle String    @default("monthly") // monthly | yearly | quarterly | weekly
+  nextDueDate  DateTime?
+  category     String    @default("entertainment") // entertainment | productivity | utilities | health | other
+  status       String    @default("active") // active | paused | cancelled
+  notes        String?
+  profileId    Int?
+  profile      Profile?  @relation(fields: [profileId], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([profileId])
+  @@index([nextDueDate])
+  @@index([status])
 }
 
 // ── Alerts & Notifications ────────────────────────────────────────────

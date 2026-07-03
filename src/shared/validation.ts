@@ -200,6 +200,29 @@ export const FeatureFlagUpdateSchema = z.object({
   tier: z.enum(["free", "pro", "premium"]).optional(),
 })
 
+export const SubscriptionCreateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  provider: z.string().min(1, "Provider is required"),
+  amount: z.union([z.string(), z.number()]).transform((v) => typeof v === "string" ? Number.parseFloat(v) : v),
+  billingCycle: z.string().optional().default("monthly"),
+  nextDueDate: z.string().optional().nullable(),
+  category: z.string().optional().default("entertainment"),
+  status: z.string().optional().default("active"),
+  notes: z.string().optional().nullable(),
+})
+
+export const SubscriptionUpdateSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+  name: z.string().optional(),
+  provider: z.string().optional(),
+  amount: z.union([z.string(), z.number()]).optional(),
+  billingCycle: z.string().optional(),
+  nextDueDate: z.string().optional().nullable(),
+  category: z.string().optional(),
+  status: z.string().optional(),
+  notes: z.string().optional().nullable(),
+})
+
 export const AuditLogCreateSchema = z.object({
   profileId: z.union([z.string(), z.number()]).transform(Number),
   action: z.enum(["create", "update", "delete", "view", "export", "import"]),

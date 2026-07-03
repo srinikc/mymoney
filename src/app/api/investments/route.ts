@@ -15,6 +15,9 @@ export async function POST(req: Request) {
     data: {
       type: body.type,
       name: body.name,
+      symbol: body.symbol || null,
+      quantity: body.quantity ? Number(body.quantity) : null,
+      buyPrice: body.buyPrice ? Number(body.buyPrice) : null,
       amount: Number(body.amount),
       currentValue: Number(body.currentValue || body.amount),
       purchaseDate: new Date(body.purchaseDate),
@@ -34,6 +37,9 @@ export async function PUT(req: Request) {
     data: {
       type: body.type,
       name: body.name,
+      symbol: body.symbol,
+      quantity: body.quantity === undefined ? undefined : (body.quantity ? Number(body.quantity) : null),
+      buyPrice: body.buyPrice === undefined ? undefined : (body.buyPrice ? Number(body.buyPrice) : null),
       amount: body.amount === undefined ? undefined : Number(body.amount),
       currentValue: body.currentValue === undefined ? undefined : Number(body.currentValue),
       purchaseDate: body.purchaseDate ? new Date(body.purchaseDate) : undefined,

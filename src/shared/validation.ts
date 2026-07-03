@@ -59,6 +59,9 @@ export const GoalCreateSchema = z.object({
 export const InvestmentCreateSchema = z.object({
   type: z.string().min(1, "Type is required"),
   name: z.string().min(1, "Name is required"),
+  symbol: z.string().optional().nullable(),
+  quantity: z.union([z.string(), z.number()]).optional().nullable(),
+  buyPrice: z.union([z.string(), z.number()]).optional().nullable(),
   amount: z.union([z.string(), z.number()]),
   currentValue: z.union([z.string(), z.number()]).optional(),
   purchaseDate: z.string().min(1, "Purchase date is required"),
@@ -125,6 +128,9 @@ export const InvestmentUpdateSchema = z.object({
   id: z.union([z.string(), z.number()]),
   type: z.string().optional(),
   name: z.string().optional(),
+  symbol: z.string().optional().nullable(),
+  quantity: z.union([z.string(), z.number()]).optional().nullable(),
+  buyPrice: z.union([z.string(), z.number()]).optional().nullable(),
   amount: z.union([z.string(), z.number()]).optional(),
   currentValue: z.union([z.string(), z.number()]).optional(),
   purchaseDate: z.string().optional(),
@@ -219,6 +225,33 @@ export const SubscriptionUpdateSchema = z.object({
   billingCycle: z.string().optional(),
   nextDueDate: z.string().optional().nullable(),
   category: z.string().optional(),
+  status: z.string().optional(),
+  notes: z.string().optional().nullable(),
+})
+
+export const AssetCreateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  type: z.string().optional().default("other"),
+  currentValue: z.union([z.string(), z.number()]).transform((v) => typeof v === "string" ? Number.parseFloat(v) : v),
+  purchasePrice: z.union([z.string(), z.number()]).optional().nullable(),
+  purchaseDate: z.string().optional().nullable(),
+  quantity: z.union([z.string(), z.number()]).optional().nullable(),
+  unit: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
+  status: z.string().optional().default("owned"),
+  notes: z.string().optional().nullable(),
+})
+
+export const AssetUpdateSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+  name: z.string().optional(),
+  type: z.string().optional(),
+  currentValue: z.union([z.string(), z.number()]).optional(),
+  purchasePrice: z.union([z.string(), z.number()]).optional().nullable(),
+  purchaseDate: z.string().optional().nullable(),
+  quantity: z.union([z.string(), z.number()]).optional().nullable(),
+  unit: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
   status: z.string().optional(),
   notes: z.string().optional().nullable(),
 })

@@ -55,10 +55,31 @@ export interface Goal {
   progress: number
 }
 
+export interface Asset {
+  id: number
+  name: string
+  type: string
+  currentValue: number
+  purchasePrice: number | null
+  purchaseDate: string | null
+  quantity: number | null
+  unit: string | null
+  location: string | null
+  status: string
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+  profitLoss?: number
+  profitLossPercent?: number
+}
+
 export interface Investment {
   id: number
   type: string
   name: string
+  symbol: string | null
+  quantity: number | null
+  buyPrice: number | null
   amount: number
   currentValue: number
   purchaseDate: string

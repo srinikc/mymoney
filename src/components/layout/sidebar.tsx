@@ -20,6 +20,7 @@ import {
   Flag,
   Gift,
   WalletCards,
+  Building2,
   Settings,
   Heart,
   CreditCard,
@@ -43,6 +44,7 @@ import { ProfileSwitcher } from "./profile-switcher"
     { href: "/reminders", label: "Reminders", icon: Bell },
     { href: "/reports", label: "Reports", icon: FileText },
     { href: "/deals", label: "Deals", icon: Gift },
+    { href: "/assets", label: "Assets", icon: Building2 },
     { href: "/net-worth", label: "Net Worth", icon: WalletCards },
     { href: "/settings", label: "Settings", icon: Settings },
   ]

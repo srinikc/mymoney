@@ -198,21 +198,26 @@ model Goal {
 // ── Investment ────────────────────────────────────────────────────────
 
 model Investment {
-  id             Int      @id @default(autoincrement())
+  id             Int       @id @default(autoincrement())
   type           String
   name           String
-  amount         Float
+  symbol         String?   // stock ticker (e.g. RELIANCE, TCS)
+  quantity       Int?      // number of shares
+  buyPrice       Float?    // price per share
+  amount         Float     // total invested = quantity * buyPrice
   currentValue   Float
   purchaseDate   DateTime
   returnRate     Float?
   notes          String?
-  status         String   @default("active")
+  status         String    @default("active")
   profileId      Int?
-  profile        Profile? @relation(fields: [profileId], references: [id])
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  profile        Profile?  @relation(fields: [profileId], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([profileId])
+  @@index([type])
+  @@index([symbol])
 }
 
 // ── Plan ──────────────────────────────────────────────────────────────
@@ -319,17 +324,25 @@ model Deal {
 // ── Asset ─────────────────────────────────────────────────────────────
 
 model Asset {
-  id        Int      @id @default(autoincrement())
-  name      String
-  type      String   @default("other")
-  amount    Float
-  notes     String?
-  profileId Int?
-  profile   Profile? @relation(fields: [profileId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            Int       @id @default(autoincrement())
+  name          String
+  type          String    @default("other") // property | building | gold | silver | precious_metals | equipment | vehicle | stocks | other
+  currentValue  Float
+  purchasePrice Float?
+  purchaseDate  DateTime?
+  quantity      Float?
+  unit          String?   // grams | kg | sqft | carats | units | etc.
+  location      String?   // for property
+  status        String    @default("owned") // owned | sold | inherited
+  notes         String?
+  profileId     Int?
+  profile       Profile?  @relation(fields: [profileId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([profileId])
+  @@index([type])
+  @@index([status])
 }
 
 // ── Liability ─────────────────────────────────────────────────────────

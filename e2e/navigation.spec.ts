@@ -2,8 +2,8 @@ import { test, expect } from "@playwright/test"
 
 test.describe("Sidebar Navigation", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/")
-    await page.waitForSelector("h1", { timeout: 15000 })
+    await page.goto("/", { waitUntil: "load", timeout: 20000 })
+    await page.waitForLoadState("networkidle")
   })
 
   const pages = [

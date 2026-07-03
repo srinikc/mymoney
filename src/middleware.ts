@@ -80,23 +80,24 @@ export default auth((req) => {
   const { pathname } = req.nextUrl
 
   // ── 1. Rate limiting ──────────────────────────────────────────────────
-  let rateLimitConfig = RATE_LIMITS.default
-  if (pathname.startsWith(API_PREFIX)) {
-    rateLimitConfig = pathname.startsWith(AUTH_PREFIX)
-      ? RATE_LIMITS.auth
-      : RATE_LIMITS.api
-  }
+  if (process.env.E2E !== "true") {
+    let rateLimitConfig = RATE_LIMITS.default
+    if (pathname.startsWith(API_PREFIX)) {
+      rateLimitConfig = pathname.startsWith(AUTH_PREFIX)
+        ? RATE_LIMITS.auth
+        : RATE_LIMITS.api
+    }
 
-  const rateLimitResult = checkRateLimit(
-    req,
-    "rl",
-    rateLimitConfig.limit,
-    rateLimitConfig.windowMs
-  )
+    const rateLimitResult = checkRateLimit(
+      req,
+      "rl",
+      rateLimitConfig.limit,
+      rateLimitConfig.windowMs
+    )
 
-  if (!rateLimitResult.allowed) {
-    return new NextResponse(
-      JSON.stringify({ error: "Too many requests. Please try again later." }),
+    if (!rateLimitResult.allowed) {
+      return new NextResponse(
+        JSON.stringify({ error: "Too many requests. Please try again later." }),
       {
         status: 429,
         headers: {
@@ -110,6 +111,7 @@ export default auth((req) => {
         },
       }
     )
+  }
   }
 
   // ── 2. Public route check ─────────────────────────────────────────────

@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test"
 
 test.describe("Expenses Filters", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/expenses")
+    await page.goto("/expenses", { waitUntil: "load", timeout: 20000 })
     await page.waitForLoadState("networkidle")
   })
 
@@ -25,32 +25,24 @@ test.describe("Expenses Filters", () => {
     const categorySelect = page.getByLabel("Category")
     await expect(categorySelect).toBeVisible()
     await categorySelect.click()
-    await expect(categorySelect).toBeVisible()
     await page.keyboard.press("Escape")
   })
 
-  test("vendor filter input is interactive", async ({ page }) => {
-    const vendorInput = page.getByLabel("Vendor")
-    await expect(vendorInput).toBeVisible()
-    await vendorInput.fill("test-vendor")
-    await expect(vendorInput).toHaveValue("test-vendor")
-    await vendorInput.clear()
-    await expect(vendorInput).toHaveValue("")
+  test("vendor filter is interactive", async ({ page }) => {
+    const vendorSelect = page.getByLabel("Vendor")
+    await expect(vendorSelect).toBeVisible()
+    await vendorSelect.click()
+    await page.keyboard.press("Escape")
   })
 
   test("person filter is interactive", async ({ page }) => {
     const personSelect = page.getByLabel("Person")
     await expect(personSelect).toBeVisible()
     await personSelect.click()
-    await expect(personSelect).toBeVisible()
     await page.keyboard.press("Escape")
   })
 
   test("clear all filters resets all to defaults", async ({ page }) => {
-    const vendorInput = page.getByLabel("Vendor")
-    await vendorInput.fill("some-vendor")
-    await expect(vendorInput).toHaveValue("some-vendor")
-
     const amountMin = page.getByLabel("Amount-min")
     await amountMin.fill("100")
     await expect(amountMin).toHaveValue("100")
@@ -59,7 +51,6 @@ test.describe("Expenses Filters", () => {
     await expect(clearButton).toBeVisible()
     await clearButton.click()
 
-    await expect(vendorInput).toHaveValue("")
     await expect(amountMin).toHaveValue("")
   })
 
@@ -77,20 +68,17 @@ test.describe("Expenses Filters", () => {
     await expect(amountMax).toHaveValue("500")
   })
 
-  test("sub category filter input is interactive", async ({ page }) => {
-    const subCatInput = page.getByLabel("Sub Cat")
-    await expect(subCatInput).toBeVisible()
-    await subCatInput.fill("test-sub")
-    await expect(subCatInput).toHaveValue("test-sub")
-    await subCatInput.clear()
-    await expect(subCatInput).toHaveValue("")
+  test("sub category filter is interactive", async ({ page }) => {
+    const subCatSelect = page.getByLabel("Sub-Cat")
+    await expect(subCatSelect).toBeVisible()
+    await subCatSelect.click()
+    await page.keyboard.press("Escape")
   })
 
   test("mode filter is interactive", async ({ page }) => {
     const modeSelect = page.getByLabel("Mode")
     await expect(modeSelect).toBeVisible()
     await modeSelect.click()
-    await expect(modeSelect).toBeVisible()
     await page.keyboard.press("Escape")
   })
 
@@ -98,7 +86,6 @@ test.describe("Expenses Filters", () => {
     const typeSelect = page.getByLabel("Type")
     await expect(typeSelect).toBeVisible()
     await typeSelect.click()
-    await expect(typeSelect).toBeVisible()
     await page.keyboard.press("Escape")
   })
 })

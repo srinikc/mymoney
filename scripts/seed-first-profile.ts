@@ -31,6 +31,7 @@ const FEATURE_FLAGS = [
   { name: "receipt_ocr", tier: "pro" },
   { name: "broker_zerodha", tier: "pro" },
   { name: "broker_groww", tier: "pro" },
+  { name: "broker_sharekhan", tier: "pro" },
   { name: "mf_central", tier: "pro" },
   { name: "aa_integration", tier: "premium" },
   { name: "ai_advisor", tier: "pro" },

@@ -1430,3 +1430,4 @@ Dev Dashboard shows the PROGRESS (what's happening now)
 | 24-Jun-2026 | System | Added AgenticProductProcess.md reference + dev-dashboard in §20 |
 | 03-Jul-2026 | System | Updated P1-P11 status with ✅/⬜/❌ markers. Added Subscription model (OTT/apps). Switched to SQLite for local dev. Added phase completion summary. |
 | 03-Jul-2026 | System | Added Asset Management (properties, metals, equipment) with P&L tracking. Added stock portfolio view with symbol/qty/buy-price. Implemented welcome email via Resend. |
+| 03-Jul-2026 | System | Added Sharekhan brokerage integration (OAuth, holdings import, portfolio sync). Created settings/integrations page. |

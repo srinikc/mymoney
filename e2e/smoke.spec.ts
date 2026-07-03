@@ -9,7 +9,7 @@ test.describe("Smoke tests", () => {
 
   test("Sidebar navigation is visible", async ({ page }) => {
     await page.goto("/", { waitUntil: "load", timeout: 20000 })
-    await page.waitForTimeout(2000)
+    await page.waitForTimeout(3000)
     const dashboardLink = page.locator("a[href='/']").first()
     await expect(dashboardLink).toBeVisible()
   })

@@ -267,7 +267,7 @@ export default function SubscriptionsPage() {
               </CardContent>
             </Card>
           )
-        })}
+        }))}
       </div>
     </div>
   )

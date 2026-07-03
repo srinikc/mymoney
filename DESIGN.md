@@ -1246,7 +1246,7 @@ Finvu/Sahamati AA integration for bank/MF/insurance data — ❌ Blocked
 
 ### Phase P10 — Admin Console & Onboarding
 ```
-Feature flags, user management, guided setup — ✅ Mostly Done (email pending)
+Feature flags, user management, guided setup — ✅ Complete
 ```
 
 | # | Item | Depends On | Est. | Status |
@@ -1255,7 +1255,7 @@ Feature flags, user management, guided setup — ✅ Mostly Done (email pending)
 | P10.2 | Admin console — feature flag toggles | P2.1 | 4 hrs | ✅ |
 | P10.3 | Admin console — tier change + audit log view | P2.1 | 4 hrs | ✅ |
 | P10.4 | Onboarding wizard (Step 1-6 flow) | P2.1 | 8 hrs | ✅ |
-| P10.5 | Welcome email + first-time tutorial | — | 4 hrs | ⬜ |
+| P10.5 | Welcome email + first-time tutorial | — | 4 hrs | ✅ |
 
 ### Phase P11 — Enterprise Readiness
 ```
@@ -1287,7 +1287,7 @@ PWA, Docker, hosting, audit, RBAC — ✅ All Done
 | P7 | LLM Chatbot (floating chat, prompt builder, templates) | ✅ Complete |
 | P8 | Data Integrations (bank CSV/PDF, OCR, Zerodha, Groww, MF) | ✅ Complete |
 | P9 | Account Aggregator (Finvu/Sahamati) | ❌ Blocked (needs company) |
-| P10 | Admin Console & Onboarding (feature flags, wizard) | ✅ Mostly Done (email pending) |
+| P10 | Admin Console & Onboarding (feature flags, wizard) | ✅ Complete |
 | P11 | Enterprise Readiness (PWA, Docker, RBAC, audit, rate limiting) | ✅ Complete (hosting pending) |
 
 ### Phase Priority Map (Dependency Order)
@@ -1429,3 +1429,4 @@ Dev Dashboard shows the PROGRESS (what's happening now)
 | 24-Jun-2026 | System | Initial design document — all discussions consolidated from planning session |
 | 24-Jun-2026 | System | Added AgenticProductProcess.md reference + dev-dashboard in §20 |
 | 03-Jul-2026 | System | Updated P1-P11 status with ✅/⬜/❌ markers. Added Subscription model (OTT/apps). Switched to SQLite for local dev. Added phase completion summary. |
+| 03-Jul-2026 | System | Added Asset Management (properties, metals, equipment) with P&L tracking. Added stock portfolio view with symbol/qty/buy-price. Implemented welcome email via Resend. |

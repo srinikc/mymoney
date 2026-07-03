@@ -1082,7 +1082,7 @@ Icons:         lucide-react (already have)
 
 ## 15. Implementation Phases
 
-> **Legend**: ✅ Done · ⬜ Pending · 🔄 In Progress
+> **Legend**: ✅ Done · ⬜ Pending · 🔄 In Progress · ❌ Blocked
 
 ### Phase P0 — Immediate Bug Fixes & Enhancements
 ```
@@ -1107,171 +1107,188 @@ Items already completed in current session
 
 ### Phase P1 — UI Excellence (Visual Polish)
 ```
-Foundation for a premium, futuristic feel
+Foundation for a premium, futuristic feel — ✅ All Done
 ```
 
-| # | Item | Depends On | Est. |
-|---|---|---|---|
-| P1.1 | Install **Geist font** + apply globally | — | 1 hr |
-| P1.2 | Install **Motion (Framer Motion)** v12 | — | 1 hr |
-| P1.3 | Add page transitions (AnimatePresence in layout) | P1.2 | 4 hrs |
-| P1.4 | Add card entrance animations + hover effects | P1.2 | 4 hrs |
-| P1.5 | Add animated number counters on KPI/dashboard cards | P1.2 | 2 hrs |
-| P1.6 | Add skeleton loading states (replace spinners) | — | 4 hrs |
-| P1.7 | Extract filter bar from table header to separate area | — | 6 hrs |
-| P1.8 | Replace `<table>` with shadcn Data Table (sortable, filterable) | — | 8 hrs |
-| P1.9 | Add chart entrance + tooltip animations | P1.2 | 3 hrs |
-| P1.10 | Upgrade Tailwind CSS v3 → v4 | — | 4 hrs |
-| P1.11 | Per-page visual polish (cards, shadows, dark mode glassmorphism) | — | 16 hrs |
+| # | Item | Depends On | Est. | Status |
+|---|---|---|---|---|
+| P1.1 | Install **Geist font** + apply globally | — | 1 hr | ✅ |
+| P1.2 | Install **Motion (Framer Motion)** v12 | — | 1 hr | ✅ |
+| P1.3 | Add page transitions (AnimatePresence in layout) | P1.2 | 4 hrs | ✅ |
+| P1.4 | Add card entrance animations + hover effects | P1.2 | 4 hrs | ✅ |
+| P1.5 | Add animated number counters on KPI/dashboard cards | P1.2 | 2 hrs | ✅ |
+| P1.6 | Add skeleton loading states (replace spinners) | — | 4 hrs | ✅ |
+| P1.7 | Extract filter bar from table header to separate area | — | 6 hrs | ✅ |
+| P1.8 | Replace `<table>` with shadcn Data Table (sortable, filterable) | — | 8 hrs | ✅ |
+| P1.9 | Add chart entrance + tooltip animations | P1.2 | 3 hrs | ✅ |
+| P1.10 | Upgrade Tailwind CSS v3 → v4 | — | 4 hrs | ✅ |
+| P1.11 | Per-page visual polish (cards, shadows, dark mode glassmorphism) | — | 16 hrs | ✅ |
 
 ### Phase P2 — Multi-Profile & Auth
 ```
-User identity, profile isolation, and database upgrade
+User identity, profile isolation, and database upgrade — ✅ All Done (SQLite→PG pending)
 ```
 
-| # | Item | Depends On | Est. |
-|---|---|---|---|
-| P2.1 | Add User + Profile + FeatureFlag + AuditLog models to Prisma | — | 4 hrs |
-| P2.2 | Run SQLite → PostgreSQL migration | — | 8 hrs |
-| P2.3 | Implement NextAuth.js v5 with Google + Email | — | 8 hrs |
-| P2.4 | Add profileId FK to all existing tables | P2.1 | 4 hrs |
-| P2.5 | Add middleware for route protection | P2.3 | 2 hrs |
-| P2.6 | Add profile switcher UI in app shell header | P2.1 | 4 hrs |
-| P2.7 | Data migration script (existing data → first profile) | P2.1 | 2 hrs |
-| P2.8 | Admin console — user/profile management | P2.1 | 8 hrs |
+| # | Item | Depends On | Est. | Status |
+|---|---|---|---|---|
+| P2.1 | Add User + Profile + FeatureFlag + AuditLog models to Prisma | — | 4 hrs | ✅ |
+| P2.2 | Run SQLite → PostgreSQL migration | — | 8 hrs | ⬜ |
+| P2.3 | Implement NextAuth.js v5 with Google + Email | — | 8 hrs | ✅ |
+| P2.4 | Add profileId FK to all existing tables | P2.1 | 4 hrs | ✅ |
+| P2.5 | Add middleware for route protection | P2.3 | 2 hrs | ✅ |
+| P2.6 | Add profile switcher UI in app shell header | P2.1 | 4 hrs | ✅ |
+| P2.7 | Data migration script (existing data → first profile) | P2.1 | 2 hrs | ✅ |
+| P2.8 | Admin console — user/profile management | P2.1 | 8 hrs | ✅ |
 
 ### Phase P3 — Multi-Select Filters
 ```
-Checkbox-based filter system across all pages
+Checkbox-based filter system across all pages — ✅ All Done
 ```
 
-| # | Item | Depends On | Est. |
-|---|---|---|---|
-| P3.1 | Build custom multi-select dropdown component (checkboxes + select all) | — | 6 hrs |
-| P3.2 | Apply multi-select to Vendor filter | P3.1 | 2 hrs |
-| P3.3 | Apply multi-select to Category filter | P3.1 | 2 hrs |
-| P3.4 | Apply multi-select to Person, Mode, Bank, Sub Cat, Type filters | P3.1 | 4 hrs |
-| P3.5 | Add (Blank) option to every filter dropdown | — | 1 hr |
-| P3.6 | Add Contains / Does Not Contain toggle for text filters | — | 4 hrs |
-| P3.7 | Update API to accept array filter params | — | 4 hrs |
+| # | Item | Depends On | Est. | Status |
+|---|---|---|---|---|
+| P3.1 | Build custom multi-select dropdown component (checkboxes + select all) | — | 6 hrs | ✅ |
+| P3.2 | Apply multi-select to Vendor filter | P3.1 | 2 hrs | ✅ |
+| P3.3 | Apply multi-select to Category filter | P3.1 | 2 hrs | ✅ |
+| P3.4 | Apply multi-select to Person, Mode, Bank, Sub Cat, Type filters | P3.1 | 4 hrs | ✅ |
+| P3.5 | Add (Blank) option to every filter dropdown | — | 1 hr | ✅ |
+| P3.6 | Add Contains / Does Not Contain toggle for text filters | — | 4 hrs | ✅ |
+| P3.7 | Update API to accept array filter params | — | 4 hrs | ✅ |
 
 ### Phase P4 — Dashboard & Insights Enhancements
 ```
-Better visualization, YoY comparison, category analysis
+Better visualization, YoY comparison, category analysis — ✅ All Done
 ```
 
-| # | Item | Depends On | Est. |
-|---|---|---|---|
-| P4.1 | Add "All Years" filter option on Dashboard | — | 2 hrs |
-| P4.2 | Add yearly spending trend chart below monthly chart | — | 4 hrs |
-| P4.3 | Apply en-IN locale to all Recharts tooltips/labels | — | 3 hrs |
-| P4.4 | Add year/month/quarter filter component on Insights | — | 3 hrs |
-| P4.5 | Build category YoY comparison table (API + UI) | — | 8 hrs |
-| P4.6 | Add category pie chart with % and count for selected period | — | 4 hrs |
-| P4.7 | Add category change indicator (↑/↓ %) | — | 2 hrs |
-| P4.8 | Spend optimization suggestion cards | — | 4 hrs |
-| P4.9 | Financial Health Score gauge on Dashboard | — | 4 hrs |
+| # | Item | Depends On | Est. | Status |
+|---|---|---|---|---|
+| P4.1 | Add "All Years" filter option on Dashboard | — | 2 hrs | ✅ |
+| P4.2 | Add yearly spending trend chart below monthly chart | — | 4 hrs | ✅ |
+| P4.3 | Apply en-IN locale to all Recharts tooltips/labels | — | 3 hrs | ✅ |
+| P4.4 | Add year/month/quarter filter component on Insights | — | 3 hrs | ✅ |
+| P4.5 | Build category YoY comparison table (API + UI) | — | 8 hrs | ✅ |
+| P4.6 | Add category pie chart with % and count for selected period | — | 4 hrs | ✅ |
+| P4.7 | Add category change indicator (↑/↓ %) | — | 2 hrs | ✅ |
+| P4.8 | Spend optimization suggestion cards | — | 4 hrs | ✅ |
+| P4.9 | Financial Health Score gauge on Dashboard | — | 4 hrs | ✅ |
 
 ### Phase P5 — Reports & Export
 ```
-Tabular data, recurrence type report, export improvements
+Tabular data, recurrence type report, export improvements — ✅ All Done
 ```
 
-| # | Item | Depends On | Est. |
-|---|---|---|---|
-| P5.1 | Tabular data view with sort/filter | P1.8 | 4 hrs |
-| P5.2 | Recurrence type report (monthly/onetime/yearly/quarterly) | — | 6 hrs |
-| P5.3 | Category pie with % + count on Reports page | — | 3 hrs |
-| P5.4 | Enhanced XLSX export with category-wise tabs | — | 4 hrs |
-| P5.5 | Enhanced PDF report with charts | — | 6 hrs |
-| P5.6 | en-IN locale on all report numbers | — | 1 hr |
+| # | Item | Depends On | Est. | Status |
+|---|---|---|---|---|
+| P5.1 | Tabular data view with sort/filter | P1.8 | 4 hrs | ✅ |
+| P5.2 | Recurrence type report (monthly/onetime/yearly/quarterly) | — | 6 hrs | ✅ |
+| P5.3 | Category pie with % + count on Reports page | — | 3 hrs | ✅ |
+| P5.4 | Enhanced XLSX export with category-wise tabs | — | 4 hrs | ✅ |
+| P5.5 | Enhanced PDF report with charts | — | 6 hrs | ✅ |
+| P5.6 | en-IN locale on all report numbers | — | 1 hr | ✅ |
 
 ### Phase P6 — AI Financial Advisor
 ```
-Health score, recommendations engine, risk profiling
+Health score, recommendations engine, risk profiling — ✅ All Done
 ```
 
-| # | Item | Depends On | Est. |
-|---|---|---|---|
-| P6.1 | Financial Health Score calculation engine | P2.1 (profile data) | 8 hrs |
-| P6.2 | Risk profiling questionnaire (SEBI standard 10-Q) | — | 4 hrs |
-| P6.3 | Recommendation engine (CFP-based rules) | P6.1 | 8 hrs |
-| P6.4 | Gap analysis (emergency fund, insurance, tax, debt) | P6.1 | 6 hrs |
-| P6.5 | What-if simulator scenarios | P6.1 | 8 hrs |
-| P6.6 | Monthly financial health PDF report | P6.1 | 6 hrs |
-| P6.7 | Financial Health Dashboard page/section | P6.1 | 6 hrs |
+| # | Item | Depends On | Est. | Status |
+|---|---|---|---|---|
+| P6.1 | Financial Health Score calculation engine | P2.1 (profile data) | 8 hrs | ✅ |
+| P6.2 | Risk profiling questionnaire (SEBI standard 10-Q) | — | 4 hrs | ✅ |
+| P6.3 | Recommendation engine (CFP-based rules) | P6.1 | 8 hrs | ✅ |
+| P6.4 | Gap analysis (emergency fund, insurance, tax, debt) | P6.1 | 6 hrs | ✅ |
+| P6.5 | What-if simulator scenarios | P6.1 | 8 hrs | ✅ |
+| P6.6 | Monthly financial health PDF report | P6.1 | 6 hrs | ✅ |
+| P6.7 | Financial Health Dashboard page/section | P6.1 | 6 hrs | ✅ |
 
 ### Phase P7 — LLM Chatbot
 ```
-Natural language queries, projections, insights
+Natural language queries, projections, insights — ✅ All Done
 ```
 
-| # | Item | Depends On | Est. |
-|---|---|---|---|
-| P7.1 | Build chat API route (POST /api/chat) | — | 4 hrs |
-| P7.2 | Integrate OpenAI/Claude API | — | 2 hrs |
-| P7.3 | Build prompt builder with user data context | P7.1 | 4 hrs |
-| P7.4 | Build floating chat UI component | — | 6 hrs |
-| P7.5 | Pre-built query templates (20+ queries) | P7.3 | 4 hrs |
-| P7.6 | Response formatter (en-IN numbers, clean markdown) | P7.1 | 2 hrs |
+| # | Item | Depends On | Est. | Status |
+|---|---|---|---|---|
+| P7.1 | Build chat API route (POST /api/chat) | — | 4 hrs | ✅ |
+| P7.2 | Integrate OpenAI/Claude API | — | 2 hrs | ✅ |
+| P7.3 | Build prompt builder with user data context | P7.1 | 4 hrs | ✅ |
+| P7.4 | Build floating chat UI component | — | 6 hrs | ✅ |
+| P7.5 | Pre-built query templates (20+ queries) | P7.3 | 4 hrs | ✅ |
+| P7.6 | Response formatter (en-IN numbers, clean markdown) | P7.1 | 2 hrs | ✅ |
 
 ### Phase P8 — Data Integrations
 ```
-Bank import, OCR, broker APIs, MF Central
+Bank import, OCR, broker APIs, MF Central — ✅ All Done
 ```
 
-| # | Item | Depends On | Est. |
-|---|---|---|---|
-| P8.1 | Bank statement CSV parser (standard formats) | P2.1 | 8 hrs |
-| P8.2 | Bank PDF statement parser (HDFC, ICICI, SBI) | — | 8 hrs |
-| P8.3 | Receipt OCR with Tesseract.js (existing dep) | — | 8 hrs |
-| P8.4 | Zerodha Kite API integration | — | 8 hrs |
-| P8.5 | Groww API integration | — | 8 hrs |
-| P8.6 | MF Central (CAMS/KFin) via PAN | — | 6 hrs |
-| P8.7 | CDSL/NSDL eCAS PDF parser | — | 4 hrs |
+| # | Item | Depends On | Est. | Status |
+|---|---|---|---|---|
+| P8.1 | Bank statement CSV parser (standard formats) | P2.1 | 8 hrs | ✅ |
+| P8.2 | Bank PDF statement parser (HDFC, ICICI, SBI) | — | 8 hrs | ✅ |
+| P8.3 | Receipt OCR with Tesseract.js (existing dep) | — | 8 hrs | ✅ |
+| P8.4 | Zerodha Kite API integration | — | 8 hrs | ✅ |
+| P8.5 | Groww API integration | — | 8 hrs | ✅ |
+| P8.6 | MF Central (CAMS/KFin) via PAN | — | 6 hrs | ✅ |
+| P8.7 | CDSL/NSDL eCAS PDF parser | — | 4 hrs | ✅ |
 
 ### Phase P9 — Account Aggregator
 ```
-Finvu/Sahamati AA integration for bank/MF/insurance data
+Finvu/Sahamati AA integration for bank/MF/insurance data — ❌ Blocked
 ```
 *Requires registered company entity (LLP/Pvt Ltd)*
 
-| # | Item | Depends On | Est. |
-|---|---|---|---|
-| P9.1 | Register as FIU with AA provider | P2.3 | 1 week legal |
-| P9.2 | Implement AA consent flow UI | — | 8 hrs |
-| P9.3 | Implement AA data fetch API | — | 8 hrs |
-| P9.4 | Map AA data to MyMoney models | P2.1 | 6 hrs |
-| P9.5 | Consent management dashboard for user | — | 4 hrs |
+| # | Item | Depends On | Est. | Status |
+|---|---|---|---|---|
+| P9.1 | Register as FIU with AA provider | P2.3 | 1 week legal | ❌ |
+| P9.2 | Implement AA consent flow UI | — | 8 hrs | ❌ |
+| P9.3 | Implement AA data fetch API | — | 8 hrs | ❌ |
+| P9.4 | Map AA data to MyMoney models | P2.1 | 6 hrs | ❌ |
+| P9.5 | Consent management dashboard for user | — | 4 hrs | ❌ |
 
 ### Phase P10 — Admin Console & Onboarding
 ```
-Feature flags, user management, guided setup
+Feature flags, user management, guided setup — ✅ All Done
 ```
 
-| # | Item | Depends On | Est. |
-|---|---|---|---|
-| P10.1 | Admin console — user/profile list | P2.1 | 6 hrs |
-| P10.2 | Admin console — feature flag toggles | P2.1 | 4 hrs |
-| P10.3 | Admin console — tier change + audit log view | P2.1 | 4 hrs |
-| P10.4 | Onboarding wizard (Step 1-6 flow) | P2.1 | 8 hrs |
-| P10.5 | Welcome email + first-time tutorial | — | 4 hrs |
+| # | Item | Depends On | Est. | Status |
+|---|---|---|---|---|
+| P10.1 | Admin console — user/profile list | P2.1 | 6 hrs | ✅ |
+| P10.2 | Admin console — feature flag toggles | P2.1 | 4 hrs | ✅ |
+| P10.3 | Admin console — tier change + audit log view | P2.1 | 4 hrs | ✅ |
+| P10.4 | Onboarding wizard (Step 1-6 flow) | P2.1 | 8 hrs | ✅ |
+| P10.5 | Welcome email + first-time tutorial | — | 4 hrs | ✅ |
 
 ### Phase P11 — Enterprise Readiness
 ```
-PWA, Docker, hosting, audit, RBAC
+PWA, Docker, hosting, audit, RBAC — ✅ All Done
 ```
 
-| # | Item | Depends On | Est. |
-|---|---|---|---|
-| P11.1 | PWA (service worker, manifest, offline page) | — | 6 hrs |
-| P11.2 | Dockerfile + docker-compose | — | 4 hrs |
-| P11.3 | Docker-based backup (pg_dump to S3) | P11.2 | 2 hrs |
-| P11.4 | SSL + domain setup | — | 2 hrs |
-| P11.5 | Hosting setup (AWS Mumbai VPS) | — | 4 hrs |
-| P11.6 | Role-based access (Admin/Manager/Viewer) | P2.1 | 6 hrs |
-| P11.7 | Audit log viewer UI | — | 4 hrs |
-| P11.8 | Rate limiting + security hardening | — | 4 hrs |
+| # | Item | Depends On | Est. | Status |
+|---|---|---|---|---|
+| P11.1 | PWA (service worker, manifest, offline page) | — | 6 hrs | ✅ |
+| P11.2 | Dockerfile + docker-compose | — | 4 hrs | ✅ |
+| P11.3 | Docker-based backup (pg_dump to S3) | P11.2 | 2 hrs | ✅ |
+| P11.4 | SSL + domain setup | — | 2 hrs | ✅ |
+| P11.5 | Hosting setup (AWS Mumbai VPS) | — | 4 hrs | ⬜ |
+| P11.6 | Role-based access (Admin/Manager/Viewer) | P2.1 | 6 hrs | ✅ |
+| P11.7 | Audit log viewer UI | — | 4 hrs | ✅ |
+| P11.8 | Rate limiting + security hardening | — | 4 hrs | ✅ |
+
+### Phase Completion Summary
+
+| Phase | Description | Status |
+|---|---|---|
+| P0 | Bug fixes & enhancements | ✅ Complete |
+| P1 | UI Excellence (Geist font, Motion, animations, DataTable) | ✅ Complete |
+| P2 | Multi-Profile & Auth (NextAuth, profiles, middleware) | ✅ Complete (SQLite→PG pending) |
+| P3 | Multi-Select Filters | ✅ Complete |
+| P4 | Dashboard & Insights Enhancements | ✅ Complete |
+| P5 | Reports & Export (tabular, recurrence, PDF/XLSX) | ✅ Complete |
+| P6 | AI Financial Advisor (health score, risk profiling, what-if) | ✅ Complete |
+| P7 | LLM Chatbot (floating chat, prompt builder, templates) | ✅ Complete |
+| P8 | Data Integrations (bank CSV/PDF, OCR, Zerodha, Groww, MF) | ✅ Complete |
+| P9 | Account Aggregator (Finvu/Sahamati) | ❌ Blocked (needs company) |
+| P10 | Admin Console & Onboarding (feature flags, wizard) | ✅ Complete |
+| P11 | Enterprise Readiness (PWA, Docker, RBAC, audit, rate limiting) | ✅ Complete (hosting pending) |
 
 ### Phase Priority Map (Dependency Order)
 
@@ -1318,15 +1335,15 @@ P10 (Admin Console)                                 P5 (Reports) ─────
 
 ## 17. Open Items / Decisions
 
-| # | Question | Status |
-|---|---|---|
-| 1 | SQLite → PostgreSQL migration timing | ⬜ Pending |
-| 2 | NextAuth vs custom auth | ⬜ Pending |
-| 3 | OpenAI vs Claude for chatbot | ⬜ Pending |
-| 4 | Finvu vs Sahamati for AA partnership | ⬜ Pending |
-| 5 | Pricing for premium tiers | ⬜ Pending |
-| 6 | Self-hosted vs cloud-first deployment | ⬜ Pending |
-| 7 | Plugin architecture for integrations | ⬜ Pending |
+| # | Question | Status | Notes |
+|---|---|---|---|---|
+| 1 | SQLite → PostgreSQL migration timing | ⬜ Pending | Schema uses SQLite locally; PG needed for production |
+| 2 | NextAuth vs custom auth | ✅ Resolved | NextAuth.js v5 implemented (Google + Email + Credentials) |
+| 3 | OpenAI vs Claude for chatbot | ⬜ Pending | Code supports both via `LLM_PROVIDER` env var |
+| 4 | Finvu vs Sahamati for AA partnership | ❌ Blocked | Needs registered company entity |
+| 5 | Pricing for premium tiers | ⬜ Pending | Defined in §9.3, stripe integration not yet built |
+| 6 | Self-hosted vs cloud-first deployment | ⬜ Pending | Docker ready, hosting setup pending (P11.5) |
+| 7 | Plugin architecture for integrations | ⬜ Pending | Not started |
 
 ---
 
@@ -1411,3 +1428,4 @@ Dev Dashboard shows the PROGRESS (what's happening now)
 |---|---|---|
 | 24-Jun-2026 | System | Initial design document — all discussions consolidated from planning session |
 | 24-Jun-2026 | System | Added AgenticProductProcess.md reference + dev-dashboard in §20 |
+| 03-Jul-2026 | System | Updated P1-P11 status with ✅/⬜/❌ markers. Added Subscription model (OTT/apps). Switched to SQLite for local dev. Added phase completion summary. |

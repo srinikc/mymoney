@@ -4,9 +4,28 @@ import { join } from "path"
 import { existsSync } from "fs"
 import { setGpayJob, getGpayJobs, deleteGpayJob } from "@/lib/gpay-job-store"
 
+import { tryCreateTakeoutExport, getExportStatus } from "@/lib/gpay-takeout-client"
+
 export async function POST(req: Request) {
   const url = new URL(req.url)
   const action = url.searchParams.get("action") || "refresh"
+
+  // Auto mode: try reverse-engineered Takeout API first
+  if (action === "auto") {
+    const result = await tryCreateTakeoutExport()
+    if (result.success) {
+      const jobId = crypto.randomUUID()
+      setGpayJob(jobId, {
+        status: "export_created",
+        startedAt: new Date().toISOString(),
+        serviceName: result.serviceName,
+        exportId: result.exportId,
+      })
+      setTimeout(() => deleteGpayJob(jobId), 15 * 60 * 1000)
+      return NextResponse.json({ mode: "auto", jobId }, { status: 200 })
+    }
+    return NextResponse.json({ mode: "manual", error: result.error }, { status: 200 })
+  }
 
   // Re-auth: launches visible browser for one-time login
   if (action === "reauth") {
@@ -115,7 +134,27 @@ export async function POST(req: Request) {
   return NextResponse.json({ jobId }, { status: 202 })
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const url = new URL(req.url)
+  const specificJobId = url.searchParams.get("jobId")
+
+  if (specificJobId) {
+    const jobs = getGpayJobs()
+    const job = jobs.get(specificJobId)
+    if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 })
+
+    let exportStatus = null
+    if (job.serviceName && job.exportId && job.status !== "export_succeeded" && job.status !== "export_failed") {
+      exportStatus = await getExportStatus(job.serviceName, job.exportId)
+      if (exportStatus.done) {
+        const updatedStatus = exportStatus.failed ? "export_failed" : "export_succeeded"
+        setGpayJob(specificJobId, { ...job, status: updatedStatus, completedAt: new Date().toISOString() })
+      }
+    }
+
+    return NextResponse.json({ job: { ...job, exportStatus } })
+  }
+
   const jobs = getGpayJobs()
   const jobList = Array.from(jobs.entries()).map(([id, job]) => ({
     id,

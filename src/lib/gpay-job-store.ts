@@ -1,5 +1,5 @@
 export interface GpayJob {
-  status: "running" | "completed" | "failed" | "auth_required" | "reauth_started"
+  status: "running" | "completed" | "failed" | "auth_required" | "reauth_started" | "export_created" | "export_succeeded" | "export_failed"
   startedAt: string
   completedAt?: string
   fileName?: string
@@ -7,6 +7,8 @@ export interface GpayJob {
   message?: string
   reauthUrl?: string
   help?: string
+  serviceName?: string
+  exportId?: string
 }
 
 const jobs = new Map<string, GpayJob>()

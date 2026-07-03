@@ -22,8 +22,6 @@ export default function IntegrationsPage() {
   const [loading, setLoading] = useState(true)
   const [importingZerodha, setImportingZerodha] = useState(false)
   const [importingSharekhan, setImportingSharekhan] = useState(false)
-  const [gpayRefreshing, setGpayRefreshing] = useState(false)
-  const [gpayJobId, setGpayJobId] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
   useEffect(() => {
@@ -154,39 +152,25 @@ export default function IntegrationsPage() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>GPay Takeout Auto-Refresh</CardTitle></CardHeader>
+        <CardHeader><CardTitle>GPay Transactions</CardTitle></CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
-            Automatically trigger a Google Takeout export for GPay transactions.
-            Requires an active Google session saved in the browser profile.
+            Export your Google Pay transactions from Google Takeout and they'll automatically appear in MyMoney after syncing with Drive.
           </p>
+          <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1 mb-4">
+            <li>Click <strong>Open Google Takeout</strong> below</li>
+            <li>Deselect all → select only <strong>Google Pay</strong></li>
+            <li>Choose <strong>Add to Drive</strong> as delivery method</li>
+            <li>Click <strong>Create export</strong> (takes 30s-5min for GPay-only)</li>
+            <li>Come back here and click <strong>Scan Drive</strong> to import</li>
+          </ol>
           <div className="flex gap-2">
-            <Button
-              variant="default"
-              onClick={async () => {
-                setGpayRefreshing(true)
-                setGpayJobId(null)
-                try {
-                  const res = await fetch("/api/refresh-gpay", { method: "POST" })
-                  const data = await res.json()
-                  setGpayJobId(data.jobId)
-                  setMessage("GPay refresh started! Check back in a few minutes.")
-                } catch (error) {
-                  setMessage("GPay refresh failed to start.")
-                } finally {
-                  setGpayRefreshing(false)
-                }
-              }}
-              disabled={gpayRefreshing}
-            >
-              {gpayRefreshing ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1.5 h-4 w-4" />}
-              {gpayRefreshing ? "Starting..." : "Refresh GPay"}
+            <Button variant="default" onClick={() => window.open("https://takeout.google.com", "_blank")}>
+              <RefreshCw className="mr-1.5 h-4 w-4" /> Open Google Takeout
             </Button>
-            {gpayJobId && (
-              <Button variant="outline" onClick={() => window.open("/expenses", "_blank")}>
-                Go to Expenses
-              </Button>
-            )}
+            <Button variant="outline" onClick={() => window.open("/expenses", "_blank")}>
+              Scan Drive in Expenses
+            </Button>
           </div>
         </CardContent>
       </Card>

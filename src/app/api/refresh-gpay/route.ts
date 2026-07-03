@@ -4,7 +4,40 @@ import { join } from "path"
 import { existsSync } from "fs"
 import { setGpayJob, getGpayJobs, deleteGpayJob } from "@/lib/gpay-job-store"
 
-export async function POST() {
+export async function POST(req: Request) {
+  const url = new URL(req.url)
+  const action = url.searchParams.get("action") || "refresh"
+
+  // Re-auth: launches visible browser for one-time login
+  if (action === "reauth") {
+    const token = crypto.randomUUID()
+    setGpayJob(token, {
+      status: "reauth_started",
+      startedAt: new Date().toISOString(),
+      message: "A browser window will open. Log into your Google account, then close the browser.",
+    })
+
+    const scriptPath = join(process.cwd(), "scripts", "refresh-gpay.mjs")
+    if (!existsSync(scriptPath)) {
+      return NextResponse.json({ error: "Script not found" }, { status: 500 })
+    }
+
+    spawn("node", [scriptPath, "--setup"], {
+      cwd: process.cwd(),
+      stdio: "ignore",
+      detached: true,
+    }).unref()
+
+    setTimeout(() => deleteGpayJob(token), 5 * 60 * 1000)
+
+    return NextResponse.json({
+      reauthToken: token,
+      message: "Re-auth browser launched. Log into Google and close the window.",
+      help: "If no browser opens, run: node scripts/refresh-gpay.mjs --setup",
+    })
+  }
+
+  // Normal refresh
   const jobId = crypto.randomUUID()
 
   const scriptPath = join(process.cwd(), "scripts", "refresh-gpay.mjs")
@@ -62,9 +95,11 @@ export async function POST() {
       })
     } else if (result.status === "auth_required") {
       setGpayJob(jobId, {
-        status: "failed",
+        status: "auth_required",
         startedAt,
-        error: "Google session expired. Open takeout.google.com in a regular browser to re-authenticate.",
+        message: "Google session expired.",
+        reauthUrl: "https://takeout.google.com",
+        help: "Click 'Re-authenticate' to log into Google in a new browser window.",
       })
     } else {
       setGpayJob(jobId, {
@@ -86,6 +121,10 @@ export async function GET() {
     id,
     status: job.status,
     startedAt: job.startedAt,
+    message: job.message,
+    error: job.error,
+    reauthUrl: job.reauthUrl,
+    help: job.help,
   }))
   return NextResponse.json({ jobs: jobList })
 }

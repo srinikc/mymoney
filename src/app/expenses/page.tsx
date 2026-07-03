@@ -97,7 +97,7 @@ export default function ExpensesPage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<Record<number, { categoryId: string; subCategory: string; person: string }>>({})
   const [driveImporting, setDriveImporting] = useState(false)
-  const [gpayRefreshing, setGpayRefreshing] = useState(false)
+
 
   const [form, setForm] = useState({
     date: new Date().toISOString().split("T")[0],
@@ -264,45 +264,7 @@ export default function ExpensesPage() {
     finally { setDriveImporting(false) }
   }
 
-  const handleRefreshGpay = async () => {
-    setGpayRefreshing(true)
-    setImportResult(null)
-    try {
-      const res = await fetch("/api/refresh-gpay", { method: "POST" })
-      if (!res.ok) {
-        const err = await res.json()
-        setImportResult("Refresh GPay failed: " + (err.error || "Unknown error"))
-        return
-      }
-      const { jobId } = await res.json()
-      setImportResult("GPay refresh started (job: " + jobId.slice(0, 8) + "...)")
 
-      // Poll for completion
-      let done = false
-      let attempts = 0
-      while (!done && attempts < 120) {
-        attempts++
-        await new Promise((r) => setTimeout(r, 2000))
-        const statusRes = await fetch("/api/refresh-gpay/status/" + jobId)
-        if (!statusRes.ok) break
-        const job = await statusRes.json()
-        if (job.status === "completed") {
-          setImportResult("GPay refresh complete! Scanning Drive for new file...")
-          done = true
-          // Auto-scan Drive after refresh
-          await new Promise((r) => setTimeout(r, 1000))
-          await handleScanDrive()
-        } else if (job.status === "failed") {
-          setImportResult("GPay refresh failed: " + (job.error || "Unknown error"))
-          done = true
-        }
-      }
-    } catch (error) {
-      setImportResult("Refresh GPay error: " + String(error))
-    } finally {
-      setGpayRefreshing(false)
-    }
-  }
 
   const startInlineEdit = (expense: Expense) => {
     setEditingId(expense.id)
@@ -441,9 +403,8 @@ export default function ExpensesPage() {
             {gdriveConnected ? "Drive" : "GDrive"}
           </Button>
 
-          <Button variant="outline" size="sm" onClick={handleRefreshGpay} disabled={gpayRefreshing}>
-            {gpayRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            {gpayRefreshing ? "Refreshing..." : "GPay Takeout"}
+          <Button variant="outline" size="sm" onClick={() => window.open("https://takeout.google.com", "_blank")}>
+            <RefreshCw className="mr-2 h-4 w-4" /> GPay
           </Button>
 
           <label className="cursor-pointer">

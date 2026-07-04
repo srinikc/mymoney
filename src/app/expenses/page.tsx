@@ -219,13 +219,109 @@ export default function ExpensesPage() {
     URL.revokeObjectURL(url)
   }
 
-  const [gpayPolling, setGpayPolling] = useState(false)
+  const [gpayJobId, setGpayJobId] = useState<string | null>(null)
   const [gpayDialogOpen, setGpayDialogOpen] = useState(false)
-  const [gpayStep, setGpayStep] = useState<"starting_export" | "export_in_progress" | "open_takeout" | "waiting_drive" | "importing" | "done" | "error">("open_takeout")
-  const knownGpayFilesRef = useRef<Set<string>>(new Set())
+  const [gpayStep, setGpayStep] = useState<"idle" | "starting_export" | "export_in_progress" | "open_takeout" | "waiting_drive" | "importing" | "done" | "error">("idle")
+  const knownGpayFilesRef = useRef<Set<string>>(new Set(
+    typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("mymoney-gpay-known-files") || "[]") as string[]
+      : []
+  ))
   const gpayAutoModeRef = useRef(false)
+  const gpayPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const gpayDrivePollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const gpayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [lastGpaySync, setLastGpaySync] = useState(() =>
+    typeof window !== "undefined" ? localStorage.getItem("mymoney-gpay-last-sync") || "" : ""
+  )
+  const [gpayConfirmForce, setGpayConfirmForce] = useState(false)
 
-  const startGpayDrivePolling = async (timeoutMs = 300_000) => {
+  const persistLastGpaySync = useCallback((iso: string) => {
+    setLastGpaySync(iso)
+    localStorage.setItem("mymoney-gpay-last-sync", iso)
+  }, [])
+
+  const addKnownGpayFile = useCallback((id: string) => {
+    knownGpayFilesRef.current.add(id)
+    localStorage.setItem("mymoney-gpay-known-files", JSON.stringify([...knownGpayFilesRef.current]))
+  }, [])
+
+  // Persist pending GPay sync state across page navigations
+  const saveGpayPendingState = (step: string) => {
+    if (step === "waiting_drive" || step === "export_in_progress" || step === "importing") {
+      localStorage.setItem("mymoney-gpay-pending", JSON.stringify({ step, timestamp: Date.now() }))
+    } else {
+      localStorage.removeItem("mymoney-gpay-pending")
+    }
+  }
+
+  // Save pending state across navigations
+  useEffect(() => {
+    if (gpayStep === "waiting_drive" || gpayStep === "export_in_progress" || gpayStep === "importing") {
+      localStorage.setItem("mymoney-gpay-pending", JSON.stringify({ step: gpayStep, timestamp: Date.now() }))
+    } else {
+      localStorage.removeItem("mymoney-gpay-pending")
+    }
+  }, [gpayStep])
+
+  // Resume pending sync on mount
+  // Check if a GPay file already arrived while we were away
+  const checkAndImportPendingGpayFile = async () => {
+    try {
+      const listRes = await fetch("/api/drive/list")
+      if (!listRes.ok) return false
+      const data = await listRes.json()
+      const files: { id: string; name: string }[] = data.files || []
+      const pendingFile = files.find(
+        (f) => f.name === "MyActivity.html" && !knownGpayFilesRef.current.has(f.id)
+      )
+      if (pendingFile) {
+        addKnownGpayFile(pendingFile.id)
+        setGpayStep("importing")
+        await handleImportFromDrive(pendingFile.id)
+        setGpayStep("done")
+        persistLastGpaySync(new Date().toISOString())
+        return true
+      }
+      return false
+    } catch { return false }
+  }
+
+  useEffect(() => {
+    const pending = localStorage.getItem("mymoney-gpay-pending")
+    if (pending) {
+      (async () => {
+        try {
+          const { step, timestamp } = JSON.parse(pending)
+          const elapsed = Date.now() - timestamp
+          if (elapsed < 20 * 60 * 1000 && (step === "waiting_drive" || step === "importing")) {
+            setGpayStep("waiting_drive")
+            // First check if file already arrived
+            const found = await checkAndImportPendingGpayFile()
+            if (!found) {
+              // Start polling for it
+              startGpayDrivePolling()
+            }
+          } else {
+            localStorage.removeItem("mymoney-gpay-pending")
+          }
+        } catch {
+          localStorage.removeItem("mymoney-gpay-pending")
+        }
+      })()
+    }
+  }, [])
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (gpayPollRef.current) clearInterval(gpayPollRef.current)
+      if (gpayDrivePollRef.current) clearInterval(gpayDrivePollRef.current)
+      if (gpayTimeoutRef.current) clearTimeout(gpayTimeoutRef.current)
+    }
+  }, [])
+
+  const startGpayDrivePolling = async (timeoutMs = 900_000) => {
     // Record known html files first
     try {
       const listRes = await fetch("/api/drive/list")
@@ -233,12 +329,14 @@ export default function ExpensesPage() {
         const data = await listRes.json()
         const files: { id: string; name: string }[] = data.files || []
         for (const f of files) {
-          if (f.name.endsWith(".html")) knownGpayFilesRef.current.add(f.id)
+          if (f.name.endsWith(".html")) addKnownGpayFile(f.id)
         }
       }
     } catch {}
 
-    const interval = setInterval(async () => {
+    if (gpayDrivePollRef.current) clearInterval(gpayDrivePollRef.current)
+
+    gpayDrivePollRef.current = setInterval(async () => {
       try {
         const res = await fetch("/api/drive/list")
         if (!res.ok) return
@@ -248,76 +346,113 @@ export default function ExpensesPage() {
           (f) => f.name === "MyActivity.html" && !knownGpayFilesRef.current.has(f.id)
         )
         if (newFile) {
-          clearInterval(interval)
-          clearTimeout(fallbackTimeout)
+          if (gpayDrivePollRef.current) clearInterval(gpayDrivePollRef.current)
+          if (gpayTimeoutRef.current) clearTimeout(gpayTimeoutRef.current)
           setGpayStep("importing")
-          knownGpayFilesRef.current.add(newFile.id)
+          addKnownGpayFile(newFile.id)
           await handleImportFromDrive(newFile.id)
           setGpayStep("done")
-          setGpayPolling(false)
+          setGpayJobId(null)
+          persistLastGpaySync(new Date().toISOString())
         }
       } catch {}
-    }, 10000)
+    }, 15000)
 
-    const fallbackTimeout = setTimeout(() => {
-      clearInterval(interval)
+    gpayTimeoutRef.current = setTimeout(() => {
+      if (gpayDrivePollRef.current) clearInterval(gpayDrivePollRef.current)
       if (gpayStep !== "done" && gpayStep !== "importing") {
-        setGpayStep("error")
-        setGpayPolling(false)
+        setGpayStep("waiting_drive")
+        setGpayJobId(null)
       }
     }, timeoutMs)
   }
 
-  const handleGpayTakeout = async () => {
-    setGpayDialogOpen(true)
-    setImportResult(null)
-    gpayAutoModeRef.current = false
+  const startGpayPolling = (jobId: string) => {
+    if (gpayPollRef.current) clearInterval(gpayPollRef.current)
+    if (gpayTimeoutRef.current) clearTimeout(gpayTimeoutRef.current)
 
-    // Phase 1: Try auto export via Takeout API
-    setGpayStep("starting_export")
-    try {
-      const autoRes = await fetch("/api/refresh-gpay?action=auto", { method: "POST" })
-      const autoData = await autoRes.json()
-      if (autoData.mode === "auto") {
-        gpayAutoModeRef.current = true
-        setGpayStep("export_in_progress")
-        const jobId = autoData.jobId
-
-        // Poll export status every 5s, timeout after 10min
-        const exportDone = await new Promise<boolean>((resolve) => {
-          const interval = setInterval(async () => {
-            try {
-              const res = await fetch(`/api/refresh-gpay?jobId=${jobId}`)
-              const data = await res.json()
-              if (data.job?.exportStatus?.done) {
-                clearInterval(interval)
-                clearTimeout(fallbackTimeout)
-                resolve(!data.job.exportStatus.failed)
-              }
-            } catch {}
-          }, 5000)
-
-          const fallbackTimeout = setTimeout(() => {
-            clearInterval(interval)
-            resolve(false)
-          }, 600_000)
-        })
-
-        if (exportDone) {
+    gpayPollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/refresh-gpay?jobId=${jobId}`)
+        const data = await res.json()
+        const status = data.job?.status
+        if (status === "export_created" || status === "already_in_progress") {
+          if (gpayPollRef.current) clearInterval(gpayPollRef.current)
+          gpayPollRef.current = null
           setGpayStep("waiting_drive")
-          setGpayPolling(true)
-          await startGpayDrivePolling()
-          return
+          setGpayJobId(null)
+          persistLastGpaySync(new Date().toISOString())
+          startGpayDrivePolling()
+        } else if (status === "failed" || status === "auth_required") {
+          if (gpayPollRef.current) clearInterval(gpayPollRef.current)
+          gpayPollRef.current = null
+          setGpayStep("waiting_drive")
+          setGpayJobId(null)
+          startGpayDrivePolling()
         }
+      } catch {
+        // ignore polling errors
+      }
+    }, 5000)
+
+    // Timeout after 15min — switch to Drive polling
+    gpayTimeoutRef.current = setTimeout(() => {
+      if (gpayPollRef.current) {
+        clearInterval(gpayPollRef.current)
+        gpayPollRef.current = null
+      }
+      setGpayStep("waiting_drive")
+      setGpayJobId(null)
+      startGpayDrivePolling()
+    }, 900_000)
+  }
+
+  const handleGpayTakeout = async () => {
+    setGpayConfirmForce(false)
+    setImportResult(null)
+
+    // If already in progress or waiting for Drive, just show status
+    if (gpayStep === "export_in_progress" || gpayStep === "starting_export" || gpayStep === "waiting_drive" || gpayStep === "importing") {
+      setGpayDialogOpen(true)
+      return
+    }
+
+    // Synced < 1 hour ago: show confirmation instead of auto-starting
+    if (lastGpaySync && gpayStep === "done") {
+      const lastSync = new Date(lastGpaySync)
+      const now = new Date()
+      const hoursSinceLastSync = (now.getTime() - lastSync.getTime()) / 3600000
+      if (hoursSinceLastSync < 1) {
+        setGpayConfirmForce(true)
+        setGpayDialogOpen(true)
+        return
+      }
+    }
+
+    await startFreshExport()
+  }
+
+  const startFreshExport = async () => {
+    gpayAutoModeRef.current = false
+    setGpayStep("starting_export")
+    setGpayDialogOpen(true)
+
+    try {
+      const res = await fetch("/api/refresh-gpay", { method: "POST" })
+      const data = await res.json()
+      if (data.jobId) {
+        gpayAutoModeRef.current = true
+        setGpayJobId(data.jobId)
+        setGpayStep("export_in_progress")
+        startGpayPolling(data.jobId)
+        return
       }
     } catch {}
 
-    // Phase 2: Manual fallback
+    // Fallback: poll Drive for new files
     gpayAutoModeRef.current = false
-    window.open("https://takeout.google.com", "_blank")
     setGpayStep("waiting_drive")
-    setGpayPolling(true)
-    await startGpayDrivePolling()
+    startGpayDrivePolling()
   }
 
   const handleScanDrive = async () => {
@@ -505,7 +640,24 @@ export default function ExpensesPage() {
           </Button>
 
           <Button variant="outline" size="sm" onClick={handleGpayTakeout}>
-            <RefreshCw className="mr-2 h-4 w-4" /> GPay
+            {gpayStep === "export_in_progress" || gpayStep === "starting_export" ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : gpayStep === "waiting_drive" ? (
+              <Cloud className="mr-2 h-4 w-4 animate-pulse" />
+            ) : gpayStep === "done" ? (
+              <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" />
+            ) : gpayStep === "error" ? (
+              <AlertCircle className="mr-2 h-4 w-4 text-amber-500" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            {gpayStep === "idle" || gpayStep === "open_takeout" ? "Refresh GPay" :
+             gpayStep === "starting_export" ? "Starting..." :
+             gpayStep === "export_in_progress" ? "Exporting..." :
+             gpayStep === "waiting_drive" ? "Waiting..." :
+             gpayStep === "importing" ? "Importing..." :
+             gpayStep === "done" ? "Refresh GPay" :
+             gpayStep === "error" ? "Refresh GPay" : "Refresh GPay"}
           </Button>
 
           <label className="cursor-pointer">
@@ -853,10 +1005,43 @@ export default function ExpensesPage() {
         importing={driveImporting}
       />
 
-      <Dialog open={gpayDialogOpen} onOpenChange={(v) => { setGpayDialogOpen(v); if (!v) setGpayPolling(false) }}>
+      <Dialog open={gpayDialogOpen} onOpenChange={(v) => setGpayDialogOpen(v)}>
         <DialogContent>
           <DialogHeader><DialogTitle>GPay Export</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
+            {gpayStep === "done" && gpayConfirmForce && (
+              <div className="text-center space-y-4">
+                <div className="mx-auto h-12 w-12 rounded-full bg-amber-500/10 flex items-center justify-center">
+                  <AlertCircle className="h-6 w-6 text-amber-500" />
+                </div>
+                <p className="text-sm font-medium">Already synced recently</p>
+                <p className="text-sm text-muted-foreground">
+                  GPay data was last synced{" "}
+                  <span className="font-medium">
+                    {new Date(lastGpaySync).toLocaleString("en-IN", {
+                      day: "numeric", month: "short", year: "numeric",
+                      hour: "2-digit", minute: "2-digit"
+                    })}
+                  </span>
+                  {" "}({(() => {
+                    const diff = Date.now() - new Date(lastGpaySync).getTime()
+                    const mins = Math.floor(diff / 60000)
+                    if (mins < 1) return "less than a minute ago"
+                    if (mins === 1) return "1 minute ago"
+                    return `${mins} minutes ago`
+                  })()}
+                  ). Google only allows one new export per day — force a new one?
+                </p>
+                <div className="flex justify-center gap-3">
+                  <Button size="sm" variant="outline" onClick={() => { setGpayConfirmForce(false); setGpayDialogOpen(false) }}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={() => { setGpayConfirmForce(false); startFreshExport() }}>
+                    <RefreshCw className="mr-1.5 h-4 w-4" /> Force New Export
+                  </Button>
+                </div>
+              </div>
+            )}
             {gpayStep === "starting_export" && (
               <div className="text-center space-y-3">
                 <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
@@ -897,21 +1082,38 @@ export default function ExpensesPage() {
                 <p className="text-sm text-muted-foreground">Importing GPay transactions...</p>
               </div>
             )}
-            {gpayStep === "done" && (
+            {gpayStep === "done" && !gpayConfirmForce && (
               <div className="text-center space-y-3">
                 <div className="mx-auto h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
                   <CheckCircle2 className="h-6 w-6 text-emerald-500" />
                 </div>
-                <p className="text-sm font-medium">GPay transactions imported!</p>
+                <p className="text-sm font-medium">GPay export created!</p>
+                {gpayAutoModeRef.current ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Google will email you a download link when it's ready.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Download the file and use <strong>File</strong> button to upload.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Follow the instructions in the Takeout tab, then download and upload the file using the <strong>File</strong> button.
+                  </p>
+                )}
               </div>
             )}
             {gpayStep === "error" && (
               <div className="text-center space-y-3">
-                <AlertCircle className="mx-auto h-8 w-8 text-amber-500" />
+                <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
                 <p className="text-sm text-muted-foreground">
-                  Didn't detect the file automatically. Click Scan Drive to check.
+                  GPay export was created. Waiting for it to appear in Google Drive (can take 5-15 min)...
                 </p>
-                <Button size="sm" onClick={() => { setGpayDialogOpen(false); handleScanDrive() }}>
+                <p className="text-xs text-muted-foreground">
+                  The file will be auto-detected once available. You can also scan manually.
+                </p>
+                <Button size="sm" variant="outline" onClick={() => { setGpayDialogOpen(false); handleScanDrive() }}>
                   <Cloud className="mr-1.5 h-4 w-4" /> Scan Drive Now
                 </Button>
               </div>

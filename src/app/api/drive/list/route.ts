@@ -46,6 +46,10 @@ export async function GET() {
     `files?q=name contains 'Google Pay'&orderBy=createdTime desc&pageSize=20&fields=files(id,name,mimeType,size,createdTime)`,
     // Strategy 3: Recent ZIP files (fallback)
     `files?q=mimeType='application/zip' or mimeType='application/x-zip-compressed'&orderBy=createdTime desc&pageSize=20&fields=files(id,name,mimeType,size,createdTime)`,
+    // Strategy 4: MyActivity.html (what Takeout delivers for GPay to Drive)
+    `files?q=name='MyActivity.html'&orderBy=createdTime desc&pageSize=10&fields=files(id,name,mimeType,size,createdTime)`,
+    // Strategy 5: Any .html files (wider net for Takeout exports)
+    `files?q=name contains '.html'&orderBy=createdTime desc&pageSize=20&fields=files(id,name,mimeType,size,createdTime)`,
   ]
 
   const allFiles: DriveFile[] = []
@@ -69,13 +73,16 @@ export async function GET() {
     } catch { /* skip unparseable */ }
   }
 
-  // Deduplicate by id
+  // Deduplicate by id and sort newest first
   const seen = new Set<string>()
-  const unique = allFiles.filter(f => {
-    if (seen.has(f.id)) return false
-    seen.add(f.id)
-    return true
-  }).slice(0, 30)
+  const unique = allFiles
+    .filter(f => {
+      if (seen.has(f.id)) return false
+      seen.add(f.id)
+      return true
+    })
+    .sort((a, b) => (b.createdTime || "").localeCompare(a.createdTime || ""))
+    .slice(0, 30)
 
   return NextResponse.json({ files: unique, connected: true, email: token.email })
 }

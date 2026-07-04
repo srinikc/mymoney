@@ -378,7 +378,7 @@ export default function ExpensesPage() {
     gpayTimeoutRef.current = setTimeout(() => {
       if (gpayDrivePollRef.current) clearInterval(gpayDrivePollRef.current)
       if (gpayStep !== "done" && gpayStep !== "importing") {
-        setGpayStep("waiting_drive")
+        setGpayStep("error")
         setGpayJobId(null)
       }
     }, timeoutMs)
@@ -403,24 +403,22 @@ export default function ExpensesPage() {
         } else if (status === "failed" || status === "auth_required") {
           if (gpayPollRef.current) clearInterval(gpayPollRef.current)
           gpayPollRef.current = null
-          setGpayStep("waiting_drive")
+          setGpayStep("error")
           setGpayJobId(null)
-          startGpayDrivePolling()
         }
       } catch {
         // ignore polling errors
       }
     }, 5000)
 
-    // Timeout after 15min — switch to Drive polling
+    // Timeout after 15min — the script may have failed silently
     gpayTimeoutRef.current = setTimeout(() => {
       if (gpayPollRef.current) {
         clearInterval(gpayPollRef.current)
         gpayPollRef.current = null
       }
-      setGpayStep("waiting_drive")
+      setGpayStep("error")
       setGpayJobId(null)
-      startGpayDrivePolling()
     }, 900_000)
   }
 
@@ -1108,10 +1106,10 @@ export default function ExpensesPage() {
                 {gpayAutoModeRef.current ? (
                   <>
                     <p className="text-sm text-muted-foreground">
-                      Google will email you a download link when it's ready.
+                      The export has been submitted to your Google Drive. It may take a few minutes to appear.
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Download the file and use <strong>File</strong> button to upload.
+                      This page will auto-detect it and import the transactions.
                     </p>
                   </>
                 ) : (
@@ -1123,16 +1121,19 @@ export default function ExpensesPage() {
             )}
             {gpayStep === "error" && (
               <div className="text-center space-y-3">
-                <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+                <AlertCircle className="mx-auto h-8 w-8 text-amber-500" />
+                <p className="text-sm font-medium">GPay export failed</p>
                 <p className="text-sm text-muted-foreground">
-                  GPay export was created. Waiting for it to appear in Google Drive (can take 5-15 min)...
+                  The automated export could not be created. Google Takeout may already have an export running, or the session needs to be refreshed.
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  The file will be auto-detected once available. You can also scan manually.
-                </p>
-                <Button size="sm" variant="outline" onClick={() => { setGpayDialogOpen(false); handleScanDrive() }}>
-                  <Cloud className="mr-1.5 h-4 w-4" /> Scan Drive Now
-                </Button>
+                <div className="flex justify-center gap-3">
+                  <Button size="sm" onClick={() => { setGpayDialogOpen(false); handleGpayTakeout() }}>
+                    <RefreshCw className="mr-1.5 h-4 w-4" /> Retry
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => { setGpayDialogOpen(false); handleScanDrive() }}>
+                    <Cloud className="mr-1.5 h-4 w-4" /> Scan Drive
+                  </Button>
+                </div>
               </div>
             )}
           </div>

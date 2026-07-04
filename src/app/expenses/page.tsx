@@ -264,7 +264,7 @@ export default function ExpensesPage() {
       const data = await listRes.json()
       const files: { id: string; name: string }[] = data.files || []
       const pendingFile = files.find(
-        (f) => f.name === "MyActivity.html" && !knownGpayFilesRef.current.has(f.id)
+        (f) => (f.name === "MyActivity.html" || f.name.endsWith(".zip")) && !knownGpayFilesRef.current.has(f.id)
       )
       if (pendingFile) {
         addKnownGpayFile(pendingFile.id)
@@ -331,13 +331,14 @@ export default function ExpensesPage() {
         const files: { id: string; name: string }[] = data.files || []
         for (const f of files) {
           if (f.name.endsWith(".html") && f.name !== "MyActivity.html") addKnownGpayFile(f.id)
-          if (f.name === "MyActivity.html") {
+          // Clear known MyActivity.html and ZIPs so they're re-detected for this export
+          if (f.name === "MyActivity.html" || f.name.endsWith(".zip")) {
             knownGpayFilesRef.current.delete(f.id)
           }
         }
         localStorage.setItem("mymoney-gpay-known-files", JSON.stringify([...knownGpayFilesRef.current]))
-        // Also import immediately if MyActivity.html exists
-        const found = files.find((f) => f.name === "MyActivity.html" && !knownGpayFilesRef.current.has(f.id))
+        // Also import immediately if a GPay file exists
+        const found = files.find((f) => (f.name === "MyActivity.html" || f.name.endsWith(".zip")) && !knownGpayFilesRef.current.has(f.id))
         if (found) {
           addKnownGpayFile(found.id)
           setGpayStep("importing")
@@ -359,7 +360,7 @@ export default function ExpensesPage() {
         const data = await res.json()
         const files: { id: string; name: string }[] = data.files || []
         const newFile = files.find(
-          (f) => f.name === "MyActivity.html" && !knownGpayFilesRef.current.has(f.id)
+          (f) => (f.name === "MyActivity.html" || f.name.endsWith(".zip")) && !knownGpayFilesRef.current.has(f.id)
         )
         if (newFile) {
           if (gpayDrivePollRef.current) clearInterval(gpayDrivePollRef.current)

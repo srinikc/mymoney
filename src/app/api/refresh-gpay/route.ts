@@ -74,6 +74,7 @@ function spawnGpayScript(scriptPath: string, jobId: string, args: string[] = [])
         status: "auth_required",
         startedAt,
         message: "Google session expired.",
+        error: (result.error as string) || "Google session expired. Click Re-authenticate to log in.",
         help: "Click 'Re-authenticate' to log into Google in a new browser window.",
       })
       setTimeout(() => deleteGpayJob(jobId), 5 * 60 * 1000)

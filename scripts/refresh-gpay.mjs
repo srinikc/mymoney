@@ -160,32 +160,6 @@ async function runHeadless(expectDriveAuth) {
   }
 }
 
-async function handleDriveAuth(challengeUrl) {
-  log("Opening visible browser for Drive authorization...")
-  const context = await chromium.launchPersistentContext(PROFILE_DIR, {
-    headless: false,
-    channel: "chrome",
-  })
-  const page = await context.newPage()
-  await page.goto(challengeUrl, { waitUntil: "domcontentloaded" })
-  log("A browser window is open. Enter your Google password to authorize Drive delivery.")
-  log("The script will continue automatically after you sign in (up to 2 min).")
-  try {
-    await page.waitForFunction(
-      () => !window.location.href.includes("signin/challenge"),
-      { timeout: 120000, polling: 1000 }
-    )
-    await new Promise(r => setTimeout(r, 3000))
-    log("Drive authorized! Session saved for future headless runs.")
-    await context.close()
-    return { status: "success", note: "drive_authorized" }
-  } catch {
-    log("Password challenge timed out or failed.")
-    await context.close()
-    return { status: "error", error: "drive_auth_timeout" }
-  }
-}
-
 async function refreshGPay() {
   if (isSetup) {
     log("=== SETUP MODE ===")
@@ -206,14 +180,10 @@ async function refreshGPay() {
   log("=== Phase 1: Headless with Drive delivery ===")
   let result = await runHeadless(true)
 
-  // Phase 2: If password challenge, handle it visibly then retry
+  // Phase 2: If password challenge, tell user to re-authenticate
   if (result.status === "drive_auth_required") {
-    log("=== Phase 2: Handle Drive authorization ===")
-    const authResult = await handleDriveAuth(result.challengeUrl)
-    if (authResult.status !== "success") return authResult
-
-    log("=== Phase 3: Retry headless with authorized Drive ===")
-    result = await runHeadless(true)
+    log("=== Phase 2: Drive authorization required — returning to user ===")
+    return { status: "auth_required", error: "Drive authorization required. Click Re-authenticate to set up." }
   }
 
   return result

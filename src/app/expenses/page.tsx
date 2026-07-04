@@ -255,16 +255,7 @@ export default function ExpensesPage() {
     }
   }
 
-  // Save pending state across navigations
-  useEffect(() => {
-    if (gpayStep === "waiting_drive" || gpayStep === "export_in_progress" || gpayStep === "importing") {
-      localStorage.setItem("mymoney-gpay-pending", JSON.stringify({ step: gpayStep, timestamp: Date.now() }))
-    } else {
-      localStorage.removeItem("mymoney-gpay-pending")
-    }
-  }, [gpayStep])
-
-  // Resume pending sync on mount
+  // Resume pending sync on mount (MUST run before save effect below)
   // Check if a GPay file already arrived while we were away
   const checkAndImportPendingGpayFile = async () => {
     try {
@@ -311,6 +302,15 @@ export default function ExpensesPage() {
       })()
     }
   }, [])
+
+  // Persist pending state across navigations (after resume effect, so it doesn't clear on mount)
+  useEffect(() => {
+    if (gpayStep === "waiting_drive" || gpayStep === "export_in_progress" || gpayStep === "importing") {
+      localStorage.setItem("mymoney-gpay-pending", JSON.stringify({ step: gpayStep, timestamp: Date.now() }))
+    } else {
+      localStorage.removeItem("mymoney-gpay-pending")
+    }
+  }, [gpayStep])
 
   // Cleanup polling on unmount
   useEffect(() => {

@@ -63,9 +63,9 @@ interface RateLimitConfig {
 }
 
 const RATE_LIMITS: Record<string, RateLimitConfig> = {
-  api: { limit: 100, windowMs: 60_000 },       // 100 req/min for API
-  auth: { limit: 10, windowMs: 60_000 },        // 10 req/min for auth
-  default: { limit: 50, windowMs: 60_000 },     // 50 req/min for other routes
+  api: { limit: 500, windowMs: 60_000 },       // 500 req/min for API
+  auth: { limit: 50, windowMs: 60_000 },        // 50 req/min for auth
+  default: { limit: 200, windowMs: 60_000 },    // 200 req/min for other routes
 }
 
 // ── Admin / Manager route patterns ─────────────────────────────────────────

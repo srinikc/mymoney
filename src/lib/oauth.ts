@@ -5,7 +5,7 @@ const SCOPES = [
 ].join(" ")
 
 export function getGoogleAuthUrl(redirectUri: string): string {
-  const clientId = process.env.GOOGLE_CLIENT_ID!
+  const clientId = process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID!
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
@@ -23,8 +23,8 @@ export async function getTokenFromCode(code: string, redirectUri: string) {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       code,
-      client_id: process.env.GOOGLE_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+      client_id: process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID!,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET || process.env.AUTH_GOOGLE_SECRET!,
       redirect_uri: redirectUri,
       grant_type: "authorization_code",
     }),
@@ -41,8 +41,8 @@ export async function refreshAccessToken(refreshToken: string) {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+      client_id: process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID!,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET || process.env.AUTH_GOOGLE_SECRET!,
       refresh_token: refreshToken,
       grant_type: "refresh_token",
     }),

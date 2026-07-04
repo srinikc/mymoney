@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import { getTokenFromCode } from "@/lib/oauth"
-import { storeToken } from "@/lib/token-store"
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
@@ -22,14 +21,23 @@ export async function GET(req: Request) {
     })
     const user = await userRes.json()
 
-    await storeToken({
+    const tokenPayload = {
       accessToken: tokenData.access_token,
       refreshToken: tokenData.refresh_token,
       email: user.email,
       name: user.name,
+    }
+
+    const response = NextResponse.redirect(new URL("/expenses?gdrive=connected", req.url))
+    response.cookies.set("gdrive_token", encodeURIComponent(JSON.stringify(tokenPayload)), {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 365,
+      path: "/",
     })
 
-    return NextResponse.redirect(new URL("/expenses?gdrive=connected", req.url))
+    return response
   } catch (error_) {
     console.error("Auth callback error:", error_)
     return NextResponse.redirect(new URL("/expenses?gdrive=error", req.url))

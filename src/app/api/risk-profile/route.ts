@@ -9,7 +9,7 @@ export interface RiskQuestion {
   options: { label: string; score: number }[]
 }
 
-export const RISK_QUESTIONS: RiskQuestion[] = [
+const RISK_QUESTIONS: RiskQuestion[] = [
   {
     id: 1,
     question: "What is your age group?",

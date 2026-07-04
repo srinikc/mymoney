@@ -323,7 +323,7 @@ export default function ExpensesPage() {
   }, [])
 
   const startGpayDrivePolling = async (timeoutMs = 900_000) => {
-    // Record known html files first
+    // Record known html files first & clear any previously known MyActivity.html
     try {
       const listRes = await fetch("/api/drive/list")
       if (listRes.ok) {
@@ -331,6 +331,21 @@ export default function ExpensesPage() {
         const files: { id: string; name: string }[] = data.files || []
         for (const f of files) {
           if (f.name.endsWith(".html") && f.name !== "MyActivity.html") addKnownGpayFile(f.id)
+          if (f.name === "MyActivity.html") {
+            knownGpayFilesRef.current.delete(f.id)
+          }
+        }
+        localStorage.setItem("mymoney-gpay-known-files", JSON.stringify([...knownGpayFilesRef.current]))
+        // Also import immediately if MyActivity.html exists
+        const found = files.find((f) => f.name === "MyActivity.html" && !knownGpayFilesRef.current.has(f.id))
+        if (found) {
+          addKnownGpayFile(found.id)
+          setGpayStep("importing")
+          await handleImportFromDrive(found.id)
+          setGpayStep("done")
+          setGpayJobId(null)
+          persistLastGpaySync(new Date().toISOString())
+          return
         }
       }
     } catch {}

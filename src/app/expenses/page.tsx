@@ -418,7 +418,7 @@ export default function ExpensesPage() {
     }
 
     // Synced < 1 hour ago: show confirmation instead of auto-starting
-    if (lastGpaySync && gpayStep === "done") {
+    if (lastGpaySync && (gpayStep === "done" || gpayStep === "idle")) {
       const lastSync = new Date(lastGpaySync)
       const now = new Date()
       const hoursSinceLastSync = (now.getTime() - lastSync.getTime()) / 3600000

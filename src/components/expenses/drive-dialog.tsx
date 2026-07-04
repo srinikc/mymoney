@@ -129,7 +129,7 @@ function FileCard({ file, onPreview, onImport, importing }: {
           <span className="font-medium">{file.name}</span>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : file.size && <span>{(Number.parseInt(file.size) / 1024 / 1024).toFixed(1)} MB</span>}
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><span className="mr-2">{file.createdTime ? new Date(file.createdTime).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "?"}</span>{file.size && <span className="text-muted-foreground">{(Number.parseInt(file.size) / 1024 / 1024).toFixed(1)} MB</span>}</>}
           {!loading && <Button size="sm" variant="secondary">Preview</Button>}
         </div>
       </CardContent>

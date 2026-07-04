@@ -286,6 +286,7 @@ export default function ExpensesPage() {
           const { step, timestamp } = JSON.parse(pending)
           const elapsed = Date.now() - timestamp
           if (elapsed < 20 * 60 * 1000 && (step === "waiting_drive" || step === "export_in_progress" || step === "importing")) {
+            gpayAutoModeRef.current = true
             setGpayStep("waiting_drive")
             // First check if file already arrived
             const found = await checkAndImportPendingGpayFile()

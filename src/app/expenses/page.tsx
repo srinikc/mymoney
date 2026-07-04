@@ -228,6 +228,7 @@ export default function ExpensesPage() {
       : []
   ))
   const gpayAutoModeRef = useRef(false)
+  const [gpayError, setGpayError] = useState("")
   const gpayPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const gpayDrivePollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const gpayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -378,6 +379,7 @@ export default function ExpensesPage() {
     gpayTimeoutRef.current = setTimeout(() => {
       if (gpayDrivePollRef.current) clearInterval(gpayDrivePollRef.current)
       if (gpayStep !== "done" && gpayStep !== "importing") {
+        setGpayError("File did not appear in Drive within the expected time. The export may have been created with email delivery instead of Drive.")
         setGpayStep("error")
         setGpayJobId(null)
       }
@@ -403,6 +405,7 @@ export default function ExpensesPage() {
         } else if (status === "failed" || status === "auth_required") {
           if (gpayPollRef.current) clearInterval(gpayPollRef.current)
           gpayPollRef.current = null
+          setGpayError(data.job?.error || (status === "auth_required" ? "Google session expired. Run: node scripts/refresh-gpay.mjs --setup" : "Unknown error"))
           setGpayStep("error")
           setGpayJobId(null)
         }
@@ -417,6 +420,7 @@ export default function ExpensesPage() {
         clearInterval(gpayPollRef.current)
         gpayPollRef.current = null
       }
+      setGpayError("Script did not complete within 15 minutes. The export may not have been created.")
       setGpayStep("error")
       setGpayJobId(null)
     }, 900_000)
@@ -424,6 +428,7 @@ export default function ExpensesPage() {
 
   const handleGpayTakeout = async () => {
     setGpayConfirmForce(false)
+    setGpayError("")
     setImportResult(null)
 
     // If already in progress or waiting for Drive, just show status
@@ -464,10 +469,9 @@ export default function ExpensesPage() {
       }
     } catch {}
 
-    // Fallback: poll Drive for new files
-    gpayAutoModeRef.current = false
-    setGpayStep("waiting_drive")
-    startGpayDrivePolling()
+    // Fallback: show error — the Playwright script could not be started
+    setGpayError("The GPay automation script could not be started. Check that Playwright and Chrome are installed.")
+    setGpayStep("error")
   }
 
   const handleScanDrive = async () => {
@@ -1123,8 +1127,13 @@ export default function ExpensesPage() {
               <div className="text-center space-y-3">
                 <AlertCircle className="mx-auto h-8 w-8 text-amber-500" />
                 <p className="text-sm font-medium">GPay export failed</p>
+                {gpayError && (
+                  <div className="rounded bg-amber-500/10 border border-amber-500/20 p-2 text-xs text-amber-700 text-left font-mono break-all">
+                    {gpayError}
+                  </div>
+                )}
                 <p className="text-sm text-muted-foreground">
-                  The automated export could not be created. Google Takeout may already have an export running, or the session needs to be refreshed.
+                  The automated export could not be created. The session may need to be refreshed.
                 </p>
                 <div className="flex justify-center gap-3">
                   <Button size="sm" onClick={() => { setGpayDialogOpen(false); handleGpayTakeout() }}>

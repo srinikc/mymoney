@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3005",
+    "dev:bg": "start /B npm run dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx --max-warnings 200",
@@ -18,7 +19,8 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed-profiles": "tsx scripts/seed-first-profile.ts",
-    "db:migrate-pg": "tsx scripts/migrate-sqlite-to-pg.ts"
+    "db:migrate-pg": "tsx scripts/migrate-sqlite-to-pg.ts",
+    "check-git": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-git-reminder.ps1"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.109.1",
@@ -88,6 +90,7 @@
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-security": "^3.0.1",
     "eslint-plugin-unicorn": "^50.0.1",
+    "playwright": "^1.61.1",
     "postcss": "^8.5.15",
     "prisma": "6.5.0",
     "tailwindcss": "^4.3.2",

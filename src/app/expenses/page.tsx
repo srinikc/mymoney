@@ -438,7 +438,7 @@ export default function ExpensesPage() {
     }
 
     // Synced < 1 hour ago: show confirmation instead of auto-starting
-    if (lastGpaySync && (gpayStep === "done" || gpayStep === "idle")) {
+    if (lastGpaySync) {
       const lastSync = new Date(lastGpaySync)
       const now = new Date()
       const hoursSinceLastSync = (now.getTime() - lastSync.getTime()) / 3600000
@@ -1138,6 +1138,9 @@ export default function ExpensesPage() {
                 <div className="flex justify-center gap-3">
                   <Button size="sm" onClick={() => { setGpayDialogOpen(false); handleGpayTakeout() }}>
                     <RefreshCw className="mr-1.5 h-4 w-4" /> Retry
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => { setGpayDialogOpen(false); fetch("/api/refresh-gpay?action=reauth").then(() => window.location.reload()) }}>
+                    <LogOut className="mr-1.5 h-4 w-4" /> Re-authenticate
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => { setGpayDialogOpen(false); handleScanDrive() }}>
                     <Cloud className="mr-1.5 h-4 w-4" /> Scan Drive

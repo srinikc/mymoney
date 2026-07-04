@@ -1075,9 +1075,6 @@ export default function ExpensesPage() {
                   </ol>
                 )}
                 <p className="text-xs text-amber-500">This page will auto-detect the file and import it.</p>
-                <Button size="sm" variant="outline" onClick={() => { setGpayDialogOpen(false); handleScanDrive() }}>
-                  <Cloud className="mr-1.5 h-4 w-4" /> Scan Drive Now
-                </Button>
               </div>
             )}
             {gpayStep === "importing" && (

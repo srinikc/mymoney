@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3005",
-    "dev:bg": "start /B npm run dev",
+    "dev:bg": "call scripts\\kill-port-3005.bat & start /B npm run dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx --max-warnings 200",

@@ -66,7 +66,7 @@ const incomeFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   type: z.enum(["monthly", "yearly", "onetime", "variable"]),
   amount: z.coerce.number().positive("Amount must be positive"),
-  sourceCategory: z.enum(["Salary", "Rental", "FD Interest", "Business", "Other"]),
+  sourceCategory: z.string().min(1, "Source category is required"),
   paymentMode: z.enum(["Bank Transfer", "UPI", "Cash", "Cheque", "Other"]),
   bankAccount: z.string().optional().default(""),
   startDate: z.string().min(1, "Start date is required"),
@@ -197,16 +197,14 @@ function IncomeFormDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="sourceCategory">Source Category</Label>
-              <Select value={watch("sourceCategory")} onValueChange={(v) => setValue("sourceCategory", v as IncomeFormValues["sourceCategory"], { shouldValidate: true })}>
-                <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Salary">Salary</SelectItem>
-                  <SelectItem value="Rental">Rental</SelectItem>
-                  <SelectItem value="FD Interest">FD Interest</SelectItem>
-                  <SelectItem value="Business">Business</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input id="sourceCategory" list="sourceCategoryOptions" placeholder="Select or type a category" {...register("sourceCategory")} />
+              <datalist id="sourceCategoryOptions">
+                <option value="Salary" />
+                <option value="Rental" />
+                <option value="FD Interest" />
+                <option value="Business" />
+                <option value="Other" />
+              </datalist>
               {errors.sourceCategory && <p className="text-xs text-red-500">{errors.sourceCategory.message}</p>}
             </div>
             <div className="space-y-2">

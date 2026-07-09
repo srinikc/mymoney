@@ -39,14 +39,6 @@ import {
 import { useUIStore } from "@/lib/store"
 import { ProfileSwitcher } from "./profile-switcher"
 
-const expenseSubItems = [
-  { href: "/expenses", label: "All Expenses", icon: Receipt },
-  { href: "/expenses/import", label: "Bulk Import", icon: Upload },
-  { href: "/expenses/merchants", label: "Merchants", icon: Store },
-  { href: "/expenses/review-duplicates", label: "Review", icon: Flag },
-  { href: "/expenses/archive", label: "Archive", icon: Archive },
-]
-
 const planningItems = [
   { href: "/budgets", label: "Budgets", icon: Wallet },
   { href: "/goals", label: "Goals", icon: Target },
@@ -89,9 +81,7 @@ export function Sidebar() {
   const pathname = usePathname()
   const {
     sidebarOpen,
-    expensesExpanded,
     toggleSidebar,
-    toggleExpensesExpanded,
     incomeExpanded,
     toggleIncomeExpanded,
     planningExpanded,
@@ -229,26 +219,21 @@ export function Sidebar() {
           {sidebarOpen && <span>Dashboard</span>}
         </Link>
 
-        {/* Income group */}
+        {/* Income / Expenses group */}
         <CollapsibleGroup
           icon={IndianRupee}
-          label="Income"
+          label="Income / Expenses"
           expanded={incomeExpanded}
           onToggle={toggleIncomeExpanded}
-          isActiveGroup={isInIncome}
+          isActiveGroup={isInIncome || isInExpenses}
           items={[
             { href: "/income", label: "Income", icon: IndianRupee },
+            { href: "/expenses", label: "All Expenses", icon: Receipt },
+            { href: "/expenses/import", label: "Bulk Import", icon: Upload },
+            { href: "/expenses/merchants", label: "Merchants", icon: Store },
+            { href: "/expenses/review-duplicates", label: "Review", icon: Flag },
+            { href: "/expenses/archive", label: "Archive", icon: Archive },
           ]}
-        />
-
-        {/* Expenses group */}
-        <CollapsibleGroup
-          icon={Receipt}
-          label="Expenses"
-          expanded={expensesExpanded}
-          onToggle={toggleExpensesExpanded}
-          isActiveGroup={isInExpenses}
-          items={expenseSubItems}
         />
 
         {/* Planning & Tracking group */}

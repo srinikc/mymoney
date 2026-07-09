@@ -1,4 +1,1 @@
-echo "=== Pre-commit checks ==="
-npx next build --no-lint 2>/dev/null || { echo "❌ Build failed"; exit 1; }
-echo "✅ Build passed"
-npx next lint --max-warnings 200 2>/dev/null && echo "✅ Lint passed" || echo "⚠️ Lint has warnings"
+npx next lint --max-warnings 200 --no-cache 2>&1

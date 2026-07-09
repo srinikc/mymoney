@@ -1,7 +1,5 @@
 import { Resend } from "resend"
 
-const resend = new Resend(process.env.AUTH_RESEND_KEY || "")
-
 const FROM = "MyMoney <onboarding@mymoney.finance>"
 
 export async function sendWelcomeEmail(email: string, name: string) {
@@ -9,6 +7,8 @@ export async function sendWelcomeEmail(email: string, name: string) {
     console.warn("AUTH_RESEND_KEY not set — skipping welcome email")
     return { success: false, reason: "no api key" }
   }
+
+  const resend = new Resend(process.env.AUTH_RESEND_KEY)
 
   try {
     await resend.emails.send({

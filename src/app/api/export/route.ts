@@ -39,6 +39,7 @@ export async function GET(req: Request) {
       date: e.date.toISOString(),
       createdAt: e.createdAt.toISOString(),
       updatedAt: e.updatedAt.toISOString(),
+      deletedAt: e.deletedAt ? e.deletedAt.toISOString() : null,
     }))
 
     const sheets = generateCategorySheets(typedExpenses)

@@ -204,7 +204,7 @@ export function EditPanel({ expense, open, onClose, onSave, categories }: EditPa
             <label htmlFor="saveMapping" className="text-sm leading-tight cursor-pointer">
               <strong>Save as merchant mapping</strong>
               <p className="text-xs text-muted-foreground mt-0.5">
-                This will associate "<span className="font-medium">{form.vendor || "(empty)"}</span>" with
+                This will associate &quot;<span className="font-medium">{form.vendor || "(empty)"}</span>&quot; with
                 &quot;{selectedCat?.name || "?"}
                 {form.subCategory ? ` / ${form.subCategory}` : ""}
                 {form.person ? ` / ${form.person}` : ""}

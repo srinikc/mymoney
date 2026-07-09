@@ -14,6 +14,7 @@ model User {
   email     String    @unique
   name      String?
   image     String?
+  hashedPassword String?
   role      String    @default("user") // user | admin | manager | viewer
   tier      String    @default("free") // free | pro | premium
   createdAt DateTime  @default(now())
@@ -144,6 +145,7 @@ model Expense {
   importSessionId Int?
   importSession   ImportSession?  @relation(fields: [importSessionId], references: [id])
   flagged         Boolean         @default(false)
+  deletedAt       DateTime?
   profileId       Int?
   profile         Profile?        @relation(fields: [profileId], references: [id])
   createdAt       DateTime        @default(now())

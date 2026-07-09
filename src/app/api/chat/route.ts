@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
     }))
 
     // Net worth
-    const totalAssets = assets.reduce((s, a) => s + a.amount, 0)
+    const totalAssets = assets.reduce((s, a) => s + a.currentValue, 0)
     const totalLiabilities = liabilities.reduce((s, l) => s + l.amount, 0)
 
     // Investments summary

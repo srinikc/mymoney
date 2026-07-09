@@ -28,6 +28,7 @@ export interface Expense {
   notes: string | null
   importSessionId: number | null
   flagged: boolean | null
+  deletedAt: string | null
   createdAt: string
   updatedAt: string
 }

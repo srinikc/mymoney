@@ -57,7 +57,7 @@ function spawnGpayScript(scriptPath: string, jobId: string, args: string[] = [])
     const job = getGpayJob(jobId)
     const startedAt = job?.startedAt || new Date().toISOString()
 
-    if (code === 0 && (result.status === "success" || result.status === "already_in_progress")) {
+    if (result.status === "success" || result.status === "already_in_progress") {
       const exportId = result.exportId as string | undefined
 
       setGpayJob(jobId, {
@@ -106,24 +106,66 @@ export async function POST(req: Request) {
 
   if (action === "reauth") {
     const token = crypto.randomUUID()
+    const startedAt = new Date().toISOString()
     setGpayJob(token, {
       status: "reauth_started",
-      startedAt: new Date().toISOString(),
+      startedAt,
       message: "A browser window will open. Log into your Google account, then close the browser.",
     })
 
-    spawn("node", [scriptPath, "--setup"], {
+    const child = spawn("node", [scriptPath, "--setup"], {
       cwd: process.cwd(),
-      stdio: "ignore",
-      detached: true,
-    }).unref()
+      env: { ...process.env, NODE_ENV: "production" },
+      stdio: ["ignore", "pipe", "pipe"],
+    })
 
-    setTimeout(() => deleteGpayJob(token), 5 * 60 * 1000)
+    let output = ""
+    child.stdout?.on("data", (data: Buffer) => {
+      output += data.toString()
+    })
+
+    child.stderr?.on("data", (data: Buffer) => {
+      process.stderr.write(`[refresh-gpay:reauth] ${data}`)
+    })
+
+    child.on("error", (err) => {
+      setGpayJob(token, {
+        status: "reauth_failed",
+        startedAt,
+        error: err.message,
+        message: "Failed to launch the setup browser.",
+      })
+    })
+
+    child.on("close", (_code) => {
+      const resultMatch = output.match(/RESULT:(.*)/)
+      let result: Record<string, unknown> = {}
+      if (resultMatch) {
+        try { result = JSON.parse(resultMatch[1]) } catch { result = {} }
+      }
+
+      if (result.status === "setup_complete") {
+        setGpayJob(token, {
+          status: "reauth_complete",
+          startedAt,
+          completedAt: new Date().toISOString(),
+          message: "Re-authentication complete. You can now retry the GPay export.",
+        })
+      } else {
+        setGpayJob(token, {
+          status: "reauth_failed",
+          startedAt,
+          error: (result.error as string) || "Re-authentication failed or was cancelled.",
+          message: "Re-authentication did not complete successfully.",
+        })
+      }
+      setTimeout(() => deleteGpayJob(token), 2 * 60 * 1000)
+    })
 
     return NextResponse.json({
       reauthToken: token,
-      message: "Re-auth browser launched. Log into Google and close the window.",
-      help: "If no browser opens, run: node scripts/refresh-gpay.mjs --setup",
+      message: "Opening browser for Google login...",
+      help: "A Chrome window should open. Log into your Google account, then close the browser.",
     })
   }
 

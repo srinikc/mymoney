@@ -59,7 +59,7 @@ export default function IntegrationsPage() {
       ])
       if (zRes.ok) setZerodhaStatus(await zRes.json())
       if (sRes.ok) setSharekhanStatus(await sRes.json())
-    } catch {} finally {
+    } catch { /* ignore */ } finally {
       setLoading(false)
     }
   }
@@ -86,7 +86,7 @@ export default function IntegrationsPage() {
       })
       const data = await res.json()
       setMessage(data.message || `Imported ${data.imported} holdings`)
-    } catch {} finally {
+    } catch { /* ignore */ } finally {
       setImportingZerodha(false)
     }
   }
@@ -101,7 +101,7 @@ export default function IntegrationsPage() {
       })
       const data = await res.json()
       setMessage(data.message || `Imported ${data.imported} holdings`)
-    } catch {} finally {
+    } catch { /* ignore */ } finally {
       setImportingSharekhan(false)
     }
   }
@@ -155,7 +155,7 @@ export default function IntegrationsPage() {
         <CardHeader><CardTitle>GPay Transactions</CardTitle></CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
-            Export your Google Pay transactions from Google Takeout and they'll automatically appear in MyMoney after syncing with Drive.
+            Export your Google Pay transactions from Google Takeout and they&apos;ll automatically appear in MyMoney after syncing with Drive.
           </p>
           <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1 mb-4">
             <li>Click <strong>Open Google Takeout</strong> below</li>

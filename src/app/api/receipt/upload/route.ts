@@ -32,7 +32,6 @@ export async function POST(req: Request) {
       fs.mkdirSync(uploadDir, { recursive: true })
     }
 
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
     const filePath = path.join(uploadDir, fileName)
     fs.writeFileSync(filePath, buffer)
 

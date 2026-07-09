@@ -77,7 +77,7 @@ export async function tryCreateTakeoutExport(): Promise<CreateExportResult> {
 
       const text = await res.text()
       let parsed = null
-      try { parsed = JSON.parse(text) } catch {}
+      try { parsed = JSON.parse(text) } catch { /* ignore */ }
       const hasExportId = !!parsed?.exportJob?.id
       tried.push({ serviceName, status: res.status, ok: res.ok, hasExportId, response: text.slice(0, 200) })
 
@@ -186,6 +186,6 @@ export async function getExportStatus(
     if (res.status === 404) {
       return { status: "not_found", done: false }
     }
-  } catch {}
+  } catch { /* ignore */ }
   return { status: "unknown", done: false }
 }

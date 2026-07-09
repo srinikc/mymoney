@@ -3,89 +3,70 @@ import { test, expect } from "@playwright/test"
 test.describe("Expenses Filters", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/expenses", { waitUntil: "load", timeout: 20000 })
-    await page.waitForLoadState("networkidle")
+    await page.waitForSelector('[data-testid="filter-btn-Vendor"]', { timeout: 15000 }).catch(() => {})
   })
 
-  test("filter bar renders above the transactions section", async ({ page }) => {
-    const filterBar = page.getByTestId("filter-bar")
-    await expect(filterBar).toBeVisible()
-
-    const transactionsHeading = page.locator("h3", { hasText: "Transactions" })
-    await expect(transactionsHeading).toBeVisible()
-
-    const filterBarBox = await filterBar.boundingBox()
-    const headingBox = await transactionsHeading.boundingBox()
-
-    expect(filterBarBox).not.toBeNull()
-    expect(headingBox).not.toBeNull()
-    expect(filterBarBox!.y + filterBarBox!.height).toBeLessThanOrEqual(headingBox!.y)
+  test("column filters present in table header", async ({ page }) => {
+    const headers = ["Date", "Vendor", "Category", "Sub Cat", "Person", "Mode", "Bank", "Amount", "Comments", "Type", "Other"]
+    for (const header of headers) {
+      const btn = page.getByTestId(`filter-btn-${header}`)
+      await expect(btn).toBeVisible()
+    }
   })
 
-  test("category filter is interactive", async ({ page }) => {
-    const categorySelect = page.getByLabel("Category")
-    await expect(categorySelect).toBeVisible()
-    await categorySelect.click()
+  test("category filter opens popover on click", async ({ page }) => {
+    const btn = page.getByTestId("filter-btn-Category")
+    await expect(btn).toBeVisible()
+    await btn.click()
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 3000 })
     await page.keyboard.press("Escape")
   })
 
-  test("vendor filter is interactive", async ({ page }) => {
-    const vendorSelect = page.getByLabel("Vendor")
-    await expect(vendorSelect).toBeVisible()
-    await vendorSelect.click()
+  test("vendor filter opens popover on click", async ({ page }) => {
+    const btn = page.getByTestId("filter-btn-Vendor")
+    await expect(btn).toBeVisible()
+    await btn.click()
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 3000 })
     await page.keyboard.press("Escape")
   })
 
-  test("person filter is interactive", async ({ page }) => {
-    const personSelect = page.getByLabel("Person")
-    await expect(personSelect).toBeVisible()
-    await personSelect.click()
+  test("person filter opens popover on click", async ({ page }) => {
+    const btn = page.getByTestId("filter-btn-Person")
+    await expect(btn).toBeVisible()
+    await btn.click()
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 3000 })
     await page.keyboard.press("Escape")
   })
 
-  test("clear all filters resets all to defaults", async ({ page }) => {
-    const amountMin = page.getByLabel("Amount-min")
-    await amountMin.fill("100")
-    await expect(amountMin).toHaveValue("100")
-
-    const clearButton = page.getByRole("button", { name: /clear/i })
-    await expect(clearButton).toBeVisible()
-    await clearButton.click()
-
-    await expect(amountMin).toHaveValue("")
-  })
-
-  test("amount range filter is interactive", async ({ page }) => {
-    const amountMin = page.getByLabel("Amount-min")
-    const amountMax = page.getByLabel("Amount-max")
-
-    await expect(amountMin).toBeVisible()
-    await expect(amountMax).toBeVisible()
-
-    await amountMin.fill("50")
-    await amountMax.fill("500")
-
-    await expect(amountMin).toHaveValue("50")
-    await expect(amountMax).toHaveValue("500")
-  })
-
-  test("sub category filter is interactive", async ({ page }) => {
-    const subCatSelect = page.getByLabel("Sub-Cat")
-    await expect(subCatSelect).toBeVisible()
-    await subCatSelect.click()
+  test("amount column opens filter on click", async ({ page }) => {
+    const btn = page.getByTestId("filter-btn-Amount")
+    await expect(btn).toBeVisible()
+    await btn.click()
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 3000 })
     await page.keyboard.press("Escape")
   })
 
-  test("mode filter is interactive", async ({ page }) => {
-    const modeSelect = page.getByLabel("Mode")
-    await expect(modeSelect).toBeVisible()
-    await modeSelect.click()
+  test("sub category filter opens popover on click", async ({ page }) => {
+    const btn = page.getByTestId("filter-btn-Sub Cat")
+    await expect(btn).toBeVisible()
+    await btn.click()
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 3000 })
     await page.keyboard.press("Escape")
   })
 
-  test("type filter is interactive", async ({ page }) => {
-    const typeSelect = page.getByLabel("Type")
-    await expect(typeSelect).toBeVisible()
-    await typeSelect.click()
+  test("mode filter opens popover on click", async ({ page }) => {
+    const btn = page.getByTestId("filter-btn-Mode")
+    await expect(btn).toBeVisible()
+    await btn.click()
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 3000 })
+    await page.keyboard.press("Escape")
+  })
+
+  test("type filter opens popover on click", async ({ page }) => {
+    const btn = page.getByTestId("filter-btn-Type")
+    await expect(btn).toBeVisible()
+    await btn.click()
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 3000 })
     await page.keyboard.press("Escape")
   })
 })

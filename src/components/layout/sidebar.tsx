@@ -29,6 +29,7 @@ import {
   UserCircle,
   ToggleLeft,
   ScrollText,
+  Archive,
 } from "lucide-react"
 import { useUIStore } from "@/lib/store"
 import { ProfileSwitcher } from "./profile-switcher"
@@ -61,6 +62,7 @@ const expenseSubItems = [
   { href: "/expenses/import", label: "Bulk Import", icon: Upload },
   { href: "/expenses/merchants", label: "Merchants", icon: Store },
   { href: "/expenses/review-duplicates", label: "Review", icon: Flag },
+  { href: "/expenses/archive", label: "Archive", icon: Archive },
 ]
 
 export function Sidebar() {

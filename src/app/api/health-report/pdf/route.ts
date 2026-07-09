@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     const totalIv = investments.reduce((s, i) => s + i.currentValue, 0)
     const totalInv = investments.reduce((s, i) => s + i.amount, 0)
     const assets = await prisma.asset.findMany({ where: { ...pf } })
-    const totalA = assets.reduce((s, a) => s + a.amount, 0)
+    const totalA = assets.reduce((s, a) => s + a.currentValue, 0)
     const liabilities = await prisma.liability.findMany({ where: { ...pf } })
     const totalD = liabilities.reduce((s, l) => s + l.amount, 0)
     const categories = await prisma.category.findMany({ where: { type: "expense" } })

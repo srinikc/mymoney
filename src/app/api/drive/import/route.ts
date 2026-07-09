@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getStoredToken } from "@/lib/token-store"
 import { driveDownloadRaw, refreshAccessToken } from "@/lib/oauth"
 import { storeToken } from "@/lib/token-store"
+import { parseGpayTakeoutHtml } from "@/shared/gpay-parser"
 
 export async function POST(req: Request) {
   try {
@@ -76,11 +77,27 @@ export async function POST(req: Request) {
           total++
           if (txn.vendor) { driveVendors.push(txn.vendor) }
           const catId = await autoCategorize(txn.vendor)
-          if (txn.vendor) {
-            const existing = await prisma.expense.findFirst({
-              where: { date: txn.date, amount: txn.amount, vendor: txn.vendor },
+          const existing = await prisma.expense.findFirst({
+            where: {
+              date: txn.date,
+              amount: txn.amount,
+              vendor: txn.vendor || null,
+              ...(txn.bankAccount ? { bankAccount: txn.bankAccount } : {}),
+            },
+          })
+          if (existing) { skipped++; continue }
+          // Fallback dedup for legacy midnight-dated records (migration)
+          if (txn.date.getHours() !== 0 || txn.date.getMinutes() !== 0) {
+            const midnightDate = new Date(txn.date.getFullYear(), txn.date.getMonth(), txn.date.getDate())
+            const legacyExisting = await prisma.expense.findFirst({
+              where: {
+                date: midnightDate,
+                amount: txn.amount,
+                vendor: txn.vendor || null,
+                ...(txn.bankAccount ? { bankAccount: txn.bankAccount } : {}),
+              },
             })
-            if (existing) { skipped++; continue }
+            if (legacyExisting) { skipped++; continue }
           }
           await prisma.expense.create({
             data: {
@@ -120,11 +137,27 @@ export async function POST(req: Request) {
         for (const txn of htmlTxns) {
           total++
           const catId = await autoCategorize(txn.vendor)
-          if (txn.vendor) {
-            const existing = await prisma.expense.findFirst({
-              where: { date: txn.date, amount: txn.amount, vendor: txn.vendor },
+          const existing = await prisma.expense.findFirst({
+            where: {
+              date: txn.date,
+              amount: txn.amount,
+              vendor: txn.vendor || null,
+              ...(txn.bankAccount ? { bankAccount: txn.bankAccount } : {}),
+            },
+          })
+          if (existing) { skipped++; continue }
+          // Fallback dedup for legacy midnight-dated records (migration)
+          if (txn.date.getHours() !== 0 || txn.date.getMinutes() !== 0) {
+            const midnightDate = new Date(txn.date.getFullYear(), txn.date.getMonth(), txn.date.getDate())
+            const legacyExisting = await prisma.expense.findFirst({
+              where: {
+                date: midnightDate,
+                amount: txn.amount,
+                vendor: txn.vendor || null,
+                ...(txn.bankAccount ? { bankAccount: txn.bankAccount } : {}),
+              },
             })
-            if (existing) { skipped++; continue }
+            if (legacyExisting) { skipped++; continue }
           }
           await prisma.expense.create({
             data: {
@@ -145,64 +178,6 @@ export async function POST(req: Request) {
     console.error("Drive import error:", error)
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
-}
-
-function parseGpayTakeoutHtml(html: string): { date: Date; amount: number; vendor: string; bankAccount: string }[] {
-  const results: { date: Date; amount: number; vendor: string; bankAccount: string }[] = []
-  const text = html.replaceAll(/<[^>]+>/g, " ").replaceAll('&nbsp;', " ").replaceAll('&amp;', "&").replaceAll(/\s+/g, " ")
-  const txnRegex = /(paid|sent|received)\s+₹([\d,]+\.?\d*)\s+(?:(?:to|from)\s+(.+?)\s+)?using\s+(bank account\s*x+\d+)\s+(.*?)(?=\s+(?:paid|sent|received)\b|\s*$)/gi
-  let match: RegExpExecArray | null
-  while ((match = txnRegex.exec(text)) !== null) {
-    const amount = Number.parseFloat(match[2].replaceAll(',', ""))
-    const vendor = match[3] ? match[3].trim() : ""
-    const bankAccount = match[4]
-    const remainder = match[5]
-    const dateMatch = remainder.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{4}\b/i)
-    const date = dateMatch ? new Date(dateMatch[0]) : null
-    const isCompleted = /\bcompleted\b/i.test(remainder)
-    if (date && !isNaN(date.getTime()) && amount > 0 && isCompleted) {
-      results.push({ date, amount, vendor, bankAccount })
-    }
-  }
-  return results
-}
-
-function parseGPayEntry(txn: Record<string, unknown>): { date: Date; amount: number; vendor: string } | null {
-  const rawDate = (txn.transactionDate || txn.transactionTime || "") as string
-  const amountObj = txn.amount as Record<string, unknown> | undefined
-  const rawAmount = amountObj?.value ?? txn.amount
-  const vendor = (txn.merchant as Record<string, unknown> | undefined)?.name as string || txn.merchantName as string || txn.description as string || ""
-  const status = txn.transactionStatus as string
-
-  if (status && status !== "SUCCESS" && status !== "COMPLETED") return null
-  if (!rawDate || rawAmount === undefined || rawAmount === null) return null
-
-      const date = new Date(String(rawDate).replace("T", " ").split("+")[0].split("Z")[0])
-  if (isNaN(date.getTime())) return null
-
-  const amount = Math.abs(Number(rawAmount))
-  if (isNaN(amount) || amount === 0) return null
-
-  let vendorName = String(vendor).trim()
-  if (vendorName.startsWith("Paid to ")) vendorName = vendorName.slice(8)
-  if (/^(sent|received|paid|recharge)/i.test(vendorName)) vendorName = ""
-  if (vendorName === "undefined" || vendorName === "null") vendorName = ""
-
-  return { date, amount, vendor: vendorName }
-}
-
-function extractTxns(obj: Record<string, unknown>): Record<string, unknown>[] {
-  for (const key of ["transactions", "splitTransactions", "txns", "items", "entries", "data"]) {
-    const arr = obj[key]
-    if (Array.isArray(arr)) return arr as Record<string, unknown>[]
-  }
-  for (const val of Object.values(obj)) {
-    if (Array.isArray(val) && val.length > 0) {
-      const first = val[0] as Record<string, unknown>
-      if (first?.amount || first?.merchant || first?.transactionDate) return val as Record<string, unknown>[]
-    }
-  }
-  return []
 }
 
 async function autoCategorize(vendor: string): Promise<number> {

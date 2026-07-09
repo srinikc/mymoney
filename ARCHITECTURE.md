@@ -422,3 +422,5 @@ Self-host option (Docker image) available as open-source for power users — Pha
 3. **B2B timeline**: Now or later?
 4. **Cloud infra**: Own VPS or use Supabase/Railway?
 5. **Mobile priority**: React Native or Flutter?
+
+*Consolidated in `PRODUCT-PLAN.md` — refer there for the unified product plan.*

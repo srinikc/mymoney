@@ -8,14 +8,14 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { FilterBar } from "@/components/filters/filter-bar"
+import { ColumnFilter } from "@/components/expenses/column-filter"
 import { DriveDialog } from "@/components/expenses/drive-dialog"
-import { formatCurrency, formatDate } from "@/lib/utils"
+import { formatCurrency, formatDate, toLocalDateString } from "@/lib/utils"
 import { TableSkeleton } from "@/components/ui/page-skeleton"
 import type { Expense, Category } from "@/types"
 import {
   Plus, Upload, Search, Download, FileSpreadsheet,
-  Loader2, Cloud, LogOut, Edit3, ArrowUpDown, ChevronLeft, ChevronRight, RefreshCw, AlertCircle, CheckCircle2,
+  Loader2, Cloud, LogOut, Edit3, ArrowUpDown, ChevronLeft, ChevronRight, RefreshCw, AlertCircle, CheckCircle2, X,
 } from "lucide-react"
 
 interface DriveFile {
@@ -42,7 +42,7 @@ interface PaginatedResponse {
   totalAmount: number
 }
 
-type SortField = "date" | "amount" | "vendor" | "person"
+type SortField = "date" | "amount" | "vendor" | "person" | "paymentMode" | "bankAccount"
 type SortDir = "asc" | "desc"
 type FilterMode = "contains" | "not-contains"
 
@@ -62,6 +62,8 @@ export default function ExpensesPage() {
   const [vendorFilter, setVendorFilter] = useState<string[]>([])
   const [subCategoryFilter, setSubCategoryFilter] = useState<string[]>([])
   const [bankFilter, setBankFilter] = useState<string[]>([])
+  const [notesFilter, setNotesFilter] = useState("")
+  const [otherTypeFilter, setOtherTypeFilter] = useState("")
 
   // Filter modes for text-based fields (P3.6)
   const [vendorFilterMode, setVendorFilterMode] = useState<FilterMode>("contains")
@@ -95,7 +97,7 @@ export default function ExpensesPage() {
   const [driveDialogOpen, setDriveDialogOpen] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [editForm, setEditForm] = useState<Record<number, { categoryId: string; subCategory: string; person: string }>>({})
+  const [editForm, setEditForm] = useState<Record<number, { categoryId: string; subCategory: string; person: string; vendor: string }>>({})
   const [driveImporting, setDriveImporting] = useState(false)
 
 
@@ -108,6 +110,28 @@ export default function ExpensesPage() {
     paymentMode: "UPI",
     notes: "",
   })
+
+  const [isAddingNew, setIsAddingNew] = useState(false)
+  const newFormDefault = { date: new Date().toISOString().split("T")[0], amount: "", categoryId: "", vendor: "", description: "", paymentMode: "UPI", person: "", subCategory: "", bankAccount: "", notes: "" }
+  const [newForm, setNewForm] = useState(newFormDefault)
+
+  const handleAddNew = async () => {
+    if (!newForm.amount || !newForm.date) return
+    try {
+      const res = await fetch("/api/expenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newForm),
+      })
+      if (res.ok) {
+        setIsAddingNew(false)
+        setNewForm(newFormDefault)
+        loadData()
+      }
+    } catch (error) {
+      console.error("Add expense failed:", error)
+    }
+  }
 
   const loadData = useCallback(async (targetPage?: number) => {
     const p = targetPage ?? page
@@ -132,6 +156,8 @@ export default function ExpensesPage() {
       params.set("subCategoryMode", subCategoryFilterMode)
     }
     if (bankFilter.length > 0) params.set("bankAccounts", bankFilter.join(","))
+    if (notesFilter) params.set("notes", notesFilter)
+    if (otherTypeFilter) params.set("otherType", otherTypeFilter)
 
     if (dateFrom) params.set("dateFrom", dateFrom)
     if (dateTo) params.set("dateTo", dateTo)
@@ -158,7 +184,7 @@ export default function ExpensesPage() {
     setTotalAmount(result.totalAmount || 0)
     setCategories(await catRes.json())
     setLoading(false)
-  }, [search, categoryFilter, sessionFilter, personFilter, recurrenceFilter, paymentModeFilter, vendorFilter, subCategoryFilter, bankFilter, vendorFilterMode, subCategoryFilterMode, dateFrom, dateTo, amountMin, amountMax, sortField, sortDir, page, refreshKey])
+  }, [search, categoryFilter, sessionFilter, personFilter, recurrenceFilter, paymentModeFilter, vendorFilter, subCategoryFilter, bankFilter, notesFilter, otherTypeFilter, vendorFilterMode, subCategoryFilterMode, dateFrom, dateTo, amountMin, amountMax, sortField, sortDir, page, refreshKey])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -179,6 +205,10 @@ export default function ExpensesPage() {
       setImportResult("Failed to connect Google Drive")
       window.history.replaceState({}, "", "/expenses")
     }
+
+    // Check for un-imported GPay files in Drive on page load.
+    // Instead of auto-importing, prompt the user to confirm.
+    detectPendingGpayFile()
   }, [])
 
   const handleSubmit = async () => {
@@ -222,6 +252,8 @@ export default function ExpensesPage() {
   const [gpayJobId, setGpayJobId] = useState<string | null>(null)
   const [gpayDialogOpen, setGpayDialogOpen] = useState(false)
   const [gpayStep, setGpayStep] = useState<"idle" | "starting_export" | "export_in_progress" | "open_takeout" | "waiting_drive" | "importing" | "done" | "error">("idle")
+  const [reauthStatus, setReauthStatus] = useState<"idle" | "reauth_started" | "reauth_complete" | "reauth_failed">("idle")
+  const reauthPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const knownGpayFilesRef = useRef<Set<string>>(new Set(
     typeof window !== "undefined"
       ? JSON.parse(localStorage.getItem("mymoney-gpay-known-files") || "[]") as string[]
@@ -236,6 +268,14 @@ export default function ExpensesPage() {
     typeof window !== "undefined" ? localStorage.getItem("mymoney-gpay-last-sync") || "" : ""
   )
   const [gpayConfirmForce, setGpayConfirmForce] = useState(false)
+  const [gpayImportResult, setGpayImportResult] = useState<{ imported: number; skipped: number } | null>(null)
+  const [gpayPendingFileId, setGpayPendingFileId] = useState<string | null>(null)
+  const [gpayPendingFileName, setGpayPendingFileName] = useState("")
+  const [gpayPreviewPendingId, setGpayPreviewPendingId] = useState("")
+  const [gpayReauthExportCreated, setGpayReauthExportCreated] = useState(true)
+  const [gpayPreview, setGpayPreview] = useState<{
+    total: number; willImport: number; willSkip: number; blankVendor: number; totalVendors: number; sample: { date: string; amount: number; vendor: string }[]
+  } | null>(null)
 
   const persistLastGpaySync = useCallback((iso: string) => {
     setLastGpaySync(iso)
@@ -268,41 +308,147 @@ export default function ExpensesPage() {
         (f) => (f.name === "MyActivity.html" || f.name.endsWith(".zip")) && !knownGpayFilesRef.current.has(f.id)
       )
       if (pendingFile) {
-        addKnownGpayFile(pendingFile.id)
-        setGpayStep("importing")
-        await handleImportFromDrive(pendingFile.id)
-        setGpayStep("done")
-        persistLastGpaySync(new Date().toISOString())
-        return true
+        const ok = await finishGpayAutoImport(pendingFile.id)
+        if (ok) return true
+        // File wasn't ready — caller will start polling
+        return false
       }
       return false
     } catch { return false }
   }
 
+  // Detects un-imported GPay files in Drive and prompts user (no auto-import)
+  const detectPendingGpayFile = async () => {
+    try {
+      const listRes = await fetch("/api/drive/list")
+      if (!listRes.ok) return
+      const data = await listRes.json()
+      const files: { id: string; name: string }[] = data.files || []
+      const pendingFile = files.find(
+        (f) => (f.name === "MyActivity.html" || f.name.endsWith(".zip")) && !knownGpayFilesRef.current.has(f.id)
+      )
+      if (pendingFile) {
+        setGpayPendingFileId(pendingFile.id)
+        setGpayPendingFileName(pendingFile.name)
+      }
+    } catch { /* ignore */ }
+  }
+
+  const confirmImportGpayFile = async () => {
+    if (!gpayPendingFileId) return
+    addKnownGpayFile(gpayPendingFileId)
+    setGpayPreviewPendingId(gpayPendingFileId)
+    setGpayPendingFileId(null)
+    // Show preview first
+    try {
+      const previewRes = await fetch("/api/drive/preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileId: gpayPendingFileId }) })
+      if (previewRes.ok) {
+        const preview = await previewRes.json()
+        setGpayPreview(preview)
+        return
+      }
+    } catch { /* fall through to direct import */ }
+    // If preview fails, import directly
+    doImportGpayFile(gpayPendingFileId)
+  }
+
+  const doImportGpayFile = async (fileId: string) => {
+    setGpayStep("importing")
+    try {
+      const result = await handleImportFromDrive(fileId)
+      if (result) setGpayImportResult({ imported: result.imported, skipped: result.skipped })
+      setGpayStep("done")
+      setGpayJobId(null)
+      persistLastGpaySync(new Date().toISOString())
+    } catch {
+      setGpayStep("error")
+      setGpayError("Failed to import GPay file from Drive.")
+      setGpayJobId(null)
+    }
+  }
+
+  const confirmImportPreview = async () => {
+    setGpayPreview(null)
+    setGpayStep("importing")
+    try {
+      const fileId = gpayPreviewPendingId || gpayPendingFileId || ""
+      addKnownGpayFile(fileId)
+      const result = await handleImportFromDrive(fileId)
+      if (result) setGpayImportResult({ imported: result.imported, skipped: result.skipped })
+      setGpayStep("done")
+      setGpayJobId(null)
+      persistLastGpaySync(new Date().toISOString())
+    } catch {
+      setGpayStep("error")
+      setGpayError("Failed to import GPay file from Drive.")
+      setGpayJobId(null)
+    }
+  }
+
+  const dismissPendingGpayFile = () => {
+    if (gpayPendingFileId) {
+      addKnownGpayFile(gpayPendingFileId)
+      setGpayPendingFileId(null)
+      setGpayPendingFileName("")
+    }
+  }
+
   useEffect(() => {
     const pending = localStorage.getItem("mymoney-gpay-pending")
-    if (pending) {
-      (async () => {
-        try {
-          const { step, timestamp } = JSON.parse(pending)
-          const elapsed = Date.now() - timestamp
-          if (elapsed < 20 * 60 * 1000 && (step === "waiting_drive" || step === "export_in_progress" || step === "importing")) {
-            gpayAutoModeRef.current = true
-            setGpayStep("waiting_drive")
-            // First check if file already arrived
-            const found = await checkAndImportPendingGpayFile()
-            if (!found) {
-              // Start polling for it
-              startGpayDrivePolling()
-            }
-          } else {
-            localStorage.removeItem("mymoney-gpay-pending")
-          }
-        } catch {
+    if (!pending) return
+    const pendingFileCheck = async () => {
+      try {
+        const { step, timestamp } = JSON.parse(pending)
+        const elapsed = Date.now() - timestamp
+        if (elapsed >= 12 * 60 * 60 * 1000 || !(step === "waiting_drive" || step === "export_in_progress" || step === "importing")) {
           localStorage.removeItem("mymoney-gpay-pending")
+          return
         }
-      })()
+
+        // Check what's actually in Drive to reconcile state
+        let listRes, data
+        try {
+          listRes = await fetch("/api/drive/list")
+          if (listRes.ok) data = await listRes.json()
+        } catch {}
+        const files: { id: string; name: string }[] = data?.files || []
+        const gpayFiles = files.filter((f) => f.name === "MyActivity.html" || f.name.endsWith(".zip"))
+        const unimported = gpayFiles.filter((f) => !knownGpayFilesRef.current.has(f.id))
+
+        if (unimported.length > 0) {
+          // Found un-imported files — import the first one
+          gpayAutoModeRef.current = true
+          setGpayStep("waiting_drive")
+          await finishGpayAutoImport(unimported[0].id)
+          return
+        }
+
+        // All GPay files already imported or no files at all
+        if (gpayFiles.length > 0 && unimported.length === 0) {
+          // All files already handled — nothing pending
+          localStorage.removeItem("mymoney-gpay-pending")
+          setGpayStep("idle")
+          return
+        }
+
+        // No GPay files in Drive at all — only start polling if pending is fresh (< 5 min)
+        // After server restart or long absence, the job is likely lost
+        if (elapsed > 5 * 60 * 1000) {
+          localStorage.removeItem("mymoney-gpay-pending")
+          setGpayStep("idle")
+          return
+        }
+
+        // Fresh pending state — start Drive polling
+        gpayAutoModeRef.current = true
+        setGpayStep(step === "export_in_progress" ? "waiting_drive" : step)
+        const found = await checkAndImportPendingGpayFile()
+        if (!found) startGpayDrivePolling()
+      } catch {
+        localStorage.removeItem("mymoney-gpay-pending")
+      }
     }
+    pendingFileCheck()
   }, [])
 
   // Persist pending state across navigations (after resume effect, so it doesn't clear on mount)
@@ -320,11 +466,14 @@ export default function ExpensesPage() {
       if (gpayPollRef.current) clearInterval(gpayPollRef.current)
       if (gpayDrivePollRef.current) clearInterval(gpayDrivePollRef.current)
       if (gpayTimeoutRef.current) clearTimeout(gpayTimeoutRef.current)
+      if (reauthPollRef.current) clearInterval(reauthPollRef.current)
     }
   }, [])
 
   const startGpayDrivePolling = async (timeoutMs = 900_000) => {
-    // Record known html files first & clear any previously known MyActivity.html
+    let lastKnownCount = knownGpayFilesRef.current.size
+    let lastMatchCount = 0
+    // Record known non-GPay html files so they aren't re-detected
     try {
       const listRes = await fetch("/api/drive/list")
       if (listRes.ok) {
@@ -332,23 +481,15 @@ export default function ExpensesPage() {
         const files: { id: string; name: string }[] = data.files || []
         for (const f of files) {
           if (f.name.endsWith(".html") && f.name !== "MyActivity.html") addKnownGpayFile(f.id)
-          // Clear known MyActivity.html and ZIPs so they're re-detected for this export
-          if (f.name === "MyActivity.html" || f.name.endsWith(".zip")) {
-            knownGpayFilesRef.current.delete(f.id)
-          }
         }
-        localStorage.setItem("mymoney-gpay-known-files", JSON.stringify([...knownGpayFilesRef.current]))
-        // Also import immediately if a GPay file exists
-        const found = files.find((f) => (f.name === "MyActivity.html" || f.name.endsWith(".zip")) && !knownGpayFilesRef.current.has(f.id))
-        if (found) {
-          addKnownGpayFile(found.id)
-          setGpayStep("importing")
-          await handleImportFromDrive(found.id)
-          setGpayStep("done")
-          setGpayJobId(null)
-          persistLastGpaySync(new Date().toISOString())
-          return
+        const gpayFiles = files.filter((f) => f.name === "MyActivity.html" || f.name.endsWith(".zip"))
+        const newFile = gpayFiles.find((f) => !knownGpayFilesRef.current.has(f.id))
+        if (newFile) {
+          const ok = await finishGpayAutoImport(newFile.id)
+          if (ok) return
         }
+        lastKnownCount = knownGpayFilesRef.current.size
+        lastMatchCount = gpayFiles.length
       }
     } catch {}
 
@@ -360,26 +501,33 @@ export default function ExpensesPage() {
         if (!res.ok) return
         const data = await res.json()
         const files: { id: string; name: string }[] = data.files || []
-        const newFile = files.find(
-          (f) => (f.name === "MyActivity.html" || f.name.endsWith(".zip")) && !knownGpayFilesRef.current.has(f.id)
-        )
+        const gpayFiles = files.filter((f) => f.name === "MyActivity.html" || f.name.endsWith(".zip"))
+        const newFile = gpayFiles.find((f) => !knownGpayFilesRef.current.has(f.id))
         if (newFile) {
           if (gpayDrivePollRef.current) clearInterval(gpayDrivePollRef.current)
           if (gpayTimeoutRef.current) clearTimeout(gpayTimeoutRef.current)
-          setGpayStep("importing")
-          addKnownGpayFile(newFile.id)
-          await handleImportFromDrive(newFile.id)
-          setGpayStep("done")
-          setGpayJobId(null)
-          persistLastGpaySync(new Date().toISOString())
+          const ok = await finishGpayAutoImport(newFile.id)
+          if (ok) return
+          // File wasn't ready — restart polling
+          startGpayDrivePolling(timeoutMs)
+          return
         }
+        lastKnownCount = knownGpayFilesRef.current.size
+        lastMatchCount = gpayFiles.length
       } catch {}
     }, 15000)
 
     gpayTimeoutRef.current = setTimeout(() => {
       if (gpayDrivePollRef.current) clearInterval(gpayDrivePollRef.current)
       if (gpayStep !== "done" && gpayStep !== "importing") {
-        setGpayError("File did not appear in Drive within the expected time. The export may have been created with email delivery instead of Drive.")
+        const known = lastKnownCount
+        const matched = lastMatchCount
+        const skipped = matched > known ? matched - known : 0
+        setGpayError(
+          matched === 0
+            ? `No GPay export file found in Drive after 15 minutes. Found ${matched} matching files (${skipped} already imported). The export may have been created with email delivery instead of Drive, or the Takeout page is showing a stale "in progress" status without creating a new export.`
+            : `Found ${matched} GPay file(s) in Drive but ${skipped} already imported. No new file appeared in 15 minutes. The export may have been delivered to email instead of Drive.`
+        )
         setGpayStep("error")
         setGpayJobId(null)
       }
@@ -390,22 +538,36 @@ export default function ExpensesPage() {
     if (gpayPollRef.current) clearInterval(gpayPollRef.current)
     if (gpayTimeoutRef.current) clearTimeout(gpayTimeoutRef.current)
 
+    const clearAllPolling = () => {
+      if (gpayPollRef.current) { clearInterval(gpayPollRef.current); gpayPollRef.current = null }
+      if (gpayDrivePollRef.current) { clearInterval(gpayDrivePollRef.current); gpayDrivePollRef.current = null }
+      if (gpayTimeoutRef.current) { clearTimeout(gpayTimeoutRef.current); gpayTimeoutRef.current = null }
+    }
+
     gpayPollRef.current = setInterval(async () => {
       try {
         const res = await fetch(`/api/refresh-gpay?jobId=${jobId}`)
+        if (res.status === 404) {
+          clearAllPolling()
+          setGpayError("The GPay export job was lost (server may have restarted). Please try again.")
+          setGpayStep("error")
+          setGpayJobId(null)
+          return
+        }
         const data = await res.json()
         const status = data.job?.status
         if (status === "export_created" || status === "already_in_progress") {
-          if (gpayPollRef.current) clearInterval(gpayPollRef.current)
-          gpayPollRef.current = null
+          clearAllPolling()
           setGpayStep("waiting_drive")
           setGpayJobId(null)
-          persistLastGpaySync(new Date().toISOString())
+          // NOTE: persistLastGpaySync is NOT called here — it's only set
+          // when the import actually completes (drive polling finds the file).
+          // Calling it prematurely makes the next click show "synced recently"
+          // even when nothing was imported.
           startGpayDrivePolling()
         } else if (status === "failed" || status === "auth_required") {
-          if (gpayPollRef.current) clearInterval(gpayPollRef.current)
-          gpayPollRef.current = null
-          setGpayError(data.job?.error || (status === "auth_required" ? "Google session expired. Run: node scripts/refresh-gpay.mjs --setup" : "Unknown error"))
+          clearAllPolling()
+          setGpayError(data.job?.error || (status === "auth_required" ? "Google session expired. Click 'Re-authenticate' below to log in." : "Unknown error"))
           setGpayStep("error")
           setGpayJobId(null)
         }
@@ -428,14 +590,16 @@ export default function ExpensesPage() {
 
   const handleGpayTakeout = async () => {
     setGpayConfirmForce(false)
-    setGpayError("")
     setImportResult(null)
+    setGpayImportResult(null)
 
-    // If already in progress or waiting for Drive, just show status
-    if (gpayStep === "export_in_progress" || gpayStep === "starting_export" || gpayStep === "waiting_drive" || gpayStep === "importing") {
+    // If in progress, waiting for Drive, or errored: just show the dialog (preserving error message)
+    if (gpayStep === "export_in_progress" || gpayStep === "starting_export" || gpayStep === "waiting_drive" || gpayStep === "importing" || gpayStep === "error") {
       setGpayDialogOpen(true)
       return
     }
+
+    setGpayError("")
 
     // Synced < 1 hour ago: show confirmation instead of auto-starting
     if (lastGpaySync) {
@@ -444,12 +608,23 @@ export default function ExpensesPage() {
       const hoursSinceLastSync = (now.getTime() - lastSync.getTime()) / 3600000
       if (hoursSinceLastSync < 1) {
         setGpayConfirmForce(true)
+        setGpayStep("done")
         setGpayDialogOpen(true)
         return
       }
     }
 
     await startFreshExport()
+  }
+
+  const resetGpayState = () => {
+    if (gpayPollRef.current) { clearInterval(gpayPollRef.current); gpayPollRef.current = null }
+    if (gpayDrivePollRef.current) { clearInterval(gpayDrivePollRef.current); gpayDrivePollRef.current = null }
+    if (gpayTimeoutRef.current) { clearTimeout(gpayTimeoutRef.current); gpayTimeoutRef.current = null }
+    if (reauthPollRef.current) { clearInterval(reauthPollRef.current); reauthPollRef.current = null }
+    setGpayStep("idle")
+    setGpayJobId(null)
+    setGpayError("")
   }
 
   const startFreshExport = async () => {
@@ -467,11 +642,72 @@ export default function ExpensesPage() {
         startGpayPolling(data.jobId)
         return
       }
-    } catch {}
+    } catch { /* ignore */ }
 
     // Fallback: show error — the Playwright script could not be started
     setGpayError("The GPay automation script could not be started. Check that Playwright and Chrome are installed.")
     setGpayStep("error")
+  }
+
+  const startReauth = async () => {
+    setReauthStatus("reauth_started")
+    setGpayError("")
+    setGpayDialogOpen(true)
+    try {
+      const res = await fetch("/api/refresh-gpay?action=reauth", { method: "POST" })
+      const data = await res.json()
+      if (data.reauthToken) {
+        startReauthPolling(data.reauthToken)
+      }
+    } catch {
+      setReauthStatus("reauth_failed")
+      setGpayError("Failed to start re-authentication. Check that the server is running.")
+    }
+  }
+
+  const startReauthPolling = (token: string) => {
+    if (reauthPollRef.current) clearInterval(reauthPollRef.current)
+    if (gpayTimeoutRef.current) { clearTimeout(gpayTimeoutRef.current); gpayTimeoutRef.current = null }
+
+    const stopReauth = () => {
+      if (reauthPollRef.current) { clearInterval(reauthPollRef.current); reauthPollRef.current = null }
+      if (gpayTimeoutRef.current) { clearTimeout(gpayTimeoutRef.current); gpayTimeoutRef.current = null }
+    }
+
+    reauthPollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/refresh-gpay?jobId=${token}`)
+        if (res.status === 404) {
+          stopReauth()
+          setReauthStatus("reauth_failed")
+          setGpayError("Re-authentication job was lost (server may have restarted). Please try again.")
+          return
+        }
+        const data = await res.json()
+        const status = data.job?.status
+        if (status === "reauth_complete") {
+          stopReauth()
+          setReauthStatus("reauth_complete")
+          setGpayReauthExportCreated(data.job?.exportCreated !== false)
+        } else if (status === "reauth_failed" || status === "failed") {
+          stopReauth()
+          setReauthStatus("reauth_failed")
+          setGpayError(data.job?.error || "Re-authentication failed.")
+        }
+      } catch { /* ignore */ }
+    }, 2000)
+
+    // Safety timeout: stop polling after 2 minutes even if server doesn't respond
+    gpayTimeoutRef.current = setTimeout(() => {
+      if (reauthPollRef.current) {
+        clearInterval(reauthPollRef.current)
+        reauthPollRef.current = null
+      }
+      if (reauthStatus === "reauth_started") {
+        setReauthStatus("reauth_failed")
+        setGpayError("Re-authentication timed out. Please try again.")
+      }
+    }, 120_000)
   }
 
   const handleScanDrive = async () => {
@@ -504,18 +740,51 @@ export default function ExpensesPage() {
     }
   }
 
+  // Shared helper for auto-import: marks file as known only if new records were imported.
+  // Returns true only when polling should stop (genuinely new data was imported).
+  const finishGpayAutoImport = async (fileId: string) => {
+    setGpayStep("importing")
+    const result = await handleImportFromDrive(fileId)
+    const importedCount = result?.imported ?? 0
+    const hadContent = result && result.total && result.total > 0
+
+    if (importedCount > 0) {
+      // Genuinely new records — mark known, done, stop polling
+      addKnownGpayFile(fileId)
+      setGpayImportResult({ imported: importedCount, skipped: result?.skipped ?? 0 })
+      setGpayStep("done")
+      setGpayJobId(null)
+      persistLastGpaySync(new Date().toISOString())
+    } else if (hadContent) {
+      // File was valid but all records already in DB — mark known so we don't re-try,
+      // but continue polling for the real new file
+      addKnownGpayFile(fileId)
+      if (result) setGpayImportResult({ imported: 0, skipped: result.skipped })
+      setGpayStep("waiting_drive")
+    } else {
+      // File had no recognizable transactions — mark as known to avoid infinite retry loop.
+      // If the real file arrives later with a different Drive ID, polling will still find it.
+      addKnownGpayFile(fileId)
+      if (result) setGpayImportResult({ imported: 0, skipped: 0 })
+      setGpayStep("waiting_drive")
+    }
+    return importedCount > 0
+  }
+
   const handleImportFromDrive = async (fileId: string) => {
     setDriveImporting(true)
     setImportResult(null)
     try {
       const res = await fetch("/api/drive/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileId }) })
       const result = await res.json()
-      setImportResult(result.message || "Imported successfully")
+      const msg = result.message || (res.ok ? "Imported successfully" : result.error || "Import failed")
+      setImportResult(msg)
       setDriveDialogOpen(false)
       setPage(1)
       loadData(1)
       fetch("/api/import-sessions").then(r => r.json()).then(setImportSessions)
-    } catch (error) { setImportResult("Drive import failed: " + String(error)) }
+      return { imported: result.imported ?? 0, skipped: result.skipped ?? 0, total: result.total ?? 0, message: msg }
+    } catch (error) { setImportResult("Drive import failed: " + String(error)); return null }
     finally { setDriveImporting(false) }
   }
 
@@ -529,6 +798,7 @@ export default function ExpensesPage() {
         categoryId: String(expense.categoryId),
         subCategory: expense.subCategory || "",
         person: expense.person || "",
+        vendor: expense.vendor || "",
       },
     }))
   }
@@ -548,7 +818,7 @@ export default function ExpensesPage() {
           categoryId: Number.parseInt(form.categoryId),
           subCategory: form.subCategory || null,
           person: form.person || null,
-          vendor: expense.vendor || "",
+          vendor: form.vendor || "",
         }),
       })
       const updated = await res.json()
@@ -558,6 +828,57 @@ export default function ExpensesPage() {
       }
     } catch (error) {
       console.error("Save failed:", error)
+    }
+  }
+
+  const deleteExpense = async (id: number) => {
+    if (!window.confirm("Archive this expense? It can be restored later from Archive.")) return
+    try {
+      const res = await fetch(`/api/expenses?id=${id}`, { method: "DELETE" })
+      if (res.ok) {
+        setExpenses((prev) => prev.filter((e) => e.id !== id))
+        setEditingId(null)
+        loadData()
+      }
+    } catch (error) {
+      console.error("Delete failed:", error)
+    }
+  }
+
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === expenses.length && expenses.length > 0) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(expenses.map((e) => e.id)))
+    }
+  }
+
+  const deleteSelected = async () => {
+    const ids = [...selectedIds]
+    if (ids.length === 0) return
+    if (!window.confirm(`Archive ${ids.length} selected expense${ids.length > 1 ? "s" : ""}? They can be restored later from Archive.`)) return
+    try {
+      const res = await fetch("/api/expenses/batch-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      })
+      if (res.ok) {
+        setSelectedIds(new Set())
+        loadData()
+      }
+    } catch (error) {
+      console.error("Batch delete failed:", error)
     }
   }
 
@@ -582,21 +903,21 @@ export default function ExpensesPage() {
     if (preset === "custom") { setDateFrom(""); setDateTo(""); return }
     switch (preset) {
     case "this-month": {
-      setDateFrom(new Date(y, m, 1).toISOString().split("T")[0])
-      setDateTo(new Date(y, m + 1, 0).toISOString().split("T")[0])
+      setDateFrom(toLocalDateString(new Date(y, m, 1)))
+      setDateTo(toLocalDateString(new Date(y, m + 1, 0)))
     
     break;
     }
     case "prev-month": {
-      setDateFrom(new Date(y, m - 1, 1).toISOString().split("T")[0])
-      setDateTo(new Date(y, m, 0).toISOString().split("T")[0])
+      setDateFrom(toLocalDateString(new Date(y, m - 1, 1)))
+      setDateTo(toLocalDateString(new Date(y, m, 0)))
     
     break;
     }
     case "this-quarter": {
       const q = Math.floor(m / 3) * 3
-      setDateFrom(new Date(y, q, 1).toISOString().split("T")[0])
-      setDateTo(new Date(y, q + 3, 0).toISOString().split("T")[0])
+      setDateFrom(toLocalDateString(new Date(y, q, 1)))
+      setDateTo(toLocalDateString(new Date(y, q + 3, 0)))
     
     break;
     }
@@ -694,40 +1015,10 @@ export default function ExpensesPage() {
             <Download className="mr-2 h-4 w-4" /> Export
           </Button>
 
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm"><Plus className="mr-2 h-4 w-4" /> Add</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Add Expense</DialogTitle></DialogHeader>
-              <div className="grid gap-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div><label className="text-sm font-medium">Date</label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
-                  <div><label className="text-sm font-medium">Amount</label><Input type="number" placeholder="0" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div>
-                </div>
-                <div><label className="text-sm font-medium">Category</label>
-                  <Select value={form.categoryId} onValueChange={(v) => setForm({ ...form, categoryId: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>{categories.map((c) => (<SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>))}</SelectContent>
-                  </Select>
-                </div>
-                <div><label className="text-sm font-medium">Vendor</label><Input placeholder="e.g. Big Bazaar" value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })} /></div>
-                <div><label className="text-sm font-medium">Payment</label>
-                  <Select value={form.paymentMode} onValueChange={(v) => setForm({ ...form, paymentMode: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="UPI">UPI</SelectItem>
-                      <SelectItem value="Cash">Cash</SelectItem>
-                      <SelectItem value="Card">Card</SelectItem>
-                      <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button onClick={handleSubmit}>Save Expense</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-
+          <Button size="sm" className="h-7 text-xs gap-1" onClick={() => { setIsAddingNew(true); setTimeout(() => { document.querySelector('.overflow-x-auto')?.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }, 100) }}>
+            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
+            Add
+          </Button>
         </div>
       </div>
 
@@ -764,6 +1055,56 @@ export default function ExpensesPage() {
           <CardContent className="flex items-center gap-2 py-1 text-xs">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             Importing expenses...
+          </CardContent>
+        </Card>
+      )}
+
+      {gpayPendingFileId && (
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardContent className="flex items-center gap-3 py-2 text-xs">
+            <Cloud className="h-4 w-4 text-amber-500 shrink-0" />
+            <span className="flex-1">New GPay data file detected in Drive. Import now?</span>
+            <Button size="sm" className="h-7 text-xs" onClick={confirmImportGpayFile}>
+              Yes, Import
+            </Button>
+            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={dismissPendingGpayFile}>
+              No, Dismiss
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {gpayPreview && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="py-3 space-y-2 text-xs">
+            <div className="flex items-center gap-2 font-medium text-sm">
+              <Cloud className="h-4 w-4 text-primary" />
+              GPay Import Preview
+            </div>
+            <div className="flex gap-4 flex-wrap">
+              <span>Total records: <strong>{gpayPreview.total}</strong></span>
+              <span className="text-emerald-600">Will import: <strong>{gpayPreview.willImport}</strong></span>
+              {gpayPreview.willSkip > 0 && <span className="text-muted-foreground">Duplicates skipped: <strong>{gpayPreview.willSkip}</strong></span>}
+              <span>Unique vendors: <strong>{gpayPreview.totalVendors}</strong></span>
+            </div>
+            {gpayPreview.sample.length > 0 && (
+              <div>
+                <div className="text-[10px] text-muted-foreground mb-1">Sample records:</div>
+                <div className="flex gap-4 text-[10px] text-muted-foreground flex-wrap">
+                  {gpayPreview.sample.map((s, i) => (
+                    <span key={i}>{s.date} — ₹{s.amount} {s.vendor ? `(${s.vendor})` : ""}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" className="h-7 text-xs" onClick={confirmImportPreview}>
+                Confirm Import
+              </Button>
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setGpayPreview(null)}>
+                Cancel
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -809,38 +1150,17 @@ export default function ExpensesPage() {
         <Badge variant="secondary" className="text-[10px]">{total.toLocaleString()} items</Badge>
       </div>
 
-      <FilterBar
-        categories={categories}
-        categoryValue={categoryFilter}
-        onCategoryChange={(vals) => { setCategoryFilter(vals); setPage(1) }}
-        distinctVendors={distinctVendors}
-        vendorValue={vendorFilter}
-        onVendorChange={(vals) => { setVendorFilter(vals); setPage(1) }}
-        vendorMode={vendorFilterMode}
-        onVendorModeToggle={() => setVendorFilterMode((prev) => (prev === "contains" ? "not-contains" : "contains"))}
-        distinctPersons={distinctPersons}
-        personValue={personFilter}
-        onPersonChange={(vals) => { setPersonFilter(vals); setPage(1) }}
-        distinctPaymentModes={distinctPaymentModes}
-        paymentModeValue={paymentModeFilter}
-        onPaymentModeChange={(vals) => { setPaymentModeFilter(vals); setPage(1) }}
-        distinctBankAccounts={distinctBankAccounts}
-        bankValue={bankFilter}
-        onBankChange={(vals) => { setBankFilter(vals); setPage(1) }}
-        distinctSubCategories={distinctSubCategories}
-        subCategoryValue={subCategoryFilter}
-        onSubCategoryChange={(vals) => { setSubCategoryFilter(vals); setPage(1) }}
-        subCategoryMode={subCategoryFilterMode}
-        onSubCategoryModeToggle={() => setSubCategoryFilterMode((prev) => (prev === "contains" ? "not-contains" : "contains"))}
-        amountMin={amountMin}
-        amountMax={amountMax}
-        onAmountMinChange={(val) => { setAmountMin(val); setPage(1) }}
-        onAmountMaxChange={(val) => { setAmountMax(val); setPage(1) }}
-        distinctRecurrenceTypes={distinctRecurrenceTypes}
-        recurrenceValue={recurrenceFilter}
-        onRecurrenceChange={(vals) => { setRecurrenceFilter(vals); setPage(1) }}
-        onClear={handleClearFilters}
-      />
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-2 py-1">
+          <span className="text-xs text-muted-foreground">{selectedIds.size} selected</span>
+          <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={deleteSelected}>
+            Archive Selected
+          </Button>
+          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedIds(new Set())}>
+            Clear
+          </Button>
+        </div>
+      )}
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-xs">
@@ -876,46 +1196,164 @@ export default function ExpensesPage() {
             <div className="p-4"><TableSkeleton /></div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="min-w-[1400px]">
                 <thead>
                   <tr className="border-b text-left text-[10px] font-medium text-muted-foreground">
-                    <SortHeader field="date" label="Date" />
-                    <SortHeader field="vendor" label="Vendor" className="max-w-[150px]" />
-                    <th className="px-1.5 py-1">Category</th>
-                    <th className="px-1.5 py-1">Sub Cat</th>
-                    <SortHeader field="person" label="Person" />
-                    <th className="px-1.5 py-1">Mode</th>
-                    <th className="px-1.5 py-1">Bank</th>
-                    <SortHeader field="amount" label="Amount" className="text-right" />
-                    <th className="px-1.5 py-1">Comments</th>
+                    <th className="px-1.5 py-1 w-8">
+                      <input type="checkbox" className="h-3 w-3" checked={expenses.length > 0 && selectedIds.size === expenses.length}
+                        onChange={toggleSelectAll} />
+                    </th>
+                    <ColumnFilter label="Date" type="daterange"
+                      value={[]} onChange={() => {}}
+                      dateFrom={dateFrom} dateTo={dateTo}
+                      onDateFromChange={(val) => { setDateFrom(val); setPage(1) }}
+                      onDateToChange={(val) => { setDateTo(val); setPage(1) }}
+                      sortField="date" currentSort={sortField} sortDir={sortDir} onSort={() => toggleSort("date")} />
+                    <ColumnFilter label="Vendor" type="multiselect-with-mode"
+                      options={distinctVendors.map((v) => ({ label: v, value: v }))}
+                      value={vendorFilter} onChange={(vals) => { setVendorFilter(vals); setPage(1) }}
+                      mode={vendorFilterMode} onModeToggle={() => setVendorFilterMode((prev) => (prev === "contains" ? "not-contains" : "contains"))}
+                      showBlankOption
+                      sortField="vendor" currentSort={sortField} sortDir={sortDir} onSort={() => toggleSort("vendor")} />
+                    <ColumnFilter label="Category" type="multiselect"
+                      options={categories.map((c) => ({ label: c.name, value: String(c.id) }))}
+                      value={categoryFilter} onChange={(vals) => { setCategoryFilter(vals); setPage(1) }} showBlankOption />
+                    <ColumnFilter label="Sub Cat" type="multiselect-with-mode"
+                      options={distinctSubCategories.map((v) => ({ label: v, value: v }))}
+                      value={subCategoryFilter} onChange={(vals) => { setSubCategoryFilter(vals); setPage(1) }}
+                      mode={subCategoryFilterMode} onModeToggle={() => setSubCategoryFilterMode((prev) => (prev === "contains" ? "not-contains" : "contains"))} showBlankOption />
+                    <ColumnFilter label="Person" type="multiselect"
+                      options={distinctPersons.map((v) => ({ label: v, value: v }))}
+                      value={personFilter} onChange={(vals) => { setPersonFilter(vals); setPage(1) }}
+                      showBlankOption
+                      sortField="person" currentSort={sortField} sortDir={sortDir} onSort={() => toggleSort("person")} />
+                    <ColumnFilter label="Mode" type="multiselect"
+                      options={distinctPaymentModes.map((v) => ({ label: v, value: v }))}
+                      value={paymentModeFilter} onChange={(vals) => { setPaymentModeFilter(vals); setPage(1) }}
+                      showBlankOption
+                      sortField="paymentMode" currentSort={sortField} sortDir={sortDir} onSort={() => toggleSort("paymentMode")} />
+                    <ColumnFilter label="Bank" type="multiselect"
+                      options={distinctBankAccounts.map((v) => ({ label: v, value: v }))}
+                      value={bankFilter} onChange={(vals) => { setBankFilter(vals); setPage(1) }}
+                      showBlankOption
+                      sortField="bankAccount" currentSort={sortField} sortDir={sortDir} onSort={() => toggleSort("bankAccount")} />
+                    <ColumnFilter label="Amount" type="amount"
+                      value={[]} onChange={() => {}}
+                      amountMin={amountMin} amountMax={amountMax}
+                      onAmountMinChange={(val) => { setAmountMin(val); setPage(1) }}
+                      onAmountMaxChange={(val) => { setAmountMax(val); setPage(1) }}
+                      sortField="amount" currentSort={sortField} sortDir={sortDir} onSort={() => toggleSort("amount")} />
+                    <ColumnFilter label="Comments" type="text"
+                      value={[]} onChange={() => {}}
+                      textValue={notesFilter} onTextChange={(val) => { setNotesFilter(val); setPage(1) }} />
                     <th className="px-1.5 py-1 text-right"></th>
-                    <th className="px-1.5 py-1">Type</th>
-                    <th className="px-1.5 py-1">Other</th>
+                    <ColumnFilter label="Type" type="multiselect"
+                      options={distinctRecurrenceTypes.map((v) => ({ label: v, value: v }))}
+                      value={recurrenceFilter} onChange={(vals) => { setRecurrenceFilter(vals); setPage(1) }} showBlankOption />
+                    <ColumnFilter label="Other" type="text"
+                      value={[]} onChange={() => {}}
+                      textValue={otherTypeFilter} onTextChange={(val) => { setOtherTypeFilter(val); setPage(1) }} />
                   </tr>
                 </thead>
                 <tbody>
+                  {isAddingNew && (
+                    <tr className="border-b text-xs bg-muted/10">
+                      <td className="px-1.5 py-1"></td>
+                      <td className="px-1.5 py-1">
+                        <input type="date" className="h-6 text-[10px] px-1 rounded border border-input bg-transparent w-28 focus:outline-none focus:ring-1 focus:ring-primary"
+                          value={newForm.date} onChange={(e) => setNewForm({ ...newForm, date: e.target.value })} />
+                      </td>
+                      <td className="px-1.5 py-1">
+                        <input list="vendor-edit" className="h-6 text-[10px] px-1 rounded border border-input bg-transparent w-24 focus:outline-none focus:ring-1 focus:ring-primary"
+                          value={newForm.vendor} onChange={(e) => setNewForm({ ...newForm, vendor: e.target.value })} placeholder="Vendor" />
+                      </td>
+                      <td className="px-1.5 py-1">
+                        <Select value={newForm.categoryId} onValueChange={(v) => setNewForm({ ...newForm, categoryId: v })}>
+                          <SelectTrigger className="h-6 text-[10px] w-24"><SelectValue placeholder="Cat" /></SelectTrigger>
+                          <SelectContent>
+                            {categories.map((c) => (<SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>))}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="px-1.5 py-1">
+                        <input list="subcat-edit" className="h-6 text-[10px] px-1 rounded border border-input bg-transparent w-16 focus:outline-none focus:ring-1 focus:ring-primary"
+                          value={newForm.subCategory} onChange={(e) => setNewForm({ ...newForm, subCategory: e.target.value })} placeholder="Sub" />
+                      </td>
+                      <td className="px-1.5 py-1">
+                        <input list="person-edit" className="h-6 text-[10px] px-1 rounded border border-input bg-transparent w-16 focus:outline-none focus:ring-1 focus:ring-primary"
+                          value={newForm.person} onChange={(e) => setNewForm({ ...newForm, person: e.target.value })} placeholder="Person" />
+                      </td>
+                      <td className="px-1.5 py-1">
+                        <Select value={newForm.paymentMode} onValueChange={(v) => setNewForm({ ...newForm, paymentMode: v })}>
+                          <SelectTrigger className="h-6 text-[10px] w-16"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="UPI">UPI</SelectItem>
+                            <SelectItem value="Cash">Cash</SelectItem>
+                            <SelectItem value="Card">Card</SelectItem>
+                            <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="px-1.5 py-1">
+                        <input list="bank-edit" className="h-6 text-[10px] px-1 rounded border border-input bg-transparent w-20 focus:outline-none focus:ring-1 focus:ring-primary"
+                          value={newForm.bankAccount} onChange={(e) => setNewForm({ ...newForm, bankAccount: e.target.value })} placeholder="Bank" />
+                      </td>
+                      <td className="px-1.5 py-1 text-right">
+                        <input type="number" className="h-6 text-[10px] px-1 rounded border border-input bg-transparent w-20 text-right focus:outline-none focus:ring-1 focus:ring-primary"
+                          value={newForm.amount} onChange={(e) => setNewForm({ ...newForm, amount: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") handleAddNew() }} placeholder="0" />
+                      </td>
+                      <td className="px-1.5 py-1">
+                        <input className="h-6 text-[10px] px-1 rounded border border-input bg-transparent w-20 focus:outline-none focus:ring-1 focus:ring-primary"
+                          value={newForm.notes} onChange={(e) => setNewForm({ ...newForm, notes: e.target.value })} placeholder="Notes" />
+                      </td>
+                      <td className="px-1.5 py-1 text-right whitespace-nowrap">
+                        <div className="flex gap-0.5">
+                          <Button variant="ghost" size="icon" className="h-5 w-5 text-emerald-500 hover:text-emerald-600"
+                            onClick={handleAddNew}>
+                            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-foreground"
+                            onClick={() => { setIsAddingNew(false); setNewForm(newFormDefault) }}>
+                            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                          </Button>
+                        </div>
+                      </td>
+                      <td className="px-1.5 py-1"></td>
+                      <td className="px-1.5 py-1"></td>
+                    </tr>
+                  )}
                   {expenses.length === 0 ? (
                     <tr>
-                      <td colSpan={12} className="py-12 text-center text-muted-foreground text-sm">
+                      <td colSpan={13} className="py-12 text-center text-muted-foreground text-sm">
                         {search ? "No matching expenses" : "No expenses yet. Add one or bulk import!"}
                       </td>
                     </tr>
                   ) : (
                     expenses.map((expense) => {
                       const isEditing = editingId === expense.id
-                      const ef = editForm[expense.id] || { categoryId: String(expense.categoryId), subCategory: expense.subCategory || "", person: expense.person || "" }
+                      const ef = editForm[expense.id] || { categoryId: String(expense.categoryId), subCategory: expense.subCategory || "", person: expense.person || "", vendor: expense.vendor || "" }
                       return (
-                      <tr key={expense.id} className={`border-b transition-colors text-xs ${isEditing ? "bg-muted/20" : "hover:bg-muted/30"}`}>
-                        <td className="px-1.5 py-1 whitespace-nowrap">{formatDate(expense.date)}</td>
-                        <td className="px-1.5 py-1 max-w-[150px] truncate" title={expense.vendor || ""}>
-                          <p className="font-medium flex items-center gap-1 leading-tight truncate">
-                            {expense.flagged && (
-                              <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" title="Flagged for review" />
-                            )}
-                            {expense.vendor || "-"}
-                          </p>
-                          {expense.description && (
-                            <p className="text-[10px] text-muted-foreground truncate leading-tight">{expense.description}</p>
+                      <tr key={expense.id} className={`border-b transition-colors text-xs ${isEditing ? "bg-muted/20" : "hover:bg-muted/30"} ${selectedIds.has(expense.id) ? "bg-primary/5" : ""}`}><td className="px-1.5 py-1 w-8">
+                          <input type="checkbox" className="h-3 w-3" checked={selectedIds.has(expense.id)}
+                            onChange={() => toggleSelect(expense.id)} />
+                        </td>
+                        <td className="px-1.5 py-1 whitespace-nowrap" title={(() => { const d = new Date(expense.date); return d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0 ? formatDate(expense.date) + " (no time recorded)" : d.toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) })()}>{formatDate(expense.date)}</td>
+                        <td className="px-1.5 py-1 max-w-[150px] truncate">
+                          {isEditing ? (
+                            <input list="vendor-edit" className="w-24 h-6 text-[10px] px-1 rounded border border-input bg-transparent focus:outline-none focus:ring-1 focus:ring-primary"
+                              value={ef.vendor} onChange={(e) => setEditForm((prev) => ({ ...prev, [expense.id]: { ...prev[expense.id], vendor: e.target.value } }))} />
+                          ) : (
+                            <>
+                              <p className="font-medium flex items-center gap-1 leading-tight truncate" title={expense.vendor || ""}>
+                                {expense.flagged && (
+                                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" title="Flagged for review" />
+                                )}
+                                {expense.vendor || "-"}
+                              </p>
+                              {expense.description && (
+                                <p className="text-[10px] text-muted-foreground truncate leading-tight">{expense.description}</p>
+                              )}
+                            </>
                           )}
                         </td>
                         <td className="px-1.5 py-1">
@@ -961,6 +1399,10 @@ export default function ExpensesPage() {
                                 onClick={() => saveInlineEdit(expense)}>
                                 <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
                               </Button>
+                              <Button variant="ghost" size="icon" className="h-5 w-5 text-red-500 hover:text-red-600"
+                                onClick={() => deleteExpense(expense.id)}>
+                                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                              </Button>
                               <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-foreground"
                                 onClick={cancelInlineEdit}>
                                 <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
@@ -977,6 +1419,17 @@ export default function ExpensesPage() {
                         <td className="px-1.5 py-1 text-[10px] text-muted-foreground">{expense.otherType || "-"}</td>
                       </tr>
                     )})
+                  )}
+                  {!isAddingNew && (
+                    <tr className="border-t text-xs text-muted-foreground hover:bg-muted/20 cursor-pointer"
+                      onClick={() => { setIsAddingNew(true); setTimeout(() => { document.querySelector('.overflow-x-auto')?.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }, 100) }}>
+                      <td colSpan={13} className="py-2 text-center">
+                        <span className="flex items-center justify-center gap-1">
+                          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
+                          Add expense
+                        </span>
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
@@ -1014,13 +1467,19 @@ export default function ExpensesPage() {
       <datalist id="person-edit">
         {distinctPersons.map((p) => <option key={p} value={p} />)}
       </datalist>
+      <datalist id="vendor-edit">
+        {distinctVendors.map((v) => <option key={v} value={v} />)}
+      </datalist>
+      <datalist id="bank-edit">
+        {distinctBankAccounts.filter(Boolean).map((v) => <option key={v} value={v} />)}
+      </datalist>
 
       <DriveDialog
         open={driveDialogOpen}
         onOpenChange={setDriveDialogOpen}
         files={driveFiles}
         onPreview={handleDrivePreview}
-        onImport={handleImportFromDrive}
+        onImport={(fileId: string) => { addKnownGpayFile(fileId); return handleImportFromDrive(fileId) }}
         importing={driveImporting}
       />
 
@@ -1093,6 +1552,14 @@ export default function ExpensesPage() {
                   </ol>
                 )}
                 <p className="text-xs text-amber-500">This page will auto-detect the file and import it.</p>
+                <div className="flex justify-center gap-2 pt-2">
+                  <Button size="sm" variant="outline" onClick={() => { resetGpayState(); setGpayDialogOpen(false) }}>
+                    <X className="mr-1.5 h-4 w-4" /> Cancel
+                  </Button>
+                  <Button size="sm" onClick={() => { resetGpayState(); setGpayDialogOpen(false); startFreshExport() }}>
+                    <RefreshCw className="mr-1.5 h-4 w-4" /> Restart
+                  </Button>
+                </div>
               </div>
             )}
             {gpayStep === "importing" && (
@@ -1106,24 +1573,118 @@ export default function ExpensesPage() {
                 <div className="mx-auto h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
                   <CheckCircle2 className="h-6 w-6 text-emerald-500" />
                 </div>
-                <p className="text-sm font-medium">GPay export created!</p>
-                {gpayAutoModeRef.current ? (
+                {gpayImportResult ? (
                   <>
+                    <p className="text-sm font-medium">Import complete</p>
                     <p className="text-sm text-muted-foreground">
-                      The export has been submitted to your Google Drive. It may take a few minutes to appear.
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      This page will auto-detect it and import the transactions.
+                      {gpayImportResult.imported > 0
+                        ? `Imported ${gpayImportResult.imported} new GPay transaction${gpayImportResult.imported > 1 ? "s" : ""}.`
+                        : "No new transactions found."}
+                      {gpayImportResult.skipped > 0 && (
+                        <><br /><span className="text-xs">({gpayImportResult.skipped} duplicate{gpayImportResult.skipped > 1 ? "s" : ""} skipped)</span></>
+                      )}
                     </p>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Follow the instructions in the Takeout tab, then download and upload the file using the <strong>File</strong> button.
-                  </p>
+                  <>
+                    <p className="text-sm font-medium">GPay export created!</p>
+                    {gpayAutoModeRef.current ? (
+                      <>
+                        <p className="text-sm text-muted-foreground">
+                          The export has been submitted to your Google Drive. It may take a few minutes to appear.
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          This page will auto-detect it and import the transactions.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Follow the instructions in the Takeout tab, then download and upload the file using the <strong>File</strong> button.
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             )}
-            {gpayStep === "error" && (
+            {reauthStatus === "reauth_started" && (
+              <div className="text-center space-y-3">
+                <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm font-medium">Re-authenticating...</p>
+                <p className="text-sm text-muted-foreground">
+                  A Chrome browser window should open. Log into your Google account, then close the browser.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  If no window appears within 30 seconds, the automation may need to be reset.
+                </p>
+                <Button size="sm" variant="outline" onClick={() => {
+                  if (reauthPollRef.current) clearInterval(reauthPollRef.current)
+                  setReauthStatus("idle")
+                  setGpayStep("idle")
+                  setGpayDialogOpen(false)
+                }}>
+                  <X className="mr-1.5 h-4 w-4" /> Cancel
+                </Button>
+              </div>
+            )}
+            {reauthStatus === "reauth_complete" && (
+              <div className="text-center space-y-3">
+                <div className="mx-auto h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                  <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                </div>
+                <p className="text-sm font-medium">Re-authentication complete!</p>
+                {gpayReauthExportCreated ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      A new export was created during re-authentication. The file should appear in Drive shortly.
+                    </p>
+                    <div className="flex justify-center gap-3">
+                      <Button size="sm" onClick={async () => { setReauthStatus("idle"); setGpayDialogOpen(false); gpayAutoModeRef.current = true; setGpayStep("waiting_drive"); const found = await checkAndImportPendingGpayFile(); if (!found) startGpayDrivePolling() }}>
+                        <Cloud className="mr-1.5 h-4 w-4" /> Wait for File
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-amber-600">
+                      An export was already in progress — no new one was created. The existing file may already have been imported.
+                    </p>
+                    <div className="flex justify-center gap-3">
+                      <Button size="sm" onClick={async () => { setReauthStatus("idle"); setGpayDialogOpen(false); gpayAutoModeRef.current = true; setGpayStep("waiting_drive"); const found = await checkAndImportPendingGpayFile(); if (!found) { setGpayError("No new GPay export was created. Wait a few minutes and try Refresh GPay again."); setGpayStep("error") } }}>
+                        <RefreshCw className="mr-1.5 h-4 w-4" /> Check Drive
+                      </Button>
+                    </div>
+                  </>
+                )}
+                <div className="flex justify-center gap-3">
+                  <Button size="sm" variant="outline" onClick={() => { setReauthStatus("idle"); setGpayDialogOpen(false) }}>
+                    Close
+                  </Button>
+                </div>
+              </div>
+            )}
+            {reauthStatus === "reauth_failed" && (
+              <div className="text-center space-y-3">
+                <AlertCircle className="mx-auto h-8 w-8 text-amber-500" />
+                <p className="text-sm font-medium">Re-authentication failed</p>
+                {gpayError && (
+                  <div className="rounded bg-amber-500/10 border border-amber-500/20 p-2 text-xs text-amber-700 text-left font-mono break-all">
+                    {gpayError}
+                  </div>
+                )}
+                <p className="text-sm text-muted-foreground">
+                  Could not set up the Google session. Make sure Chrome is installed and try again.
+                </p>
+                <div className="flex justify-center gap-3">
+                  <Button size="sm" onClick={() => { setReauthStatus("idle"); startReauth() }}>
+                    <RefreshCw className="mr-1.5 h-4 w-4" /> Try Again
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => { setReauthStatus("idle"); setGpayDialogOpen(false) }}>
+                    <X className="mr-1.5 h-4 w-4" /> Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+            {gpayStep === "error" && reauthStatus === "idle" && (
               <div className="text-center space-y-3">
                 <AlertCircle className="mx-auto h-8 w-8 text-amber-500" />
                 <p className="text-sm font-medium">GPay export failed</p>
@@ -1139,7 +1700,7 @@ export default function ExpensesPage() {
                   <Button size="sm" onClick={() => { setGpayDialogOpen(false); handleGpayTakeout() }}>
                     <RefreshCw className="mr-1.5 h-4 w-4" /> Retry
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => { setGpayDialogOpen(false); fetch("/api/refresh-gpay?action=reauth").then(() => window.location.reload()) }}>
+                  <Button size="sm" variant="outline" onClick={() => { setGpayDialogOpen(false); startReauth() }}>
                     <LogOut className="mr-1.5 h-4 w-4" /> Re-authenticate
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => { setGpayDialogOpen(false); handleScanDrive() }}>

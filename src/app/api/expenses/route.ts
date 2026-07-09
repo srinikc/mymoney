@@ -81,6 +81,8 @@ export async function GET(req: Request) {
   const dateTo = searchParams.get("dateTo")
   const amountMin = searchParams.get("amountMin")
   const amountMax = searchParams.get("amountMax")
+  const notes = searchParams.get("notes")
+  const otherType = searchParams.get("otherType")
   const page = Math.max(1, Number.parseInt(searchParams.get("page") || "1"))
   const pageSize = Math.max(1, Math.min(200, Number.parseInt(searchParams.get("pageSize") || "100")))
   const sortField = searchParams.get("sortField") || "date"
@@ -88,6 +90,14 @@ export async function GET(req: Request) {
 
   // Build filter conditions using AND array to support multiple filter types
   const andConditions: Prisma.ExpenseWhereInput[] = []
+
+  // Show archived records only when ?archived=true, otherwise hide them
+  const archived = searchParams.get("archived") === "true"
+  if (archived) {
+    andConditions.push({ deletedAt: { not: null } })
+  } else {
+    andConditions.push({ deletedAt: null })
+  }
 
   // --- Backward compat single-value filters ---
   if (categoryId) {
@@ -134,6 +144,16 @@ export async function GET(req: Request) {
   // Bank accounts
   const bankAccountFilter = buildMultiSelectFilter("bankAccount", bankAccounts || bankAccount)
   if (bankAccountFilter) andConditions.push(bankAccountFilter)
+
+  // Notes filter
+  if (notes) {
+    andConditions.push({ notes: { contains: notes, mode: "insensitive" } })
+  }
+
+  // Other type filter
+  if (otherType) {
+    andConditions.push({ otherType: { contains: otherType, mode: "insensitive" } })
+  }
 
   // Amount range
   if (amountMin || amountMax) {
@@ -183,7 +203,7 @@ export async function GET(req: Request) {
         : { AND: andConditions })
 
   const orderBy: Prisma.ExpenseOrderByWithRelationInput = {}
-  const validSortFields = ["date", "amount", "vendor", "person"] as const
+  const validSortFields = ["date", "amount", "vendor", "person", "paymentMode", "bankAccount"] as const
   const field = validSortFields.includes(sortField as typeof validSortFields[number]) ? sortField : "date"
   orderBy[field as keyof typeof orderBy] = sortDir === "asc" ? "asc" : "desc"
 
@@ -198,35 +218,37 @@ export async function GET(req: Request) {
     prisma.expense.count({ where }),
     prisma.expense.aggregate({ where, _sum: { amount: true } }),
     prisma.expense.findMany({
-      where: { person: { not: null } },
+      where: { person: { not: null }, deletedAt: null },
       select: { person: true },
       distinct: ["person"],
       orderBy: { person: "asc" },
     }),
     prisma.expense.findMany({
+      where: { deletedAt: null },
       select: { recurrenceType: true },
       distinct: ["recurrenceType"],
       orderBy: { recurrenceType: "asc" },
     }),
     prisma.expense.findMany({
+      where: { deletedAt: null },
       select: { paymentMode: true },
       distinct: ["paymentMode"],
       orderBy: { paymentMode: "asc" },
     }),
     prisma.expense.findMany({
-      where: { vendor: { not: null } },
+      where: { vendor: { not: null }, deletedAt: null },
       select: { vendor: true },
       distinct: ["vendor"],
       orderBy: { vendor: "asc" },
     }),
     prisma.expense.findMany({
-      where: { subCategory: { not: null } },
+      where: { subCategory: { not: null }, deletedAt: null },
       select: { subCategory: true },
       distinct: ["subCategory"],
       orderBy: { subCategory: "asc" },
     }),
     prisma.expense.findMany({
-      where: { bankAccount: { not: null } },
+      where: { bankAccount: { not: null }, deletedAt: null },
       select: { bankAccount: true },
       distinct: ["bankAccount"],
       orderBy: { bankAccount: "asc" },
@@ -290,6 +312,9 @@ export async function DELETE(req: Request) {
   const { searchParams } = new URL(req.url)
   const id = searchParams.get("id")
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })
-  await prisma.expense.delete({ where: { id: Number.parseInt(id) } })
+  await prisma.expense.update({
+    where: { id: Number.parseInt(id) },
+    data: { deletedAt: new Date() },
+  })
   return NextResponse.json({ success: true })
 }

@@ -48,8 +48,6 @@ export async function GET() {
     `files?q=mimeType='application/zip' or mimeType='application/x-zip-compressed'&orderBy=createdTime desc&pageSize=20&fields=files(id,name,mimeType,size,createdTime)`,
     // Strategy 4: MyActivity.html (what Takeout delivers for GPay to Drive)
     `files?q=name='MyActivity.html'&orderBy=createdTime desc&pageSize=10&fields=files(id,name,mimeType,size,createdTime)`,
-    // Strategy 5: Any .html files (wider net for Takeout exports)
-    `files?q=name contains '.html'&orderBy=createdTime desc&pageSize=20&fields=files(id,name,mimeType,size,createdTime)`,
   ]
 
   const allFiles: DriveFile[] = []

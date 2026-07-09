@@ -381,3 +381,4 @@ git tag v1.0.0
 | Date | Author | Changes |
 |---|---|---|
 | 24-Jun-2026 | System | Initial document — full agentic process definition |
+| 09-Jul-2026 | System | Consolidated in `PRODUCT-PLAN.md` — refer there for unified product plan. |

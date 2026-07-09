@@ -38,22 +38,21 @@
 
 ## What's Pending
 
-### Breaking Issues
-1. **Empty browser window on GPay export** — The Playwright script opens a Chrome window but the page is blank. Likely the Drive password challenge flow fails because `handleDriveAuth` was removed. The new flow returns `auth_required` to frontend — user clicks "Re-authenticate" to run `--setup` mode. **Not yet tested end-to-end** after the handleDriveAuth removal.
+### Open Issues
+1. **Re-auth loop** — After re-authentication succeeds, retrying the export fails again (loops back to re-auth). Likely cause: headless Chrome's auth detection was catching false-positive redirects through `accounts.google.com` during Takeout page load. Fixed auth detection to check page content, not just URL.
 
-2. **Build fails** — Pre-existing type errors in scripts and lint errors in various files block `npm run build`. Dev server works, but production build is broken.
+2. **"Failed to fetch" errors** — These occur when the dev server is not running; just restart the server.
 
-3. **"Failed to fetch" errors** — These occur when the dev server is not running; just restart the server.
+### Recent Fixes (July 6)
+- **Build fixed** — Relaxed strict unicorn ESLint rules, fixed `no-empty`, `prefer-const`, `react/no-unescaped-entities`, added `hashedPassword` to Prisma schema, fixed `a.amount` → `a.currentValue` in 5 routes, fixed subscription/asset Zod schema types, lazy-initialized Resend client
+- **Re-auth flow redesigned** — Server now captures script output and updates job status (`reauth_complete`/`reauth_failed`); frontend polls and shows proper dialogs (spinner → success/error) instead of just reloading
+- **Auth detection improved** — `runHeadless()` checks page content, not just URL, to avoid false-positive auth detection from transient redirects
+- **Setup mode enhanced** — Clear console instructions, post-setup `verifySession()` check
+- **Debug logging** — If GPay selector not found, script logs the page URL, title, and first 200 chars of body text
 
-### Uncommitted Changes
-- `src/app/api/risk-profile/route.ts` — removed `export` from `RISK_QUESTIONS` (not staged)
-
-### Open Questions / Next Steps for Tomorrow
-1. Test the new auth flow: click Refresh GPay → error dialog → Re-authenticate → setup browser → log in → retry
-2. Fix production build (`npm run build` fails due to pre-existing lint/type errors)
-3. If the session is expired, the `.gpay-profile` may need to be recreated from scratch
-
-### PRs Merged Today
+### Next Steps
+1. Test the re-auth flow end-to-end: Refresh GPay → error → Re-authenticate → login → retry
+2. If the session is expired, the `.gpay-profile` may need to be recreated from scratch
 | # | Title | Status |
 |---|-------|--------|
 | 1 | auto-kill port 3005 on dev:bg and dev.bat | Merged |
@@ -70,3 +69,5 @@
 | 12 | show error dialog when GPay export fails | Merged |
 | 13 | show confirmation regardless of gpayStep, add re-auth button | Merged |
 | 14 | replace Drive challenge visible browser with re-auth flow | Merged |
+
+*This document is consolidated in `PRODUCT.md` — refer there for the unified product plan.*

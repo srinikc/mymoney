@@ -192,17 +192,24 @@ export function MultiSelect({
                       className="text-[10px] px-1.5 py-0 gap-0.5 max-w-[80px]"
                     >
                       <span className="truncate">{opt?.label || v}</span>
-                      <button
-                        type="button"
+                      <span
+                        role="button"
+                        tabIndex={0}
                         onClick={(e) => {
                           e.stopPropagation()
                           handleRemove(v)
                         }}
-                        className="ml-0.5 hover:text-foreground shrink-0"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.stopPropagation()
+                            handleRemove(v)
+                          }
+                        }}
+                        className="ml-0.5 hover:text-foreground shrink-0 cursor-pointer"
                         aria-label={`Remove ${opt?.label || v}`}
                       >
                         <X className="h-2.5 w-2.5" />
-                      </button>
+                      </span>
                     </Badge>
                   )
                 })

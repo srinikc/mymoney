@@ -250,4 +250,6 @@ If Playwright on headless proves flaky (due to Google UI changes), fallback to:
   
 ---
 
+*This document is consolidated in `PRODUCT.md` — refer there for the unified product plan.*
+
 > **Note**: This plan is based on the current Google Takeout UI (2026). If Google changes their UI, the selectors in `refresh-gpay.mjs` will need updating. The script should take screenshots on failure for easy debugging.

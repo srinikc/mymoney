@@ -72,7 +72,12 @@ export function parseGpayTakeoutHtml(html: string): { date: Date; amount: number
     const remainder = match[5]
 
     const dateMatch = remainder.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{4}\b/i)
-    const date = dateMatch ? new Date(dateMatch[0]) : null
+    const timeMatch = remainder.match(/\b(\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM))\b/i)
+    const date = dateMatch
+      ? timeMatch
+        ? new Date(`${dateMatch[0]} ${timeMatch[1]}`)
+        : new Date(dateMatch[0])
+      : null
 
     const isCompleted = /\bcompleted\b/i.test(remainder)
 

@@ -407,8 +407,7 @@ export async function POST(req: Request) {
 
       if (isNaN(date.getTime())) { skipped++; continue }
 
-      let amount: number
-      amount = typeof rawAmount === "number" ? Math.abs(rawAmount) : Math.abs(Number.parseFloat(String(rawAmount).replaceAll(/[^\d.-]/g, "")));
+      const amount: number = typeof rawAmount === "number" ? Math.abs(rawAmount) : Math.abs(Number.parseFloat(String(rawAmount).replaceAll(/[^\d.-]/g, "")));
       if (isNaN(amount) || amount === 0) { skipped++; continue }
 
       const categoryId = (await autoCategorizeByExact(categoryName)) || (await autoCategorize(vendor))

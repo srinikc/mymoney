@@ -1,5 +1,4 @@
-﻿import { auth } from "@/lib/auth"
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 // ── Rate Limiter ───────────────────────────────────────────────────────────
@@ -76,7 +75,7 @@ const AUTH_PREFIX = "/api/auth"
 const AUDIT_LOG_PREFIX = "/audit-log"
 
 // ── Middleware ─────────────────────────────────────────────────────────────
-export default auth((req) => {
+export default function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   // ── 1. Rate limiting ──────────────────────────────────────────────────
@@ -131,42 +130,22 @@ export default auth((req) => {
   if (isPublic) return NextResponse.next()
 
   // ── 3. Authentication check ───────────────────────────────────────────
-  if (!req.auth?.user) {
-    // For API routes, let the route handler handle auth (returns 401 JSON)
-    if (pathname.startsWith("/api/")) {
-      return NextResponse.next()
-    }
+  const sessionCookie = req.cookies.get("authjs.session-token")?.value
+  
+  // For API routes, let the route handler handle auth (returns 401 JSON)
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next()
+  }
+
+  // Protected pages require a session cookie
+  if (!sessionCookie) {
     const loginUrl = new URL("/login", req.url)
     loginUrl.searchParams.set("callbackUrl", pathname)
     return Response.redirect(loginUrl)
   }
 
-  // ── 4. RBAC: Role-based access control ────────────────────────────────
-  const userRole = (req.auth.user as { role?: string }).role ?? "user"
-
-  // Admin-only routes
-  if (pathname.startsWith(ADMIN_PREFIX) && userRole !== "admin") {
-    return NextResponse.redirect(new URL("/", req.url))
-  }
-
-  // Manager routes (admin or manager)
-  if (
-    pathname.startsWith(MANAGER_PREFIX) &&
-    !["admin", "manager"].includes(userRole)
-  ) {
-    return NextResponse.redirect(new URL("/", req.url))
-  }
-
-  // Audit log routes (admin or manager)
-  if (
-    pathname.startsWith(AUDIT_LOG_PREFIX) &&
-    !["admin", "manager"].includes(userRole)
-  ) {
-    return NextResponse.redirect(new URL("/", req.url))
-  }
-
   return NextResponse.next()
-})
+}
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],

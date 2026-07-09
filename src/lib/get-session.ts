@@ -1,21 +1,32 @@
 import { prisma } from "@/lib/prisma"
+import { cookies } from "next/headers"
 
 /**
- * Get the authenticated user from the request headers by reading the
- * authjs.session-token cookie directly. This works in both Edge middleware
- * and Node.js API routes, unlike next-auth's auth() which has issues with
- * PrismaAdapter in Edge runtime and request context in API routes.
+ * Get the authenticated user by reading the authjs.session-token cookie
+ * from next/headers. Works in all Node.js API routes without needing to
+ * pass the request object manually.
+ *
+ * Falls back to reading from a cookie header string for Edge middleware
+ * compatibility (where next/headers is not available).
  */
-export async function getSessionFromCookie(cookieHeader: string | null) {
-  if (!cookieHeader) return null
+export async function getSessionFromCookie(cookieHeader?: string | null) {
+  let sessionCookie: string | undefined
 
-  // Parse cookies to find authjs.session-token
-  const cookies = cookieHeader.split(";").map((c) => c.trim())
-  const sessionCookie = cookies
-    .find((c) => c.startsWith("authjs.session-token="))
-    ?.split("=")[1]
-
-  if (!sessionCookie) return null
+  if (cookieHeader) {
+    // Parse cookies from header string (used in Edge middleware)
+    sessionCookie = cookieHeader
+      .split(";").map((c) => c.trim())
+      .find((c) => c.startsWith("authjs.session-token="))
+      ?.split("=")[1]
+  } else {
+    // Read from next/headers (used in Node.js API routes)
+    try {
+      const cookieJar = await cookies()
+      sessionCookie = cookieJar.get("authjs.session-token")?.value
+    } catch {
+      return null
+    }
+  }
 
   try {
     const session = await prisma.session.findUnique({

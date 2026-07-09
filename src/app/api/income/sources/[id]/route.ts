@@ -6,7 +6,7 @@ import { IncomeSourceUpdateSchema } from "@/shared/income-validation"
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await getSessionFromCookie(_req.headers.get("cookie"))
+    const session = await getSessionFromCookie()
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }

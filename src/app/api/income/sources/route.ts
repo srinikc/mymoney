@@ -4,9 +4,9 @@ import { getSessionFromCookie } from "@/lib/get-session"
 import { validateBody } from "@/shared/validate"
 import { IncomeSourceCreateSchema } from "@/shared/income-validation"
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const session = await getSessionFromCookie(req.headers.get("cookie"))
+    const session = await getSessionFromCookie()
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -27,7 +27,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const session = await getSessionFromCookie(req.headers.get("cookie"))
+    const session = await getSessionFromCookie()
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }

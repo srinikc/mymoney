@@ -6,7 +6,6 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
 import type { Adapter } from "next-auth/adapters"
 import bcrypt from "bcryptjs"
-
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma) as Adapter,
   session: { strategy: "database" },
@@ -35,6 +34,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
+
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
           return null
@@ -87,13 +87,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         sUser.id = Number(user.id)
         ;(sUser as Record<string, unknown>).role = (user as unknown as Record<string, unknown>).role as string || "user"
 
-        // Fetch the user's default profile
-        try {
-          const profile = await prisma.profile.findFirst({
-            where: { userId: Number(user.id), isDefault: true },
-            select: { id: true, name: true },
-          })
-          if (profile) {
+          try {
+            const profile = await prisma.profile.findFirst({
+              where: { userId: Number(user.id), isDefault: true },
+              select: { id: true, name: true },
+            })
+            if (profile) {
             sUser.profileId = profile.id
             sUser.profileName = profile.name
           }
@@ -105,3 +104,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
 })
+
+// Re-export so all API routes can use it instead of the broken NextAuth auth()
+export { getSessionFromCookie } from "@/lib/get-session"

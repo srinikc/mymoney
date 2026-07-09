@@ -454,6 +454,7 @@ export default function IncomePage() {
 
   if (error) {
     return (
+      <>
       <div className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
@@ -473,6 +474,17 @@ export default function IncomePage() {
           </CardContent>
         </Card>
       </div>
+
+        <IncomeFormDialog
+          open={dialogOpen}
+          onOpenChange={(open) => {
+            setDialogOpen(open)
+            if (!open) setEditingSource(null)
+          }}
+          editing={editingSource}
+          onSave={handleSave}
+        />
+      </>
     )
   }
 

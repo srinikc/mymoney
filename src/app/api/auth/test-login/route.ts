@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import crypto from "crypto"
+import crypto from "node:crypto"
 
 // Only available on localhost for E2E testing
 export async function GET() {

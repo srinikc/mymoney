@@ -413,6 +413,7 @@ export default function IncomePage() {
       setLoading(true)
       fetchData()
     } catch (err) {
+      setDialogOpen(false)
       setError(err instanceof Error ? err.message : "Failed to save")
     }
   }

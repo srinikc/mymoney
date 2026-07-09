@@ -1,6 +1,10 @@
 import { test, expect } from "@playwright/test"
+import { loginAsTestUser } from "./auth-helper"
 
 test.describe("GPay Refresh", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAsTestUser(page)
+  })
   test("expenses page loads without errors", async ({ page }) => {
     await page.goto("/expenses", { waitUntil: "load", timeout: 20000 })
     await expect(page.locator("body")).not.toHaveClass(/error/)

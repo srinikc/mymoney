@@ -56,6 +56,30 @@
 
 ---
 
+## Session Status (Jul 2026 Sprint)
+
+> **Live document** — updated after every module completion. If session closes, resume from here.
+
+| Status | Module | Branch | Details |
+|---|---|---|---|
+| ✅ Done | P1: Income Sources + Sidebar Regroup | `feature/P1-income-sources` | Model + API + Page + Sidebar regroup. PR pending review. |
+| ✅ Done (early) | Test DB setup | `feature/P1-income-sources` | `.env.test` + `prisma/seed-test.ts` + scripts |
+| ✅ Done (early) | Docker fix (Playwright + healthcheck) | `feature/P1-income-sources` | Multi-stage fix |
+| ✅ Done (early) | Toast system (sonner) | `feature/P1-income-sources` | Installed + ToastProvider in layout |
+| ✅ Done (early) | AlertDialog component | `feature/P1-income-sources` | shadcn AlertDialog for all confirms |
+| ⏳ Pending | P1 PR → code review → merge to develop | `feature/P1-income-sources` | Waiting for approval |
+| ⏳ Next | P2: Loans + Insurance + Budget% | `feature/P2-loans-insurance-budget` | 3 agents concurrent |
+| ⏳ Next | P3: Goal-Plan Merge + Investment Linking | `feature/P3-goal-merge` | After P2 merged |
+| ⏳ Next | P5: Tax Section (full page) | `feature/P5-tax-section` | Day 2-3 |
+| ⏳ Next | P6: Auto-Linking + API Error Hardening | `feature/P6-auto-linking` | Day 3 |
+| ⏳ Next | P4: Mobile App (React Native v1) | `feature/P4-mobile-app` | Day 4 |
+
+**Current branch**: `feature/P1-income-sources` (not yet merged)
+**Last build**: build-001 (pending)
+**Dashboard**: http://localhost:3099
+
+---
+
 ## 1. Product Overview & Principles
 
 MyMoney is a **central personal finance platform** unifying income, expenses, investments, insurance, assets, liabilities, goals, and tax into a single view — with AI-powered analytics and projections.

@@ -5,6 +5,7 @@ import "./globals.css"
 import { AppShell } from "@/components/layout/app-shell"
 import { SessionProvider } from "@/components/auth/session-provider"
 import { FloatingChat } from "@/components/chat/floating-chat"
+import { ToastProvider } from "@/components/ui/toast-provider"
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <AppShell>{children}</AppShell>
             <FloatingChat />
           </Suspense>
+          <ToastProvider />
         </SessionProvider>
       </body>
     </html>

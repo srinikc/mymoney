@@ -4,9 +4,19 @@ import { persist } from "zustand/middleware"
 interface UIState {
   sidebarOpen: boolean
   expensesExpanded: boolean
+  incomeExpanded: boolean
+  planningExpanded: boolean
+  assetsExpanded: boolean
+  protectionExpanded: boolean
+  analysisExpanded: boolean
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
   toggleExpensesExpanded: () => void
+  toggleIncomeExpanded: () => void
+  togglePlanningExpanded: () => void
+  toggleAssetsExpanded: () => void
+  toggleProtectionExpanded: () => void
+  toggleAnalysisExpanded: () => void
   // ── Profile state ──────────────────────────────────────────────
   activeProfileId: number | null
   activeProfileName: string | null
@@ -18,9 +28,19 @@ export const useUIStore = create<UIState>()(
     (set) => ({
       sidebarOpen: true,
       expensesExpanded: true,
+      incomeExpanded: true,
+      planningExpanded: true,
+      assetsExpanded: true,
+      protectionExpanded: true,
+      analysisExpanded: true,
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       toggleExpensesExpanded: () => set((s) => ({ expensesExpanded: !s.expensesExpanded })),
+      toggleIncomeExpanded: () => set((s) => ({ incomeExpanded: !s.incomeExpanded })),
+      togglePlanningExpanded: () => set((s) => ({ planningExpanded: !s.planningExpanded })),
+      toggleAssetsExpanded: () => set((s) => ({ assetsExpanded: !s.assetsExpanded })),
+      toggleProtectionExpanded: () => set((s) => ({ protectionExpanded: !s.protectionExpanded })),
+      toggleAnalysisExpanded: () => set((s) => ({ analysisExpanded: !s.analysisExpanded })),
       // ── Profile state ──────────────────────────────────────────
       activeProfileId: null,
       activeProfileName: null,

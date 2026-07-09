@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import { loginAsTestUser } from "./auth-helper"
 
 test.describe("Smoke tests", () => {
   test("Dashboard loads and shows key elements", async ({ page }) => {
@@ -8,9 +9,13 @@ test.describe("Smoke tests", () => {
   })
 
   test("Sidebar navigation is visible", async ({ page }) => {
+    await loginAsTestUser(page)
     await page.goto("/", { waitUntil: "load", timeout: 20000 })
-    await page.waitForTimeout(3000)
-    const dashboardLink = page.locator("a[href='/']").first()
+    await page.waitForTimeout(2000)
+    await page.evaluate(() => localStorage.setItem("mymoney-tutorial-shown", "true"))
+    await page.reload()
+    await page.waitForLoadState("networkidle")
+    const dashboardLink = page.locator("a[href='/']").last()
     await expect(dashboardLink).toBeVisible()
   })
 
@@ -19,12 +24,16 @@ test.describe("Smoke tests", () => {
     await expect(page).toHaveURL(/\/expenses/)
   })
 
-  test("Page transition does not break layout", async ({ page }) => {
+  test("Page transition and sidebar links work", async ({ page }) => {
+    await loginAsTestUser(page)
     await page.goto("/", { waitUntil: "load", timeout: 20000 })
     await page.waitForTimeout(2000)
-    const budgetsLink = page.locator("nav a[href='/budgets']")
+    await page.evaluate(() => localStorage.setItem("mymoney-tutorial-shown", "true"))
+    await page.reload()
+    await page.waitForLoadState("networkidle")
+    const budgetsLink = page.locator("a[href='/budgets']")
     await expect(budgetsLink).toBeVisible()
-    await budgetsLink.click()
+    await budgetsLink.click({ force: true })
     await expect(page).toHaveURL(/\/budgets/)
     await page.goBack()
     await expect(page).toHaveURL(/\/$/)

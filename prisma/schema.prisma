@@ -45,6 +45,7 @@ model Profile {
   liabilities Liability[]
   auditLogs   AuditLog[]
   subscriptions Subscription[]
+  incomeSources IncomeSource[]
 }
 
 model Account {
@@ -115,9 +116,10 @@ model Category {
   icon      String    @default("circle")
   color     String    @default("#6366f1")
   createdAt DateTime  @default(now())
-  expenses  Expense[]
-  budgets   Budget[]
-  reminders Reminder[]
+  expenses      Expense[]
+  budgets       Budget[]
+  reminders     Reminder[]
+  incomeSources IncomeSource[]
 }
 
 // ── Expense ───────────────────────────────────────────────────────────
@@ -407,4 +409,42 @@ model NotificationConfig {
   alertTypes String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+// ── Income Source ────────────────────────────────────────────────────
+
+model IncomeSource {
+  id          Int      @id @default(autoincrement())
+  profileId   Int?
+  profile     Profile? @relation(fields: [profileId], references: [id])
+
+  name         String
+  type         String   @default("monthly") // monthly | yearly | onetime | variable
+  amount       Float
+  categoryId   Int
+  category     Category @relation(fields: [categoryId], references: [id])
+
+  autoDetect   Boolean  @default(false)
+  matchMerchant String?
+  matchPerson  String?
+
+  paymentMode  String?
+  bankAccount  String?
+
+  businessRevenue    Float?
+  businessExpenses   Float?
+  businessOtherExp   String?
+  businessOtherAmt   Float?
+  businessInvestment Float?
+  isProfitPostTax    Boolean @default(false)
+
+  startDate    DateTime?
+  endDate      DateTime?
+  notes        String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([categoryId])
 }

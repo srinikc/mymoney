@@ -19,12 +19,15 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed-profiles": "tsx scripts/seed-first-profile.ts",
+    "db:push-test": "set DATABASE_URL=postgresql://postgres:password@localhost:5432/mymoney_test?schema=public && npx prisma db push",
+    "db:seed-test": "set DATABASE_URL=postgresql://postgres:password@localhost:5432/mymoney_test?schema=public && tsx prisma/seed-test.ts",
     "db:migrate-pg": "tsx scripts/migrate-sqlite-to-pg.ts",
     "check-git": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-git-reminder.ps1"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.109.1",
     "@auth/prisma-adapter": "^2.11.2",
+    "@hookform/resolvers": "^5.4.0",
     "@prisma/client": "6.5.0",
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
@@ -68,6 +71,7 @@
     "recharts": "^2.15.1",
     "resend": "^6.16.0",
     "sharp": "^0.35.2",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7",
     "tesseract.js": "^7.0.0",

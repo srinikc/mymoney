@@ -1,7 +1,9 @@
 import { test, expect } from "@playwright/test"
+import { loginAsTestUser } from "./auth-helper"
 
 test.describe("Expenses Filters", () => {
   test.beforeEach(async ({ page }) => {
+    await loginAsTestUser(page)
     await page.goto("/expenses", { waitUntil: "load", timeout: 20000 })
     await page.waitForSelector('[data-testid="filter-btn-Vendor"]', { timeout: 15000 }).catch(() => {})
   })

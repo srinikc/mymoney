@@ -132,6 +132,10 @@ export default auth((req) => {
 
   // ── 3. Authentication check ───────────────────────────────────────────
   if (!req.auth?.user) {
+    // For API routes, let the route handler handle auth (returns 401 JSON)
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.next()
+    }
     const loginUrl = new URL("/login", req.url)
     loginUrl.searchParams.set("callbackUrl", pathname)
     return Response.redirect(loginUrl)

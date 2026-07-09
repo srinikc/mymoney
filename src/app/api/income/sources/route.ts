@@ -36,13 +36,29 @@ export async function POST(req: Request) {
     const { data: body, error } = await validateBody(req, IncomeSourceCreateSchema)
     if (error) return error
 
+    // Resolve categoryId from categoryName if needed
+    let categoryId = body.categoryId
+    if (!categoryId && body.categoryName) {
+      const cat = await prisma.category.findFirst({
+        where: { name: body.categoryName, type: "income" },
+      })
+      if (cat) {
+        categoryId = cat.id
+      } else {
+        const created = await prisma.category.create({
+          data: { name: body.categoryName, type: "income", icon: "circle", color: "#10b981" },
+        })
+        categoryId = created.id
+      }
+    }
+
     const source = await prisma.incomeSource.create({
       data: {
         profileId: profileId ?? null,
         name: body.name,
         type: body.type || "monthly",
         amount: body.amount,
-        categoryId: body.categoryId,
+        categoryId,
         autoDetect: body.autoDetect ?? false,
         matchMerchant: body.matchMerchant ?? null,
         matchPerson: body.matchPerson ?? null,

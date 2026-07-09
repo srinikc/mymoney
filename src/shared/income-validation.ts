@@ -4,7 +4,8 @@ export const IncomeSourceCreateSchema = z.object({
   name: z.string().min(1, "Name is required"),
   type: z.enum(["monthly", "yearly", "onetime", "variable"]).optional().default("monthly"),
   amount: z.union([z.string(), z.number()]).transform((v) => typeof v === "string" ? Number.parseFloat(v) : v).pipe(z.number().positive("Amount must be positive")),
-  categoryId: z.union([z.string(), z.number()]).transform((v) => typeof v === "string" ? Number.parseInt(String(v)) : v),
+  categoryId: z.union([z.string(), z.number()]).optional().transform((v) => v === undefined ? undefined : typeof v === "string" ? Number.parseInt(String(v)) : v),
+  categoryName: z.string().optional(),
 
   autoDetect: z.boolean().optional().default(false),
   matchMerchant: z.string().optional().nullable(),
@@ -30,6 +31,7 @@ export const IncomeSourceUpdateSchema = z.object({
   type: z.enum(["monthly", "yearly", "onetime", "variable"]).optional(),
   amount: z.union([z.string(), z.number()]).optional().transform((v) => v === undefined ? undefined : typeof v === "string" ? Number.parseFloat(v) : v),
   categoryId: z.union([z.string(), z.number()]).optional().transform((v) => v === undefined ? undefined : typeof v === "string" ? Number.parseInt(String(v)) : v),
+  categoryName: z.string().optional(),
 
   autoDetect: z.boolean().optional(),
   matchMerchant: z.string().optional().nullable(),

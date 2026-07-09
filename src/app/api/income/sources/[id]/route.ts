@@ -41,6 +41,15 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (body.type !== undefined) data.type = body.type
     if (body.amount !== undefined) data.amount = body.amount
     if (body.categoryId !== undefined) data.categoryId = body.categoryId
+    if (body.categoryName !== undefined && !body.categoryId) {
+      const cat = await prisma.category.findFirst({ where: { name: body.categoryName, type: "income" } })
+      if (cat) {
+        data.categoryId = cat.id
+      } else {
+        const created = await prisma.category.create({ data: { name: body.categoryName, type: "income", icon: "circle", color: "#10b981" } })
+        data.categoryId = created.id
+      }
+    }
     if (body.autoDetect !== undefined) data.autoDetect = body.autoDetect
     if (body.matchMerchant !== undefined) data.matchMerchant = body.matchMerchant
     if (body.matchPerson !== undefined) data.matchPerson = body.matchPerson

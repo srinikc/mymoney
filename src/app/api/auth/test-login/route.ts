@@ -35,7 +35,7 @@ export async function GET() {
       user: { id: user.id, email: user.email, name: user.name, role: user.role, profileId: profile?.id },
     })
 
-    response.cookies.set("next-auth.session-token", sessionToken, {
+    response.cookies.set("authjs.session-token", sessionToken, {
       expires,
       httpOnly: true,
       sameSite: "lax",

@@ -22,7 +22,8 @@
     "db:push-test": "set DATABASE_URL=postgresql://postgres:password@localhost:5432/mymoney_test?schema=public && npx prisma db push",
     "db:seed-test": "set DATABASE_URL=postgresql://postgres:password@localhost:5432/mymoney_test?schema=public && tsx prisma/seed-test.ts",
     "db:migrate-pg": "tsx scripts/migrate-sqlite-to-pg.ts",
-    "check-git": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-git-reminder.ps1"
+    "check-git": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-git-reminder.ps1",
+    "prepare": "husky"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.109.1",
@@ -94,6 +95,7 @@
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-security": "^3.0.1",
     "eslint-plugin-unicorn": "^50.0.1",
+    "husky": "^9.1.7",
     "playwright": "^1.61.1",
     "postcss": "^8.5.15",
     "prisma": "6.5.0",

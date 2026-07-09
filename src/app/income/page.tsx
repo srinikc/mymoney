@@ -379,9 +379,18 @@ export default function IncomePage() {
 
   const handleSave = async (formData: IncomeFormValues) => {
     try {
+      const { sourceCategory, ...rest } = formData
+      const categoryMap: Record<string, string> = {
+        Salary: "Salary",
+        Rental: "Rental",
+        "FD Interest": "FD Interest",
+        Business: "Business",
+        Other: "Other",
+      }
       const payload = {
-        ...formData,
-        profit: formData.sourceCategory === "Business" ? formData.profit : null,
+        ...rest,
+        categoryName: categoryMap[sourceCategory] || "Other",
+        profit: sourceCategory === "Business" ? formData.profit : null,
       }
 
       const res = editingSource

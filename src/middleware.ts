@@ -114,7 +114,7 @@ export default function middleware(req: NextRequest) {
   }
 
   // ── 2. Public route check ─────────────────────────────────────────────
-  const publicRoutes = ["/api/auth", "/api/drive", "/"]
+  const publicRoutes = ["/api/auth", "/api/drive", "/login", "/"]
   const isPublic = publicRoutes.some((r) => pathname.startsWith(r))
 
   // Static assets and images are always public

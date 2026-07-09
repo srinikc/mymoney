@@ -62,17 +62,33 @@
 
 | Status | Module | Branch | Details |
 |---|---|---|---|
-| ✅ Done | P1: Income Sources + Sidebar Regroup | `feature/P1-income-sources` | Model + API + Page + Sidebar regroup. PR pending review. |
-| ✅ Done (early) | Test DB setup | `feature/P1-income-sources` | `.env.test` + `prisma/seed-test.ts` + scripts |
-| ✅ Done (early) | Docker fix (Playwright + healthcheck) | `feature/P1-income-sources` | Multi-stage fix |
-| ✅ Done (early) | Toast system (sonner) | `feature/P1-income-sources` | Installed + ToastProvider in layout |
-| ✅ Done (early) | AlertDialog component | `feature/P1-income-sources` | shadcn AlertDialog for all confirms |
-| ⏳ Pending | P1 PR → code review → merge to develop | `feature/P1-income-sources` | Waiting for approval |
-| ⏳ Next | P2: Loans + Insurance + Budget% | `feature/P2-loans-insurance-budget` | 3 agents concurrent |
-| ⏳ Next | P3: Goal-Plan Merge + Investment Linking | `feature/P3-goal-merge` | After P2 merged |
-| ⏳ Next | P5: Tax Section (full page) | `feature/P5-tax-section` | Day 2-3 |
-| ⏳ Next | P6: Auto-Linking + API Error Hardening | `feature/P6-auto-linking` | Day 3 |
-| ⏳ Next | P4: Mobile App (React Native v1) | `feature/P4-mobile-app` | Day 4 |
+| ✅ Done | IncomeSource Prisma model + migration | `feature/P1-income-sources` | Model with all fields, indexes, relations |
+| ✅ Done | Income API routes (CRUD + summary) | `feature/P1-income-sources` | POST/GET/PUT/DELETE + summary endpoint |
+| ✅ Done | Income page (heading, summary cards, add button) | `feature/P1-income-sources` | Renders with auth; error state shows dialog |
+| ✅ Done | Sidebar regroup: Income/Expenses merged group | `feature/P1-income-sources` | Collapsible group with Income + Expenses items |
+| ✅ Done | Income type: combo box (dropdown + text input) | `feature/P1-income-sources` | Salary/Rental/FD Interest/Business/Other + custom |
+| ✅ Done | Test DB setup | `feature/P1-income-sources` | `.env.test` + `prisma/seed-test.ts` + scripts |
+| ✅ Done | Docker fix (Playwright + healthcheck) | `feature/P1-income-sources` | Multi-stage build fix |
+| ✅ Done | Toast system (sonner) | `feature/P1-income-sources` | Installed + ToastProvider in layout |
+| ✅ Done | AlertDialog component | `feature/P1-income-sources` | shadcn AlertDialog for delete confirms |
+| ✅ Done | Husky pre-commit hook | `feature/P1-income-sources` | Runs build + lint on every commit |
+| ✅ Done | E2E tests (income page) | `feature/P1-income-sources` | 2 tests: error state dialog + create with auth |
+| ✅ Done | Auth helper for E2E (test-login) | `feature/P1-income-sources` | Creates session + sets correct cookie |
+| ⚠️ **Bug: API auth fails for real users** | `feature/P1-income-sources` | Middleware auth() used PrismaAdapter which can't run in Edge runtime. Fixed by rewriting middleware to use cookie check instead of auth(). But real user sessions might still fail if auth() in API routes can't find the session. Test-login works (200), real login needs verification. |
+| ⚠️ **Bug: Save succeeds but page shows error** | `feature/P1-income-sources` | After creating income (POST 201), fetchData() GET may return error. Need to investigate why GET fails after successful POST. Could be race condition or session inconsistency. |
+| ❌ **Not fixed: RBAC removed from middleware** | `feature/P1-income-sources` | Old middleware had role-based access (admin/manager routes). Now removed because we can't decode session in Edge runtime. Needs per-page implementation. |
+
+**What works for test-login (E2E):**
+1. ✅ Navigate to /income → error state (no auth) → click "Add Income" → dialog opens
+2. ✅ Login via test-login → navigate to /income → summary cards + Add Income button
+3. ✅ Create income → POST 201 → data saved
+
+**What doesn't work for real users:**
+1. ❌ Log in via real login page → navigate to /income → "Failed to load income sources" error
+2. ❌ Click "Add Income" → fill form → "Add" → data saves but page shows error
+
+**Likely root cause of remaining bug:**
+The `auth()` function in API routes uses PrismaAdapter which works in Node.js runtime (unlike Edge). But there might be a request context issue where `auth()` can't read cookies properly when called without arguments in Next.js 15 API routes. Test-login works because it creates the session differently. The fix: pass the request cookies to `auth()` explicitly, or bypass `auth()` and use direct cookie → session lookup.
 
 **Current branch**: `feature/P1-income-sources` (not yet merged)
 **Last build**: build-001 (pending)

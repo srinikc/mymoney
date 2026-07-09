@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getSessionFromCookie } from "@/lib/get-session"
 import { validateBody } from "@/shared/validate"
 import { IncomeSourceCreateSchema } from "@/shared/income-validation"
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const session = await auth()
+    const session = await getSessionFromCookie(req.headers.get("cookie"))
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -27,7 +27,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const session = await auth()
+    const session = await getSessionFromCookie(req.headers.get("cookie"))
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }

@@ -5,11 +5,13 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: 3,
+  workers: 1,
   reporter: "list",
+  globalSetup: "./e2e/global.setup.ts",
   use: {
     baseURL: "http://localhost:3005",
     trace: "on-first-retry",
+    storageState: "e2e/.auth.json",
   },
   projects: [
     {

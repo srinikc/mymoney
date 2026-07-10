@@ -46,6 +46,8 @@ model Profile {
   auditLogs   AuditLog[]
   subscriptions Subscription[]
   incomeSources IncomeSource[]
+  loans        Loan[]
+  insurances   Insurance[]
 }
 
 model Account {
@@ -447,4 +449,50 @@ model IncomeSource {
 
   @@index([profileId])
   @@index([categoryId])
+}
+
+model Loan {
+  id          Int      @id @default(autoincrement())
+  profileId   Int?
+  profile     Profile? @relation(fields: [profileId], references: [id])
+
+  name         String
+  type         String   @default("Other")
+  principal    Float
+  interestRate Float
+  tenureMonths Int
+  emiAmount    Float
+  startDate    DateTime
+  endDate      DateTime?
+  lender       String?
+  notes        String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([profileId])
+}
+
+// ── Insurance ─────────────────────────────────────────────────────────
+model Insurance {
+  id          Int      @id @default(autoincrement())
+  profileId   Int?
+  profile     Profile? @relation(fields: [profileId], references: [id])
+
+  name         String
+  type         String   @default("Other")
+  provider     String?
+  policyNumber String?
+  sumAssured   Float?
+  premium      Float
+  premiumFrequency String @default("yearly")
+  startDate    DateTime
+  renewalDate  DateTime?
+  nominee      String?
+  notes        String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([profileId])
 }

@@ -9,8 +9,9 @@ import { Progress } from "@/components/ui/progress"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { formatCurrency, formatMonthYear, getCurrentMonth, getCurrentYear } from "@/lib/utils"
 import { CardGridSkeleton } from "@/components/ui/page-skeleton"
+import { Skeleton } from "@/components/ui/skeleton"
 import type { Budget, Category } from "@/types"
-import { Plus, Download, AlertTriangle } from "lucide-react"
+import { Plus, Download, AlertTriangle, TrendingUp } from "lucide-react"
 
 export default function BudgetsPage() {
   const [budgets, setBudgets] = useState<Budget[]>([])
@@ -20,8 +21,12 @@ export default function BudgetsPage() {
   const [year, setYear] = useState(getCurrentYear())
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ categoryId: "", amount: "" })
+  const [income, setIncome] = useState(0)
+  const [incomeLoading, setIncomeLoading] = useState(true)
+  const [incomeError, setIncomeError] = useState(false)
 
   const loadData = useCallback(async () => {
+    setLoading(true)
     const [budgetRes, catRes] = await Promise.all([
       fetch(`/api/budgets?month=${month}&year=${year}`),
       fetch("/api/categories"),
@@ -31,7 +36,28 @@ export default function BudgetsPage() {
     setLoading(false)
   }, [month, year])
 
+  const loadIncome = useCallback(async () => {
+    setIncomeLoading(true)
+    try {
+      const res = await fetch("/api/income/summary")
+      const data = await res.json()
+      if (res.ok && data.currentMonth != null) {
+        setIncome(data.currentMonth)
+        setIncomeError(false)
+      } else {
+        setIncome(0)
+        setIncomeError(true)
+      }
+    } catch {
+      setIncome(0)
+      setIncomeError(true)
+    } finally {
+      setIncomeLoading(false)
+    }
+  }, [])
+
   useEffect(() => { loadData() }, [loadData])
+  useEffect(() => { loadIncome() }, [loadIncome])
 
   const handleSubmit = async () => {
     await fetch("/api/budgets", {
@@ -116,6 +142,26 @@ export default function BudgetsPage() {
       </div>
 
       <Card>
+        <CardContent className="py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+              <TrendingUp className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Total Monthly Income</p>
+              {incomeLoading ? (
+                <Skeleton className="h-7 w-28 mt-0.5" />
+              ) : incomeError ? (
+                <p className="text-xl font-bold text-muted-foreground">N/A</p>
+              ) : (
+                <p className="text-xl font-bold">{formatCurrency(income)}</p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">{formatMonthYear(month, year)} Overview</CardTitle>
@@ -138,6 +184,7 @@ export default function BudgetsPage() {
             <div className="space-y-4">
               {budgets.map((budget) => {
                 const utilization = budget.amount > 0 ? ((budget.spent || 0) / budget.amount) * 100 : 0
+                const incomePercent = income > 0 ? (budget.amount / income) * 100 : 0
                 const isOver = utilization > 100
                 const isWarning = utilization > 80 && !isOver
 
@@ -156,6 +203,9 @@ export default function BudgetsPage() {
                           isOver ? "text-red-500" : (isWarning ? "text-amber-500" : "text-emerald-500")
                         }`}>
                           {utilization.toFixed(0)}%
+                        </span>
+                        <span className="text-xs text-muted-foreground min-w-[5rem] text-right">
+                          ({incomePercent.toFixed(0)}% of income)
                         </span>
                       </div>
                     </div>

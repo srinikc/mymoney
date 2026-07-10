@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getSessionFromCookie } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 
 /**
  * DELETE /api/admin/profiles/:id — Delete profile (admin-only)
@@ -9,7 +9,7 @@ export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSessionFromCookie(req.headers.get("cookie"))
+  const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

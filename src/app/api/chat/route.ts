@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getSessionFromCookie } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { buildFinancialPrompt, type FinancialContext } from "@/lib/prompt-builder"
 import { queryLLM } from "@/lib/llm"
@@ -7,7 +7,7 @@ import { formatResponse } from "@/lib/response-formatter"
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSessionFromCookie(req.headers.get("cookie"))
+    const session = await auth()
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }

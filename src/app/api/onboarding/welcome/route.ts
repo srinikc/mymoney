@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getSessionFromCookie } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import { sendWelcomeEmail } from "@/lib/email"
 
 export async function POST(req: Request) {
-  const session = await getSessionFromCookie(req.headers.get("cookie"))
+  const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getSessionFromCookie } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import bcrypt from "bcryptjs"
 
 /**
  * GET /api/admin/users — List all users with profiles (admin-only)
  */
 export async function GET(req: Request) {
-  const session = await getSessionFromCookie(req.headers.get("cookie"))
+  const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
@@ -65,7 +65,7 @@ export async function GET(req: Request) {
  * POST /api/admin/users — Create a new user (admin-only)
  */
 export async function POST(req: Request) {
-  const session = await getSessionFromCookie(req.headers.get("cookie"))
+  const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

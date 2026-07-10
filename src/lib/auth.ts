@@ -8,7 +8,7 @@ import type { Adapter } from "next-auth/adapters"
 import bcrypt from "bcryptjs"
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma) as Adapter,
-  session: { strategy: "database" },
+  session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
     error: "/login",
@@ -75,8 +75,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async session({ session, user }) {
-      // Attach user ID and profile info to the session
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = Number(user.id)
+        token.role = (user as unknown as Record<string, unknown>).role as string || "user"
+        try {
+          const profile = await prisma.profile.findFirst({
+            where: { userId: Number(user.id), isDefault: true },
+            select: { id: true, name: true },
+          })
+          if (profile) {
+            token.profileId = profile.id
+            token.profileName = profile.name
+          }
+        } catch {}
+      }
+      return token
+    },
+    async session({ session, token }) {
       const sUser = session.user as unknown as {
         id: number
         role?: string
@@ -84,21 +100,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         profileName?: string
       }
       if (sUser) {
-        sUser.id = Number(user.id)
-        ;(sUser as Record<string, unknown>).role = (user as unknown as Record<string, unknown>).role as string || "user"
-
-          try {
-            const profile = await prisma.profile.findFirst({
-              where: { userId: Number(user.id), isDefault: true },
-              select: { id: true, name: true },
-            })
-            if (profile) {
-            sUser.profileId = profile.id
-            sUser.profileName = profile.name
-          }
-        } catch {
-          // Profile may not exist yet during onboarding
-        }
+        sUser.id = token.id as number
+        sUser.role = token.role as string || "user"
+        sUser.profileId = token.profileId as number | undefined
+        sUser.profileName = token.profileName as string | undefined
       }
       return session
     },

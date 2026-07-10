@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getSessionFromCookie } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import { validateBody } from "@/shared/validate"
 import { FeatureFlagUpdateSchema } from "@/shared/validation"
 
@@ -11,7 +11,7 @@ export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSessionFromCookie(req.headers.get("cookie"))
+  const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
@@ -56,7 +56,7 @@ export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSessionFromCookie(req.headers.get("cookie"))
+  const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

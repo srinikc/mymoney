@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getSessionFromCookie } from "@/lib/auth"
 
 /**
  * GET /api/admin/audit-log — List audit logs with pagination (admin-only)
@@ -15,7 +15,7 @@ import { auth } from "@/lib/auth"
  *   to       - date range end (ISO string)
  */
 export async function GET(req: Request) {
-  const session = await auth()
+  const session = await getSessionFromCookie()
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

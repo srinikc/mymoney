@@ -1,12 +1,12 @@
-﻿import { NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getSessionFromCookie } from "@/lib/auth"
 
 /**
  * GET /api/profiles — List all profiles for the authenticated user.
  */
 export async function GET() {
-  const session = await auth()
+  const session = await getSessionFromCookie()
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
@@ -31,7 +31,7 @@ export async function GET() {
  * POST /api/profiles — Create a new profile for the authenticated user.
  */
 export async function POST(req: Request) {
-  const session = await auth()
+  const session = await getSessionFromCookie()
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

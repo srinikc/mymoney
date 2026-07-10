@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getSessionFromCookie } from "@/lib/auth"
 import { validateBody } from "@/shared/validate"
 import { ProfileCreateSchema } from "@/shared/validation"
 
@@ -8,7 +8,7 @@ import { ProfileCreateSchema } from "@/shared/validation"
  * GET /api/admin/profiles — List all profiles with user info (admin-only)
  */
 export async function GET() {
-  const session = await auth()
+  const session = await getSessionFromCookie()
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
@@ -68,7 +68,7 @@ export async function GET() {
  * POST /api/admin/profiles — Create a profile for any user (admin-only)
  */
 export async function POST(req: Request) {
-  const session = await auth()
+  const session = await getSessionFromCookie()
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

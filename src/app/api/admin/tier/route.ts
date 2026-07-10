@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getSessionFromCookie } from "@/lib/auth"
 import { z } from "zod"
 
 const TierChangeSchema = z.object({
@@ -14,7 +14,7 @@ const TierChangeSchema = z.object({
  * Logs to AuditLog
  */
 export async function PUT(req: Request) {
-  const session = await auth()
+  const session = await getSessionFromCookie()
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

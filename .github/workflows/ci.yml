@@ -22,6 +22,11 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+    env:
+      DATABASE_URL: postgresql://postgres:password@localhost:5432/mymoney_test
+      AUTH_SECRET: my-money-secret-change-in-production-abc123xyz
+      AUTH_URL: http://localhost:3005
+
     steps:
       - uses: actions/checkout@v4
 
@@ -38,10 +43,21 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:password@localhost:5432/mymoney_test
       - run: npm run build
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/mymoney_test
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/mymoney_test
+          AUTH_SECRET: my-money-secret-change-in-production-abc123xyz
       - run: npm test
         env:
           DATABASE_URL: postgresql://postgres:password@localhost:5432/mymoney_test
       - run: npx playwright install chromium
+      - name: Start server
+        run: |
+          export DATABASE_URL=postgresql://postgres:password@localhost:5432/mymoney_test
+          export AUTH_SECRET=my-money-secret-change-in-production-abc123xyz
+          npm start &
+          for i in $(seq 1 30); do curl -sf http://localhost:3005 && break; sleep 2; done
       - run: npx playwright test
         env:
           DATABASE_URL: postgresql://postgres:password@localhost:5432/mymoney_test

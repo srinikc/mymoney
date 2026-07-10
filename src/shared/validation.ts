@@ -52,6 +52,11 @@ export const GoalCreateSchema = z.object({
   currentAmount: z.union([z.string(), z.number()]).optional().default("0"),
   deadline: z.string().optional(),
   category: z.string().optional().default("savings"),
+  term: z.string().optional().default("medium"),
+  priority: z.string().optional().default("P1"),
+  type: z.string().optional().default("Other"),
+  description: z.string().optional(),
+  monthlyContribution: z.union([z.string(), z.number()]).optional(),
   notes: z.string().optional(),
   status: z.string().optional().default("active"),
 })
@@ -66,18 +71,8 @@ export const InvestmentCreateSchema = z.object({
   currentValue: z.union([z.string(), z.number()]).optional(),
   purchaseDate: z.string().min(1, "Purchase date is required"),
   returnRate: z.union([z.string(), z.number()]).optional(),
-  notes: z.string().optional(),
-  status: z.string().optional().default("active"),
-})
-
-export const PlanCreateSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  description: z.string().optional(),
-  category: z.string().optional().default("general"),
-  amountNeeded: z.union([z.string(), z.number()]),
-  amountSaved: z.union([z.string(), z.number()]).optional().default("0"),
-  monthlyContribution: z.union([z.string(), z.number()]).optional(),
-  deadline: z.string().optional(),
+  purpose: z.string().optional(),
+  linkedGoalId: z.union([z.string(), z.number()]).optional().nullable(),
   notes: z.string().optional(),
   status: z.string().optional().default("active"),
 })
@@ -120,6 +115,11 @@ export const GoalUpdateSchema = z.object({
   currentAmount: z.union([z.string(), z.number()]).optional(),
   deadline: z.string().optional().nullable(),
   category: z.string().optional(),
+  term: z.string().optional(),
+  priority: z.string().optional(),
+  type: z.string().optional(),
+  description: z.string().optional().nullable(),
+  monthlyContribution: z.union([z.string(), z.number()]).optional().nullable(),
   notes: z.string().optional().nullable(),
   status: z.string().optional(),
 })
@@ -135,21 +135,10 @@ export const InvestmentUpdateSchema = z.object({
   currentValue: z.union([z.string(), z.number()]).optional(),
   purchaseDate: z.string().optional(),
   returnRate: z.union([z.string(), z.number()]).optional().nullable(),
+  purpose: z.string().optional().nullable(),
+  linkedGoalId: z.union([z.string(), z.number()]).optional().nullable(),
   notes: z.string().optional().nullable(),
   status: z.string().optional(),
-})
-
-export const PlanUpdateSchema = z.object({
-  id: z.union([z.string(), z.number()]),
-  name: z.string().optional(),
-  description: z.string().optional().nullable(),
-  category: z.string().optional(),
-  amountNeeded: z.union([z.string(), z.number()]).optional(),
-  amountSaved: z.union([z.string(), z.number()]).optional(),
-  monthlyContribution: z.union([z.string(), z.number()]).optional().nullable(),
-  deadline: z.string().optional().nullable(),
-  status: z.string().optional(),
-  notes: z.string().optional().nullable(),
 })
 
 export const ReminderUpdateSchema = z.object({

@@ -64,11 +64,6 @@ async function main() {
       assignToProfile: (pid) => prisma.investment.updateMany({ where: { profileId: null }, data: { profileId: pid } }),
     },
     {
-      name: "Plan",
-      countOrphaned: () => prisma.plan.count({ where: { profileId: null } }),
-      assignToProfile: (pid) => prisma.plan.updateMany({ where: { profileId: null }, data: { profileId: pid } }),
-    },
-    {
       name: "Reminder",
       countOrphaned: () => prisma.reminder.count({ where: { profileId: null } }),
       assignToProfile: (pid) => prisma.reminder.updateMany({ where: { profileId: null }, data: { profileId: pid } }),

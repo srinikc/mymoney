@@ -112,7 +112,6 @@ async function main() {
     { name: "Budget", count: () => prisma.budget.count({ where: { profileId: null } }), updateMany: (d) => prisma.budget.updateMany({ where: { profileId: null }, data: d }) },
     { name: "Goal", count: () => prisma.goal.count({ where: { profileId: null } }), updateMany: (d) => prisma.goal.updateMany({ where: { profileId: null }, data: d }) },
     { name: "Investment", count: () => prisma.investment.count({ where: { profileId: null } }), updateMany: (d) => prisma.investment.updateMany({ where: { profileId: null }, data: d }) },
-    { name: "Plan", count: () => prisma.plan.count({ where: { profileId: null } }), updateMany: (d) => prisma.plan.updateMany({ where: { profileId: null }, data: d }) },
     { name: "Reminder", count: () => prisma.reminder.count({ where: { profileId: null } }), updateMany: (d) => prisma.reminder.updateMany({ where: { profileId: null }, data: d }) },
     { name: "Deal", count: () => prisma.deal.count({ where: { profileId: null } }), updateMany: (d) => prisma.deal.updateMany({ where: { profileId: null }, data: d }) },
     { name: "Asset", count: () => prisma.asset.count({ where: { profileId: null } }), updateMany: (d) => prisma.asset.updateMany({ where: { profileId: null }, data: d }) },

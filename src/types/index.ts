@@ -51,6 +51,11 @@ export interface Goal {
   currentAmount: number
   deadline: string | null
   category: string
+  term: string
+  priority: string
+  type: string
+  description: string | null
+  monthlyContribution: number | null
   notes: string | null
   status: string
   progress: number
@@ -85,6 +90,8 @@ export interface Investment {
   currentValue: number
   purchaseDate: string
   returnRate: number | null
+  purpose: string | null
+  linkedGoalId: number | null
   notes: string | null
   status: string
   returnPercent: number

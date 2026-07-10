@@ -99,6 +99,7 @@ export async function GET(req: Request) {
         "Target Amount": formatIndianCurrency(g.targetAmount),
         "Current Amount": formatIndianCurrency(g.currentAmount),
         Progress: `${g.targetAmount > 0 ? Math.round((g.currentAmount / g.targetAmount) * 100) : 0}%`,
+        "Monthly Contribution": g.monthlyContribution ? formatIndianCurrency(g.monthlyContribution) : "",
         Deadline: g.deadline ? g.deadline.toISOString().split("T")[0] : "",
         Category: g.category,
         Status: g.status,
@@ -115,20 +116,6 @@ export async function GET(req: Request) {
         "Return (%)": i.returnRate ? `${i.returnRate}%` : "",
         "Purchase Date": i.purchaseDate.toISOString().split("T")[0],
         Status: i.status,
-      }))
-      break
-    }
-    case "plans": {
-      const plans = await prisma.plan.findMany({ orderBy: { createdAt: "desc" } })
-      data = plans.map((p) => ({
-        Name: p.name,
-        Description: p.description || "",
-        Category: p.category,
-        "Amount Needed": formatIndianCurrency(p.amountNeeded),
-        "Amount Saved": formatIndianCurrency(p.amountSaved),
-        "Monthly Contribution": p.monthlyContribution ? formatIndianCurrency(p.monthlyContribution) : "",
-        Deadline: p.deadline ? p.deadline.toISOString().split("T")[0] : "",
-        Status: p.status,
       }))
       break
     }

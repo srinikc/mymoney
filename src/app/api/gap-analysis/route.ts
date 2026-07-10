@@ -43,7 +43,6 @@ export async function GET(request: NextRequest) {
     const totalDebt = liabilities.reduce((s, l) => s + l.amount, 0)
 
     const goals = await prisma.goal.findMany({ where: { ...profileFilter, status: "active" } })
-    const plans = await prisma.plan.findMany({ where: { ...profileFilter, status: "active" } })
 
     const gaps = []
 
@@ -74,7 +73,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Insurance gap
-    const hasInsurance = goals.some((g) => g.category?.toLowerCase().includes("insurance")) || plans.some((p) => p.category?.toLowerCase().includes("insurance") || p.name?.toLowerCase().includes("insurance"))
+    const hasInsurance = goals.some((g) => g.category?.toLowerCase().includes("insurance") || g.type?.toLowerCase().includes("insurance") || g.name?.toLowerCase().includes("insurance"))
     const idealCover = monthlyIncome * 120
     const insuranceStatus = hasInsurance ? "good" : "critical"
 

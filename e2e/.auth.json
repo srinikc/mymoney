@@ -1,35 +1,4 @@
 {
-  "cookies": [
-    {
-      "name": "authjs.csrf-token",
-      "value": "91d8e20a68645e515e25df579be96f611d6d6563312c44115fa7ecfd06cfae4b%7C8155f437771446b81d0bc035a37005211b5c03b816bacd00022293603a4d04a2",
-      "domain": "localhost",
-      "path": "/",
-      "expires": -1,
-      "httpOnly": true,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "authjs.callback-url",
-      "value": "http%3A%2F%2Flocalhost%3A3005%2Flogin",
-      "domain": "localhost",
-      "path": "/",
-      "expires": -1,
-      "httpOnly": true,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "authjs.session-token",
-      "value": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2Q0JDLUhTNTEyIiwia2lkIjoiSFkxcS1QOHctM1FiM19lV3dVUkNXVUJZTXJ4UFZzYl8xYXVMVmgzaEJhd0czREJULXRoZUlrUmM5bGl6SGU0bnhjWUpNUHJ2ZTl3RVlGejNIRzhHLVEifQ..OeWWyga2A4PWTK2E027etw.eiVu2mfvGt5yso4CUr5CMyCg_N7WTctbe9XwJtfg6ZweeKV2PzDgNtk9JoM17rKO01mux-HoWhr8oBJxnMRQTk8NRLimdTNLxhzLqgIb97E4ZUV-cbKDU_ZX9pl1DKlybXPiho7kZInee9Yeo8w47Dp_Fb7DIKJTqG4SAJaS6LoRNkLWg_X1Audh8CVqyG9efJ7so3O-Wc6FHtYdL01lgn8HOGe7h5SZMroj_nKHf6CV_6Eo8gbpYJiexFL9CHYKfkIffnm2-PHq7NwcSZ1j4pMEyimByyaHwICj9EEkPrA.i-mcAAALh4YhCZ9g-9eopxkcnB0SyHZ0Sm94MkAop_8",
-      "domain": "localhost",
-      "path": "/",
-      "expires": 1786291586.208552,
-      "httpOnly": true,
-      "secure": false,
-      "sameSite": "Lax"
-    }
-  ],
+  "cookies": [],
   "origins": []
 }

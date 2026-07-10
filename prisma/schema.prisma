@@ -38,7 +38,6 @@ model Profile {
   budgets     Budget[]
   goals       Goal[]
   investments Investment[]
-  plans       Plan[]
   reminders   Reminder[]
   deals       Deal[]
   assets      Asset[]
@@ -185,18 +184,24 @@ model Budget {
 // ── Goal ──────────────────────────────────────────────────────────────
 
 model Goal {
-  id            Int      @id @default(autoincrement())
-  name          String
-  targetAmount  Float
-  currentAmount Float    @default(0)
-  deadline      DateTime?
-  category      String   @default("savings")
-  notes         String?
-  status        String   @default("active")
-  profileId     Int?
-  profile       Profile? @relation(fields: [profileId], references: [id])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                  Int      @id @default(autoincrement())
+  name                String
+  targetAmount        Float
+  currentAmount       Float    @default(0)
+  deadline            DateTime?
+  category            String   @default("savings")
+  term                String   @default("medium") // short | medium | long
+  priority            String   @default("P1")    // P0 | P1 | P2
+  type                String   @default("Other")  // custom category type
+  description         String?
+  monthlyContribution Float?
+  notes               String?
+  status              String   @default("active")
+  profileId           Int?
+  profile             Profile? @relation(fields: [profileId], references: [id])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  investments         Investment[]
 
   @@index([profileId])
 }
@@ -214,6 +219,9 @@ model Investment {
   currentValue   Float
   purchaseDate   DateTime
   returnRate     Float?
+  purpose        String?   // e.g., "retirement", "education", "wealth"
+  linkedGoalId   Int?      // FK to Goal
+  linkedGoal     Goal?     @relation(fields: [linkedGoalId], references: [id])
   notes          String?
   status         String    @default("active")
   profileId      Int?
@@ -224,27 +232,7 @@ model Investment {
   @@index([profileId])
   @@index([type])
   @@index([symbol])
-}
-
-// ── Plan ──────────────────────────────────────────────────────────────
-
-model Plan {
-  id                  Int      @id @default(autoincrement())
-  name                String
-  description         String?
-  category            String   @default("general")
-  amountNeeded        Float
-  amountSaved         Float    @default(0)
-  monthlyContribution Float?
-  deadline            DateTime?
-  status              String   @default("active")
-  notes               String?
-  profileId           Int?
-  profile             Profile? @relation(fields: [profileId], references: [id])
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  @@index([profileId])
+  @@index([linkedGoalId])
 }
 
 // ── Merchant Mapping ──────────────────────────────────────────────────

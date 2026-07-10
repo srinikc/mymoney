@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { requireRole } from "@/lib/roles"
 
 /**
- * GET /api/admin/audit-log — List audit logs with pagination (admin-only)
+ * GET /api/admin/audit-log — List audit logs with pagination (admin + manager)
  *
  * Query params:
  *   page     - page number (default: 1)
@@ -16,17 +17,8 @@ import { auth } from "@/lib/auth"
  */
 export async function GET(req: Request) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  const currentUser = await prisma.user.findUnique({
-    where: { id: Number(session.user.id) },
-    select: { role: true },
-  })
-  if (!currentUser || currentUser.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 })
-  }
+  const forbid = requireRole(session?.user as any, "admin", "manager")
+  if (forbid) return forbid
 
   const url = new URL(req.url)
   const page = Math.max(1, Number.parseInt(url.searchParams.get("page") || "1"))

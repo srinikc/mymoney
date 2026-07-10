@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { isViewer } from "@/lib/roles"
 import { validateBody } from "@/shared/validate"
 import { IncomeSourceCreateSchema } from "@/shared/income-validation"
 
@@ -30,6 +31,9 @@ export async function POST(req: Request) {
     const session = await auth()
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    if (isViewer(session?.user as any)) {
+      return NextResponse.json({ error: "Viewers cannot modify data" }, { status: 403 })
     }
     const profileId = (session.user as unknown as { profileId?: number }).profileId
 

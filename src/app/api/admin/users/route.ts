@@ -1,27 +1,19 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { requireRole } from "@/lib/roles"
 import bcrypt from "bcryptjs"
 
 /**
  * GET /api/admin/users — List all users with profiles (admin-only)
  */
-export async function GET(req: Request) {
+export async function GET() {
   const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const forbid = requireRole(session?.user as any, "admin")
+  if (forbid) return forbid
 
-  // Check admin role
-  const currentUser = await prisma.user.findUnique({
-    where: { id: Number(session.user.id) },
-    select: { role: true },
-  })
-  if (!currentUser || currentUser.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 })
-  }
-
-  const users = await prisma.user.findMany({
+  try {
+    const users = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -59,6 +51,9 @@ export async function GET(req: Request) {
   }))
 
   return NextResponse.json(result)
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 })
+  }
 }
 
 /**
@@ -66,18 +61,8 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  // Check admin role
-  const currentUser = await prisma.user.findUnique({
-    where: { id: Number(session.user.id) },
-    select: { role: true },
-  })
-  if (!currentUser || currentUser.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 })
-  }
+  const forbid = requireRole(session?.user as any, "admin")
+  if (forbid) return forbid
 
   try {
     const body = await req.json()

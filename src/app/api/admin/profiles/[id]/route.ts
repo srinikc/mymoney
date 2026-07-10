@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { requireRole } from "@/lib/roles"
 
 /**
  * DELETE /api/admin/profiles/:id — Delete profile (admin-only)
@@ -10,17 +11,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  const currentUser = await prisma.user.findUnique({
-    where: { id: Number(session.user.id) },
-    select: { role: true },
-  })
-  if (!currentUser || currentUser.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 })
-  }
+  const forbid = requireRole(session?.user as any, "admin")
+  if (forbid) return forbid
 
   const { id } = await params
   const profileId = Number(id)

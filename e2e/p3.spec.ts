@@ -14,7 +14,7 @@ test.describe("P3 — Goals", () => {
     await page.getByRole("button", { name: /add goal/i }).click()
     await page.waitForTimeout(500)
     await page.fill('input[name="name"]', "Buy Car")
-    await page.fill('input[name="targetAmount"]', "500000")
+    await page.fill('input[name="targetAmount"]', "50000")
     await page.fill('input[name="monthlyContribution"]', "15000")
     await page.getByRole("button", { name: "Create Goal" }).click()
     await page.waitForTimeout(2000)
@@ -41,22 +41,22 @@ test.describe("P3 — Goals", () => {
     await page.waitForTimeout(3000)
     const uniqueName = `DelGoal-${Date.now()}`
     await page.getByRole("button", { name: /add goal/i }).click()
-    await page.fill('input[name="name"]', uniqueName)
-    await page.fill('input[name="targetAmount"]', "10000")
-    await page.getByRole("button", { name: "Create Goal" }).click()
-    await page.waitForTimeout(2000)
-    await expect(page.getByText(uniqueName).first()).toBeVisible({ timeout: 5000 })
-    // Delete
-    // Delete
-    const card = page.locator("div").filter({ has: page.getByText(uniqueName) }).first()
-    await card.locator("button").last().click()
     await page.waitForTimeout(500)
-    // The AlertDialog opens globally — find the confirm "Delete" button
-    const deleteConfirm = page.locator("button").filter({ hasText: "Delete" }).last()
-    if (await deleteConfirm.isVisible().catch(() => false)) {
-      await deleteConfirm.click()
-      await page.waitForTimeout(1000)
-    }
+    await page.fill('input[name="name"]', uniqueName)
+    await page.fill('input[name="targetAmount"]', "50000")
+    await page.locator("button").filter({ hasText: "Create Goal" }).click()
+    await page.waitForTimeout(2000)
+    // Debug: check page text
+    await expect(page.getByText(uniqueName).first()).toBeVisible({ timeout: 5000 })
+    
+    // Click the delete button (the only red button in this card)
+    const allRedButtons = page.locator("button.text-red-500")
+    const count = await allRedButtons.count()
+    // Click the last red button (most recently created goal is at the top)
+    await allRedButtons.first().click()
+    await page.waitForTimeout(500)
+    await page.locator("button:has-text('Delete')").last().click()
+    await page.waitForTimeout(1000)
     await expect(page.getByText(uniqueName)).toHaveCount(0)
   })
 

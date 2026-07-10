@@ -12,9 +12,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const profileId = (session.user as unknown as { profileId?: number }).profileId
     const { id } = await params
+    const where: { id: number; profileId?: number } = { id: Number.parseInt(id) }
+    if (profileId) where.profileId = profileId
     const source = await prisma.incomeSource.findUnique({
-      where: { id: Number.parseInt(id) },
+      where,
       include: { category: true },
     })
     if (!source) {
@@ -22,7 +25,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     }
     return NextResponse.json(source)
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -37,6 +40,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: "Viewers cannot modify data" }, { status: 403 })
     }
 
+    const profileId = (session.user as unknown as { profileId?: number }).profileId
     const { id } = await params
     const { data: body, error } = await validateBody(req, IncomeSourceUpdateSchema)
     if (error) return error
@@ -70,14 +74,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (body.endDate !== undefined) data.endDate = body.endDate ? new Date(body.endDate) : null
     if (body.notes !== undefined) data.notes = body.notes
 
+    const updateWhere: { id: number; profileId?: number } = { id: Number.parseInt(id) }
+    if (profileId) updateWhere.profileId = profileId
     const source = await prisma.incomeSource.update({
-      where: { id: Number.parseInt(id) },
+      where: updateWhere,
       data,
       include: { category: true },
     })
     return NextResponse.json(source)
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -92,10 +98,13 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       return NextResponse.json({ error: "Viewers cannot modify data" }, { status: 403 })
     }
 
+    const profileId = (session.user as unknown as { profileId?: number }).profileId
     const { id } = await params
-    await prisma.incomeSource.delete({ where: { id: Number.parseInt(id) } })
+    const deleteWhere: { id: number; profileId?: number } = { id: Number.parseInt(id) }
+    if (profileId) deleteWhere.profileId = profileId
+    await prisma.incomeSource.delete({ where: deleteWhere })
     return NextResponse.json({ success: true })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

@@ -88,8 +88,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             token.profileId = profile.id
             token.profileName = profile.name
           }
-        } catch {
-          // profile may not exist yet
+        } catch (e) {
+          console.error("Profile lookup during JWT callback failed:", e)
         }
       }
       return token

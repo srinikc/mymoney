@@ -141,7 +141,7 @@ export default function middleware(req: NextRequest) {
   if (!sessionCookie) {
     const loginUrl = new URL("/login", req.url)
     loginUrl.searchParams.set("callbackUrl", pathname)
-    return Response.redirect(loginUrl)
+    return NextResponse.redirect(loginUrl)
   }
 
   return NextResponse.next()

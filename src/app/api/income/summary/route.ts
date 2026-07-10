@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { isViewer } from "@/lib/roles"
 
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
   try {
     const session = await auth()
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    if (isViewer(session?.user as any)) {
+      return NextResponse.json({ error: "Viewers cannot view summary" }, { status: 403 })
     }
     const profileId = (session.user as unknown as { profileId?: number }).profileId
 
@@ -101,6 +105,6 @@ export async function GET(req: Request) {
       currentMonth,
     })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

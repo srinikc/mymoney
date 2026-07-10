@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -21,6 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { toast } from "sonner"
 import { TableSkeleton } from "@/components/ui/page-skeleton"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -147,7 +148,7 @@ function IncomeFormDialog({
         sourceCategory: editing.sourceCategory as IncomeFormValues["sourceCategory"],
         paymentMode: editing.paymentMode as IncomeFormValues["paymentMode"],
         bankAccount: editing.bankAccount || "",
-        startDate: editing.startDate.split("T")[0],
+        startDate: editing.startDate?.split("T")[0] ?? "",
         notes: editing.notes || "",
         revenue: editing.revenue || 0,
         businessExpenses: editing.businessExpenses || 0,
@@ -377,7 +378,7 @@ export default function IncomePage() {
 
   const handleSave = async (formData: IncomeFormValues) => {
     try {
-      const { sourceCategory, ...rest } = formData
+      const { sourceCategory, revenue, otherExpensesDescription, otherExpensesAmount, investment: invest, profit, ...rest } = formData
       const categoryMap: Record<string, string> = {
         Salary: "Salary",
         Rental: "Rental",
@@ -388,7 +389,10 @@ export default function IncomePage() {
       const payload = {
         ...rest,
         categoryName: categoryMap[sourceCategory] || "Other",
-        profit: sourceCategory === "Business" ? formData.profit : null,
+        businessRevenue: revenue,
+        businessOtherExp: otherExpensesDescription,
+        businessOtherAmt: otherExpensesAmount,
+        businessInvestment: invest,
       }
 
       const res = editingSource
@@ -414,7 +418,7 @@ export default function IncomePage() {
       fetchData()
     } catch (err) {
       setDialogOpen(false)
-      setError(err instanceof Error ? err.message : "Failed to save")
+      toast.error(err instanceof Error ? err.message : "Failed to save")
     }
   }
 
@@ -423,10 +427,8 @@ export default function IncomePage() {
       const res = await fetch(`/api/income/sources/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete income source")
       setSources((prev) => prev.filter((s) => s.id !== id))
-      setLoading(true)
-      fetchData()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete")
+      toast.error(err instanceof Error ? err.message : "Failed to delete")
     }
   }
 

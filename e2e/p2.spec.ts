@@ -1,22 +1,12 @@
 import { test, expect } from "@playwright/test"
 
-test.describe("Loans", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/login", { waitUntil: "domcontentloaded" })
-    await page.waitForTimeout(3000)
-    await page.locator("#email").fill("test@example.com")
-    await page.locator("#password").fill("test123")
-    await page.getByRole("button", { name: "Sign in with Email" }).click()
-    await page.waitForURL("/", { timeout: 20000 })
-    await page.waitForTimeout(2000)
-  })
+test.describe("P2 — Loans & Insurance", () => {
 
   test("SCENARIO: View empty loans page", async ({ page }) => {
     await page.goto("/loans", { waitUntil: "domcontentloaded" })
     await page.waitForTimeout(3000)
     await expect(page.locator("h1")).toContainText("Loans")
     await expect(page.getByText("Add Loan")).toBeVisible()
-    // Empty state OR list is shown
   })
 
   test("SCENARIO: Create a home loan with auto-calculated EMI", async ({ page }) => {
@@ -28,17 +18,15 @@ test.describe("Loans", () => {
     await page.fill('input[name="principal"]', "5000000")
     await page.fill('input[name="interestRate"]', "8.5")
     await page.fill('input[name="tenureMonths"]', "240")
-    await page.waitForTimeout(500) // let EMI auto-calculate
+    await page.waitForTimeout(500)
     await page.getByRole("button", { name: "Add" }).click()
     await page.waitForTimeout(2000)
-    // Verify created
     await expect(page.getByText("Home Loan").first()).toBeVisible({ timeout: 5000 })
   })
 
   test("SCENARIO: Delete a loan with confirmation", async ({ page }) => {
     await page.goto("/loans", { waitUntil: "domcontentloaded" })
     await page.waitForTimeout(3000)
-    // Create one first
     await page.getByText("Add Loan").click()
     await page.fill('input[name="name"]', "Delete Me")
     await page.fill('input[name="principal"]', "100000")
@@ -47,25 +35,12 @@ test.describe("Loans", () => {
     await page.getByRole("button", { name: "Add" }).click()
     await page.waitForTimeout(2000)
     await expect(page.getByText("Delete Me").first()).toBeVisible({ timeout: 5000 })
-    // Delete it
-    const deleteBtn = page.locator("button").filter({ has: page.locator("svg.lucide-trash") }).first()
-    await deleteBtn.click()
+    const row = page.locator("tr", { has: page.getByText("Delete Me") })
+    await row.locator("button").last().click()
     await expect(page.getByText(/are you sure/i)).toBeVisible()
     await page.getByRole("button", { name: "Delete" }).click()
     await page.waitForTimeout(1000)
     await expect(page.getByText("Delete Me")).toHaveCount(0)
-  })
-})
-
-test.describe("Insurance", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/login", { waitUntil: "domcontentloaded" })
-    await page.waitForTimeout(3000)
-    await page.locator("#email").fill("test@example.com")
-    await page.locator("#password").fill("test123")
-    await page.getByRole("button", { name: "Sign in with Email" }).click()
-    await page.waitForURL("/", { timeout: 20000 })
-    await page.waitForTimeout(2000)
   })
 
   test("SCENARIO: View empty insurance page", async ({ page }) => {
@@ -90,16 +65,14 @@ test.describe("Insurance", () => {
   test("SCENARIO: Delete insurance with confirmation", async ({ page }) => {
     await page.goto("/insurance", { waitUntil: "domcontentloaded" })
     await page.waitForTimeout(3000)
-    // Create one first
     await page.getByText("Add Insurance").click()
     await page.fill('input[name="name"]', "Delete Me")
     await page.fill('input[name="premium"]', "5000")
     await page.getByRole("button", { name: "Add" }).click()
     await page.waitForTimeout(2000)
     await expect(page.getByText("Delete Me").first()).toBeVisible({ timeout: 5000 })
-    // Delete it
-    const deleteBtn = page.locator("button").filter({ has: page.locator("svg.lucide-trash") }).first()
-    await deleteBtn.click()
+    const row = page.locator("tr", { has: page.getByText("Delete Me") })
+    await row.locator("button").last().click()
     await expect(page.getByText(/are you sure/i)).toBeVisible()
     await page.getByRole("button", { name: "Delete" }).click()
     await page.waitForTimeout(1000)

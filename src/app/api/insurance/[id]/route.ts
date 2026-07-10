@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getSessionFromCookie } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const session = await getSessionFromCookie(req.headers.get("cookie"))
+    const session = await auth()
     if (!session?.user?.profileId) {
       return NextResponse.json({ error: "Internal server error" }, { status: 401 })
     }
@@ -24,7 +24,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const session = await getSessionFromCookie(req.headers.get("cookie"))
+    const session = await auth()
     if (!session?.user?.profileId) {
       return NextResponse.json({ error: "Internal server error" }, { status: 401 })
     }
@@ -60,7 +60,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const session = await getSessionFromCookie(req.headers.get("cookie"))
+    const session = await auth()
     if (!session?.user?.profileId) {
       return NextResponse.json({ error: "Internal server error" }, { status: 401 })
     }

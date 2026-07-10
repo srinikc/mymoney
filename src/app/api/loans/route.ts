@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getSessionFromCookie } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 
 export async function GET(req: Request) {
   try {
-    const session = await getSessionFromCookie(req.headers.get("cookie"))
+    const session = await auth()
     if (!session?.user?.profileId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -22,7 +22,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const session = await getSessionFromCookie(req.headers.get("cookie"))
+    const session = await auth()
     if (!session?.user?.profileId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }

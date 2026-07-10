@@ -84,7 +84,6 @@ const ENTITY_TYPES = [
   { value: "budget", label: "Budget" },
   { value: "goal", label: "Goal" },
   { value: "investment", label: "Investment" },
-  { value: "plan", label: "Plan" },
   { value: "reminder", label: "Reminder" },
   { value: "deal", label: "Deal" },
   { value: "asset", label: "Asset" },

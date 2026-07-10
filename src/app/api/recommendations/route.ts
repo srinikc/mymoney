@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     const goals = await prisma.goal.findMany({
       where: { ...profileFilter, status: "active" },
     })
-    const plans = await prisma.plan.findMany({
+    const allGoals = await prisma.goal.findMany({
       where: { ...profileFilter, status: "active" },
     })
 
@@ -216,7 +216,7 @@ export async function GET(request: NextRequest) {
 
     // Insurance
     const hasInsuranceGoal = goals.some((g) => g.category?.toLowerCase().includes("insurance"))
-    const hasInsurancePlan = plans.some((p) => p.category?.toLowerCase().includes("insurance") || p.name?.toLowerCase().includes("insurance"))
+    const hasInsurancePlan = allGoals.some((g) => g.category?.toLowerCase().includes("insurance") || g.type?.toLowerCase().includes("insurance") || g.name?.toLowerCase().includes("insurance"))
     if (!hasInsuranceGoal && !hasInsurancePlan) {
       recommendations.push({
         id: nextId(),

@@ -82,7 +82,7 @@ async function main() {
 
   for (const table of ["User", "Profile", "FeatureFlag", "Account", "Session", "VerificationToken",
     "Category", "MerchantMapping", "ImportSession", "Expense", "Budget", "Goal",
-    "Investment", "Plan", "Reminder", "Deal", "Asset", "Liability",
+    "Investment", "Reminder", "Deal", "Asset", "Liability",
     "Subscription", "AlertRule", "NotificationConfig", "AuditLog"]) {
     console.log(`Migrating ${table}...`)
     await migrateTable(table)

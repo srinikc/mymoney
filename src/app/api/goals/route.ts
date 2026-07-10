@@ -1,14 +1,28 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { auth } from "@/lib/auth"
 import { validateBody } from "@/shared/validate"
-import { GoalCreateSchema, GoalUpdateSchema } from "@/shared/validation"
+import { GoalCreateSchema } from "@/shared/validation"
 
 export async function GET() {
-  const goals = await prisma.goal.findMany({ orderBy: { createdAt: "desc" } })
+  const session = await auth()
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const goals = await prisma.goal.findMany({
+    where: { profileId: session.user.profileId },
+    orderBy: { createdAt: "desc" },
+  })
   return NextResponse.json(goals)
 }
 
 export async function POST(req: Request) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   const { data: body, error } = await validateBody(req, GoalCreateSchema)
   if (error) return error
   const goal = await prisma.goal.create({
@@ -18,35 +32,15 @@ export async function POST(req: Request) {
       currentAmount: Number(body.currentAmount || "0"),
       deadline: body.deadline ? new Date(body.deadline) : null,
       category: body.category || "savings",
+      term: body.term || "medium",
+      priority: body.priority || "P1",
+      type: body.type || "Other",
+      description: body.description || null,
+      monthlyContribution: body.monthlyContribution ? Number(body.monthlyContribution) : null,
       notes: body.notes || null,
       status: body.status || "active",
+      profileId: session.user.profileId,
     },
   })
   return NextResponse.json(goal, { status: 201 })
-}
-
-export async function PUT(req: Request) {
-  const { data: body, error } = await validateBody(req, GoalUpdateSchema)
-  if (error) return error
-  const goal = await prisma.goal.update({
-    where: { id: Number(body.id) },
-    data: {
-      name: body.name,
-      targetAmount: body.targetAmount === undefined ? undefined : Number(body.targetAmount),
-      currentAmount: body.currentAmount === undefined ? undefined : Number(body.currentAmount),
-      deadline: body.deadline === undefined ? undefined : (body.deadline ? new Date(body.deadline) : null),
-      category: body.category,
-      notes: body.notes,
-      status: body.status,
-    },
-  })
-  return NextResponse.json(goal)
-}
-
-export async function DELETE(req: Request) {
-  const { searchParams } = new URL(req.url)
-  const id = searchParams.get("id")
-  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })
-  await prisma.goal.delete({ where: { id: Number.parseInt(id) } })
-  return NextResponse.json({ success: true })
 }

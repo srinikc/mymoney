@@ -5,7 +5,6 @@ import {
   BudgetCreateSchema,
   GoalCreateSchema,
   InvestmentCreateSchema,
-  PlanCreateSchema,
   MerchantBatchSchema,
 } from "@/shared/validation"
 
@@ -130,16 +129,6 @@ describe("InvestmentCreateSchema", () => {
       name: "HDFC Mid-cap",
       amount: "5000",
       purchaseDate: "2024-01-15",
-    })
-    expect(result.success).toBe(true)
-  })
-})
-
-describe("PlanCreateSchema", () => {
-  it("should accept valid plan data", () => {
-    const result = PlanCreateSchema.safeParse({
-      name: "Buy a Car",
-      amountNeeded: "500000",
     })
     expect(result.success).toBe(true)
   })

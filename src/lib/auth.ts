@@ -88,7 +88,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             token.profileId = profile.id
             token.profileName = profile.name
           }
-        } catch {}
+        } catch {
+          // profile may not exist yet
+        }
       }
       return token
     },

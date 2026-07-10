@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma"
-import { cookies } from "next/headers"
 
 /**
  * Get the authenticated user by reading the authjs.session-token cookie

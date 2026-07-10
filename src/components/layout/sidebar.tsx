@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
@@ -79,6 +80,7 @@ const adminItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
   const {
     sidebarOpen,
     toggleSidebar,
@@ -299,18 +301,20 @@ export function Sidebar() {
           )
         })}
 
-        {/* Admin Section */}
-        {sidebarOpen && (
-          <div className="pt-4">
-            <div className="flex items-center gap-2 px-3 py-1.5">
-              <Shield className="h-4 w-4 text-amber-400" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400/70">
-                Admin
-              </span>
+        {/* Admin Section — only visible to admin users */}
+        {(session?.user as any)?.role === "admin" && (
+          <>
+          {sidebarOpen && (
+            <div className="pt-4">
+              <div className="flex items-center gap-2 px-3 py-1.5">
+                <Shield className="h-4 w-4 text-amber-400" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400/70">
+                  Admin
+                </span>
+              </div>
             </div>
-          </div>
-        )}
-        {adminItems.map((item) => {
+          )}
+          {adminItems.map((item) => {
           const Icon = item.icon
           const active = isActive(item.href)
           return (
@@ -331,6 +335,8 @@ export function Sidebar() {
             </Link>
           )
         })}
+          </>
+        )}
       </nav>
 
       <div className={cn("border-t border-white/10 p-4 text-xs text-white/40", !sidebarOpen && "p-2 text-center")}>

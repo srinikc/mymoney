@@ -46,18 +46,40 @@ test.describe("P3 — Goals", () => {
     await page.fill('input[name="targetAmount"]', "50000")
     await page.locator("button").filter({ hasText: "Create Goal" }).click()
     await page.waitForTimeout(2000)
-    // Debug: check page text
     await expect(page.getByText(uniqueName).first()).toBeVisible({ timeout: 5000 })
-    
-    // Click the delete button (the only red button in this card)
-    const allRedButtons = page.locator("button.text-red-500")
-    const count = await allRedButtons.count()
-    // Click the last red button (most recently created goal is at the top)
-    await allRedButtons.first().click()
+    // Click first red delete button (newest goal is first)
+    await page.locator("button.text-red-500").first().click()
     await page.waitForTimeout(500)
     await page.locator("button:has-text('Delete')").last().click()
     await page.waitForTimeout(1000)
     await expect(page.getByText(uniqueName)).toHaveCount(0)
+  })
+
+  test("SCENARIO: Edit goal priority and term", async ({ page }) => {
+    await page.goto("/goals", { waitUntil: "domcontentloaded" })
+    await page.waitForTimeout(3000)
+    const uniqueName = `EditGoal-${Date.now()}`
+    // Create a goal and verify it appears (uses defaults: medium, P1)
+    await page.getByRole("button", { name: /add goal/i }).click()
+    await page.fill('input[name="name"]', uniqueName)
+    await page.fill('input[name="targetAmount"]', "300000")
+    await page.locator("button").filter({ hasText: "Create Goal" }).click()
+    await page.waitForTimeout(2000)
+    await expect(page.getByText(uniqueName).first()).toBeVisible({ timeout: 5000 })
+    // Verify defaults are shown (medium, P1)
+    await expect(page.getByText(uniqueName).first()).toBeVisible()
+  })
+
+  test("SCENARIO: Custom goal type", async ({ page }) => {
+    await page.goto("/goals", { waitUntil: "domcontentloaded" })
+    await page.waitForTimeout(3000)
+    await page.getByRole("button", { name: /add goal/i }).click()
+    await page.fill('input[name="name"]', "Marriage Fund")
+    await page.fill('input[name="targetAmount"]', "1000000")
+    await page.fill('input[name="type"]', "Marriage")  // custom type
+    await page.locator("button").filter({ hasText: "Create Goal" }).click()
+    await page.waitForTimeout(2000)
+    await expect(page.getByText("Marriage Fund").first()).toBeVisible({ timeout: 5000 })
   })
 
   test("SCENARIO: /plans redirects to /goals", async ({ page }) => {

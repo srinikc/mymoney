@@ -1,0 +1,14 @@
+# Full checks before push to remote
+echo "Running pre-push checks..."
+
+# 1. Build
+npm run build 2>/dev/null || { echo "❌ Build failed"; exit 1; }
+echo "✅ Build passed"
+
+# 2. Unit tests
+npm test 2>/dev/null || { echo "❌ Unit tests failed"; exit 1; }
+echo "✅ Unit tests passed"
+
+echo ""
+echo "NOTE: E2E tests skipped in pre-push (too slow). Run manually: npx playwright test"
+echo "To override (PO only): git push --no-verify"

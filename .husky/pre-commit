@@ -1,1 +1,4 @@
-npx next lint --max-warnings 200 --no-cache 2>&1
+# Fast checks on every commit
+npx next lint --max-warnings 200 2>&1
+echo ""
+echo "To override (PO only): git commit --no-verify"

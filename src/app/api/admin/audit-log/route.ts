@@ -15,7 +15,7 @@ import { getSessionFromCookie } from "@/lib/auth"
  *   to       - date range end (ISO string)
  */
 export async function GET(req: Request) {
-  const session = await getSessionFromCookie()
+  const session = await getSessionFromCookie(req.headers.get("cookie"))
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

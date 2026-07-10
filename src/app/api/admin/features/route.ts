@@ -7,8 +7,8 @@ import { FeatureFlagCreateSchema } from "@/shared/validation"
 /**
  * GET /api/admin/features — List all feature flags (admin-only)
  */
-export async function GET() {
-  const session = await getSessionFromCookie()
+export async function GET(req: Request) {
+  const session = await getSessionFromCookie(req.headers.get("cookie"))
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
@@ -32,7 +32,7 @@ export async function GET() {
  * POST /api/admin/features — Create a new feature flag (admin-only)
  */
 export async function POST(req: Request) {
-  const session = await getSessionFromCookie()
+  const session = await getSessionFromCookie(req.headers.get("cookie"))
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

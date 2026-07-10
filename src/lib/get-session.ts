@@ -13,20 +13,14 @@ export async function getSessionFromCookie(cookieHeader?: string | null) {
   let sessionCookie: string | undefined
 
   if (cookieHeader) {
-    // Parse cookies from header string (used in Edge middleware)
+    // Parse cookies from header string
     sessionCookie = cookieHeader
       .split(";").map((c) => c.trim())
       .find((c) => c.startsWith("authjs.session-token="))
       ?.split("=")[1]
-  } else {
-    // Read from next/headers (used in Node.js API routes)
-    try {
-      const cookieJar = await cookies()
-      sessionCookie = cookieJar.get("authjs.session-token")?.value
-    } catch {
-      return null
-    }
   }
+
+  if (!sessionCookie) return null
 
   try {
     const session = await prisma.session.findUnique({

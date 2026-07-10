@@ -7,7 +7,7 @@ import { formatResponse } from "@/lib/response-formatter"
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSessionFromCookie()
+    const session = await getSessionFromCookie(req.headers.get("cookie"))
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }

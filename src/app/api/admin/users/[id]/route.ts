@@ -8,10 +8,10 @@ import { UserUpdateSchema } from "@/shared/validation"
  * GET /api/admin/users/:id — Get user detail with profiles
  */
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSessionFromCookie()
+  const session = await getSessionFromCookie(req.headers.get("cookie"))
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
@@ -68,7 +68,7 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSessionFromCookie()
+  const session = await getSessionFromCookie(req.headers.get("cookie"))
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
@@ -144,10 +144,10 @@ export async function PATCH(
  * DELETE /api/admin/users/:id — Delete user (admin-only)
  */
 export async function DELETE(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSessionFromCookie()
+  const session = await getSessionFromCookie(req.headers.get("cookie"))
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

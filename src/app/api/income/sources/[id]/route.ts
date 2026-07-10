@@ -4,9 +4,9 @@ import { getSessionFromCookie } from "@/lib/get-session"
 import { validateBody } from "@/shared/validate"
 import { IncomeSourceUpdateSchema } from "@/shared/income-validation"
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await getSessionFromCookie()
+    const session = await getSessionFromCookie(req.headers.get("cookie"))
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }

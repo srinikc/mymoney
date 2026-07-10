@@ -6,10 +6,10 @@ import { getSessionFromCookie } from "@/lib/auth"
  * DELETE /api/admin/profiles/:id — Delete profile (admin-only)
  */
 export async function DELETE(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSessionFromCookie()
+  const session = await getSessionFromCookie(req.headers.get("cookie"))
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

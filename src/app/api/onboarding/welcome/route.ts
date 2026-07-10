@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { getSessionFromCookie } from "@/lib/auth"
 import { sendWelcomeEmail } from "@/lib/email"
 
-export async function POST() {
-  const session = await getSessionFromCookie()
+export async function POST(req: Request) {
+  const session = await getSessionFromCookie(req.headers.get("cookie"))
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

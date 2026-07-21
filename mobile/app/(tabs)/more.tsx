@@ -31,6 +31,7 @@ const MENU_SECTIONS: MenuSection[] = [
   {
     title: 'Assets & Liabilities',
     items: [
+      { title: 'Bank Accounts', icon: 'business-outline', route: '/bank-accounts' },
       { title: 'Assets', icon: 'diamond-outline', route: '/assets' },
       { title: 'Loans', icon: 'card-outline', route: '/loans' },
     ],

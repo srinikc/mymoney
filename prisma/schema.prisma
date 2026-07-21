@@ -51,6 +51,8 @@ model Profile {
   taxDocuments TaxDocument[]
   itrRecords   ITRRecord[]
   expenseLinks ExpenseLink[]
+  bankAccounts BankAccount[]
+  fixedDeposits FixedDeposit[]
 }
 
 model Account {
@@ -581,4 +583,57 @@ model UserSetting {
 
   @@unique([userId, key])
   @@index([userId])
+}
+
+// -- Bank Account -------------------------------------------------------
+
+model BankAccount {
+  id            Int      @id @default(autoincrement())
+  profileId     Int?
+  profile       Profile? @relation(fields: [profileId], references: [id])
+
+  name          String   // e.g., "Salary Account"
+  bankName      String   // e.g., "HDFC Bank"
+  accountNumber String?  // masked: "XXXX1234"
+  type          String   @default("savings") // savings | current | salary | credit_card | loan
+  ifscCode      String?
+  branch        String?
+  balance       Float    @default(0)
+  currency      String   @default("INR")
+  source        String   @default("manual") // manual | aa (future)
+  isActive      Boolean  @default(true)
+  notes         String?
+
+  fixedDeposits FixedDeposit[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([bankName])
+}
+
+model FixedDeposit {
+  id            Int      @id @default(autoincrement())
+  profileId     Int?
+  profile       Profile? @relation(fields: [profileId], references: [id])
+
+  bankAccountId Int
+  bankAccount   BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+
+  fdNumber      String?
+  principal     Float
+  interestRate  Float    @default(0)
+  startDate     DateTime?
+  maturityDate  DateTime?
+  maturityAmount Float?
+  status        String   @default("active") // active | matured | closed
+  notes         String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([bankAccountId])
+  @@index([status])
 }

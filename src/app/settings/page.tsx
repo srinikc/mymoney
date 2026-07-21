@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Bell, Shield, Plug, Mail, Key, Server, Smartphone, FileText, ArrowLeft } from "lucide-react"
+import { Bell, Shield, Plug, Mail, Key, Server, Smartphone, FileText, Building2, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
 export default function SettingsPage() {
@@ -38,6 +38,20 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">View and override env config: DB URL, Auth secret, Google OAuth, App URL</p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/settings/bank-accounts">
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Building2 className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">Bank Accounts</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Add and manage your bank accounts, set balances, and track FDs</p>
             </CardContent>
           </Card>
         </Link>

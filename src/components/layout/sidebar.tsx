@@ -51,6 +51,7 @@ const planningItems = [
 
 const assetsItems = [
   { href: "/assets", label: "Assets", icon: Building2 },
+  { href: "/bank-accounts", label: "Bank Accounts", icon: Landmark },
   { href: "/net-worth", label: "Net Worth", icon: WalletCards },
   { href: "/loans", label: "Loans", icon: Landmark },
 ]

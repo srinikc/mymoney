@@ -105,6 +105,10 @@ export default function RootLayout() {
               options={{ presentation: 'card' }}
             />
             <Stack.Screen
+              name="bank-accounts"
+              options={{ presentation: 'card' }}
+            />
+            <Stack.Screen
               name="insurance"
               options={{ presentation: 'card' }}
             />

@@ -23,7 +23,7 @@ export async function getSession() {
         },
       }
     }
-  } catch {}
+  } catch { /* mobile header not present */ }
 
   return null
 }

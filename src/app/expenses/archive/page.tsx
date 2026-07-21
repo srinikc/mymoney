@@ -44,7 +44,7 @@ export default function ArchivePage() {
           loadArchived()
         }
       }
-    } catch {}
+    } catch { /* auto-purge failed silently */ }
   }
 
   const restore = async (id: number) => {

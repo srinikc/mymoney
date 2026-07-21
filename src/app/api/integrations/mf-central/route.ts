@@ -7,7 +7,7 @@ const MAX_SIZE = 15 * 1024 * 1024 // 15MB
 export async function POST(req: Request) {
   try {
     const formData = await req.formData()
-    const file = formData.get("file") as File
+    const file = (formData as any).get("file") as File
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       }, { status: 400 })
     }
 
-    const confirm = formData.get("confirm") === "true"
+    const confirm = (formData as any).get("confirm") === "true"
 
     if (!confirm) {
       return NextResponse.json({

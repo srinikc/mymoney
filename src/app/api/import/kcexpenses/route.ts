@@ -117,9 +117,9 @@ interface ParsedExpense {
 export async function POST(req: Request) {
   try {
     const formData = await req.formData()
-    const file = formData.get("file") as File
-    const confirm = formData.get("confirm") === "true"
-    const createMappings = formData.get("createMappings") === "true"
+    const file = (formData as any).get("file") as File
+    const confirm = (formData as any).get("confirm") === "true"
+    const createMappings = (formData as any).get("createMappings") === "true"
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })

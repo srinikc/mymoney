@@ -24,7 +24,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: "Income source not found" }, { status: 404 })
     }
     return NextResponse.json(source)
-  } catch (error) {
+    } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
@@ -82,7 +82,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       include: { category: true },
     })
     return NextResponse.json(source)
-  } catch (error) {
+    } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
@@ -104,7 +104,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     if (profileId) deleteWhere.profileId = profileId
     await prisma.incomeSource.delete({ where: deleteWhere })
     return NextResponse.json({ success: true })
-  } catch (error) {
+    } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

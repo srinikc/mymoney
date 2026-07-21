@@ -1,0 +1,557 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  useColorScheme,
+  RefreshControl,
+  TouchableOpacity,
+  Animated,
+  Dimensions,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useAuthStore } from '../../store/auth';
+import { Colors } from '../../constants/Colors';
+import { formatCurrency, formatDate, EXPENSE_CATEGORIES } from '../../utils/format';
+import api from '../../api/client';
+
+const { width } = Dimensions.get('window');
+
+interface QuickStat {
+  label: string;
+  amount: number;
+  type: 'income' | 'expense' | 'saved';
+}
+
+export default function HomeScreen() {
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const router = useRouter();
+  const { user } = useAuthStore();
+
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [balance, setBalance] = useState(0);
+  const [totalIncome, setTotalIncome] = useState(0);
+  const [totalExpenses, setTotalExpenses] = useState(0);
+  const [recentExpenses, setRecentExpenses] = useState<any[]>([]);
+  const [healthScore, setHealthScore] = useState<number | null>(null);
+  const [quickStats, setQuickStats] = useState<QuickStat[]>([]);
+  const balanceScaleAnim = useRef(new Animated.Value(0)).current;
+
+  const fetchData = useCallback(async () => {
+    setError(null);
+    try {
+      const [insightsRes, healthRes, expensesRes] = await Promise.allSettled([
+        api.get('/api/insights'),
+        api.get('/api/health-score'),
+        api.get('/api/expenses', { params: { limit: 5 } }),
+      ]);
+
+      if (insightsRes.status === 'fulfilled') {
+        const d = insightsRes.value.data;
+        setTotalIncome(d.totalIncome || d.income || 0);
+        setTotalExpenses(d.totalExpenses || d.expenses || 0);
+        setBalance((d.totalIncome || d.income || 0) - (d.totalExpenses || d.expenses || 0));
+        setQuickStats([
+          { label: 'Spent Today', amount: d.spentToday || d.todayExpense || 0, type: 'expense' },
+          { label: 'Income MTD', amount: d.incomeMTD || d.totalIncome || 0, type: 'income' },
+          { label: 'Saved', amount: (d.totalIncome || d.income || 0) - (d.totalExpenses || d.expenses || 0), type: 'saved' },
+        ]);
+      }
+      if (insightsRes.status === 'rejected') {
+        if (!error) setError('Failed to load dashboard data');
+      }
+
+      if (healthRes.status === 'fulfilled') {
+        const h = healthRes.value.data;
+        setHealthScore(h.score || h.healthScore || null);
+      }
+
+      if (expensesRes.status === 'fulfilled') {
+        const e = expensesRes.value.data;
+        const list = Array.isArray(e?.expenses) ? e.expenses : Array.isArray(e) ? e : [];
+        setRecentExpenses(list.slice(0, 5));
+      }
+    } catch {
+      setError('Something went wrong');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    Animated.spring(balanceScaleAnim, {
+      toValue: 1,
+      friction: 8,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  }, [balance]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+  };
+
+  const getCategoryIcon = (cat: string) => {
+    const category = EXPENSE_CATEGORIES.find((c) => c.value === cat?.toLowerCase());
+    return category?.icon || 'ellipsis-horizontal';
+  };
+
+  const getName = () => {
+    if (user?.name) return user.name;
+    if (user?.email) return user.email.split('@')[0];
+    return 'User';
+  };
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.header, { backgroundColor: theme.surface }]}>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={[styles.greeting, { color: theme.textSecondary }]}>Good morning</Text>
+            <Text style={[styles.userName, { color: theme.text }]}>{getName()}</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.avatar, { backgroundColor: theme.primaryLight }]}
+            onPress={() => router.push('/more')}
+          >
+            <Ionicons name="person" size={22} color={theme.primary} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />
+        }
+      >
+        {error ? (
+          <View style={[styles.errorCard, { backgroundColor: theme.expenseLight }]}>
+            <Ionicons name="alert-circle" size={22} color={theme.expense} />
+            <Text style={[styles.errorText, { color: theme.expense }]}>{error}</Text>
+            <TouchableOpacity onPress={fetchData} style={styles.retryBtn}>
+              <Text style={[styles.retryText, { color: theme.expense }]}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {loading && !error ? (
+          <View style={styles.loadingContainer}>
+            {[1, 2, 3].map((i) => (
+              <View key={i} style={[styles.skeleton, { backgroundColor: theme.borderLight }]} />
+            ))}
+          </View>
+        ) : (
+          <>
+            <Animated.View
+              style={[
+                styles.balanceCard,
+                {
+                  backgroundColor: theme.primary,
+                  transform: [{ scale: balanceScaleAnim }],
+                },
+              ]}
+            >
+              <Text style={styles.balanceLabel}>Total Balance</Text>
+              <Text style={styles.balanceAmount}>{formatCurrency(balance)}</Text>
+              <View style={styles.balanceRow}>
+                <View style={styles.balanceItem}>
+                  <Ionicons name="arrow-down-circle" size={14} color="rgba(255,255,255,0.7)" />
+                  <Text style={styles.balanceItemLabel}>Income</Text>
+                  <Text style={styles.balanceItemValue}>{formatCurrency(totalIncome)}</Text>
+                </View>
+                <View style={styles.balanceDivider} />
+                <View style={styles.balanceItem}>
+                  <Ionicons name="arrow-up-circle" size={14} color="rgba(255,255,255,0.7)" />
+                  <Text style={styles.balanceItemLabel}>Expenses</Text>
+                  <Text style={styles.balanceItemValue}>{formatCurrency(totalExpenses)}</Text>
+                </View>
+              </View>
+            </Animated.View>
+
+            <View style={styles.statsRow}>
+              {quickStats.map((stat, i) => (
+                <View key={i} style={[styles.statCard, { backgroundColor: theme.surface }]}>
+                  <Text style={[styles.statLabel, { color: theme.textSecondary }]}>{stat.label}</Text>
+                  <Text
+                    style={[
+                      styles.statValue,
+                      {
+                        color:
+                          stat.type === 'income'
+                            ? theme.income
+                            : stat.type === 'expense'
+                            ? theme.expense
+                            : theme.text,
+                      },
+                    ]}
+                  >
+                    {formatCurrency(stat.amount)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            {healthScore !== null && (
+              <View style={[styles.healthCard, { backgroundColor: theme.surface }]}>
+                <View style={styles.healthHeader}>
+                  <Text style={[styles.sectionTitle, { color: theme.text }]}>Financial Health</Text>
+                  <View
+                    style={[
+                      styles.healthBadge,
+                      {
+                        backgroundColor:
+                          healthScore >= 70 ? theme.incomeLight : healthScore >= 40 ? theme.warningLight : theme.expenseLight,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.healthScore,
+                        {
+                          color:
+                            healthScore >= 70 ? theme.income : healthScore >= 40 ? theme.warning : theme.expense,
+                        },
+                      ]}
+                    >
+                      {healthScore}/100
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.healthBarBg}>
+                  <View
+                    style={[
+                      styles.healthBarFill,
+                      {
+                        width: `${Math.min(100, Math.max(0, healthScore))}%`,
+                        backgroundColor:
+                          healthScore >= 70 ? theme.income : healthScore >= 40 ? theme.warning : theme.expense,
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+            )}
+
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Transactions</Text>
+              <TouchableOpacity onPress={() => router.push('/list')}>
+                <Text style={[styles.seeAll, { color: theme.primary }]}>See All</Text>
+              </TouchableOpacity>
+            </View>
+
+            {recentExpenses.length === 0 ? (
+              <View style={[styles.emptyCard, { backgroundColor: theme.surface }]}>
+                <Ionicons name="receipt-outline" size={40} color={theme.textTertiary} />
+                <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                  No recent transactions
+                </Text>
+              </View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentScroll}>
+                {recentExpenses.map((item, index) => (
+                  <TouchableOpacity
+                    key={item.id || index}
+                    style={[styles.recentCard, { backgroundColor: theme.surface }]}
+                    onPress={() => router.push('/list')}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={[
+                        styles.recentIcon,
+                        {
+                          backgroundColor:
+                            item.type === 'income' || item.amount > 0
+                              ? theme.incomeLight
+                              : theme.expenseLight,
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={getCategoryIcon(item.category)}
+                        size={18}
+                        color={item.type === 'income' || item.amount > 0 ? theme.income : theme.expense}
+                      />
+                    </View>
+                    <Text style={[styles.recentName, { color: theme.text }]} numberOfLines={1}>
+                      {item.name || item.description || item.category || 'Transaction'}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.recentAmount,
+                        {
+                          color:
+                            item.type === 'income' || item.amount > 0 ? theme.income : theme.expense,
+                        },
+                      ]}
+                    >
+                      {item.type === 'income' || item.amount > 0 ? '+' : ''}
+                      {formatCurrency(Math.abs(item.amount || 0))}
+                    </Text>
+                    <Text style={[styles.recentDate, { color: theme.textTertiary }]}>
+                      {formatDate(item.date || item.createdAt)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    paddingTop: 56,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  greeting: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  userName: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  errorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 16,
+    gap: 10,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  retryBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  retryText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  loadingContainer: {
+    gap: 12,
+  },
+  skeleton: {
+    height: 80,
+    borderRadius: 14,
+  },
+  balanceCard: {
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 16,
+  },
+  balanceLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  balanceAmount: {
+    color: '#FFFFFF',
+    fontSize: 36,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  balanceRow: {
+    flexDirection: 'row',
+    marginTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.15)',
+    paddingTop: 16,
+  },
+  balanceItem: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 4,
+  },
+  balanceDivider: {
+    width: 1,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    marginHorizontal: 16,
+  },
+  balanceItemLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  balanceItemValue: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+    width: '100%',
+    marginTop: 2,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  statCard: {
+    flex: 1,
+    borderRadius: 14,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  healthCard: {
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  healthHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  healthBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  healthScore: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  healthBarBg: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    overflow: 'hidden',
+  },
+  healthBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  seeAll: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptyCard: {
+    borderRadius: 14,
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  emptyText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  recentScroll: {
+    marginBottom: 8,
+  },
+  recentCard: {
+    width: 160,
+    borderRadius: 14,
+    padding: 14,
+    marginRight: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  recentIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  recentName: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  recentAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  recentDate: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+});

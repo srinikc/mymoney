@@ -410,7 +410,7 @@ export default function ExpensesPage() {
         try {
           listRes = await fetch("/api/drive/list")
           if (listRes.ok) data = await listRes.json()
-        } catch {}
+        } catch { /* drive list failed */ }
         const files: { id: string; name: string }[] = data?.files || []
         const gpayFiles = files.filter((f) => f.name === "MyActivity.html" || f.name.endsWith(".zip"))
         const unimported = gpayFiles.filter((f) => !knownGpayFilesRef.current.has(f.id))
@@ -491,7 +491,7 @@ export default function ExpensesPage() {
         lastKnownCount = knownGpayFilesRef.current.size
         lastMatchCount = gpayFiles.length
       }
-    } catch {}
+    } catch { /* gpay poll failed */ }
 
     if (gpayDrivePollRef.current) clearInterval(gpayDrivePollRef.current)
 
@@ -514,7 +514,7 @@ export default function ExpensesPage() {
         }
         lastKnownCount = knownGpayFilesRef.current.size
         lastMatchCount = gpayFiles.length
-      } catch {}
+      } catch { /* gpay interval poll failed */ }
     }, 15000)
 
     gpayTimeoutRef.current = setTimeout(() => {

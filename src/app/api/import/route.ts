@@ -65,7 +65,7 @@ async function upsertExpense(date: Date, amount: number, vendor: string, categor
 export async function POST(req: Request) {
   try {
     const formData = await req.formData()
-    const file = formData.get("file") as File
+    const file = (formData as any).get("file") as File
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })

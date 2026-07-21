@@ -78,7 +78,7 @@ function parseGrowwTransactionSheet(rows: Record<string, unknown>[]): {
 export async function POST(req: Request) {
   try {
     const formData = await req.formData()
-    const file = formData.get("file") as File
+    const file = (formData as any).get("file") as File
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
@@ -99,8 +99,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Sheet is empty" }, { status: 400 })
     }
 
-    const confirm = formData.get("confirm") === "true"
-    const importType = String(formData.get("type") || "holdings").toLowerCase()
+    const confirm = (formData as any).get("confirm") === "true"
+    const importType = String((formData as any).get("type") || "holdings").toLowerCase()
 
     // Auto-detect import type
     const headers = Object.keys(rows[0]).map((h) => h.toLowerCase())

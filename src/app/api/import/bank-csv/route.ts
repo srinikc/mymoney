@@ -32,8 +32,8 @@ export async function POST(req: Request) {
     }
 
     // Parse confirm and bankAccount from form
-    const confirm = formData.get("confirm") === "true"
-    const bankAccount = String(formData.get("bankAccount") || "").trim()
+    const confirm = (formData as any).get("confirm") === "true"
+    const bankAccount = String((formData as any).get("bankAccount") || "").trim()
 
     // If preview mode, return parsed rows without importing
     if (!confirm) {

@@ -16,6 +16,7 @@ import { useAuthStore } from '../../store/auth';
 import { Colors } from '../../constants/Colors';
 import { formatCurrency, formatDate, EXPENSE_CATEGORIES } from '../../utils/format';
 import api from '../../api/client';
+import QuickCaptureModal from '../../components/QuickCaptureModal';
 
 const { width } = Dimensions.get('window');
 
@@ -101,6 +102,8 @@ export default function HomeScreen() {
     setRefreshing(true);
     fetchData();
   };
+
+  const [quickCaptureVisible, setQuickCaptureVisible] = useState(false);
 
   const getCategoryIcon = (cat: string) => {
     const category = EXPENSE_CATEGORIES.find((c) => c.value === cat?.toLowerCase());
@@ -311,6 +314,20 @@ export default function HomeScreen() {
           </>
         )}
       </ScrollView>
+
+      <TouchableOpacity
+        onPress={() => setQuickCaptureVisible(true)}
+        style={[styles.fab, { backgroundColor: theme.primary }]}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </TouchableOpacity>
+
+      <QuickCaptureModal
+        visible={quickCaptureVisible}
+        onClose={() => setQuickCaptureVisible(false)}
+        onSaved={() => fetchData()}
+      />
     </View>
   );
 }
@@ -553,5 +570,20 @@ const styles = StyleSheet.create({
   recentDate: {
     fontSize: 11,
     fontWeight: '500',
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
 });

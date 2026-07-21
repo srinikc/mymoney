@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Bell, Shield, Plug, Mail, Key, Server, Smartphone, ArrowLeft } from "lucide-react"
+import { Bell, Shield, Plug, Mail, Key, Server, Smartphone, FileText, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
 export default function SettingsPage() {
@@ -80,6 +80,20 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">Share your session with the mobile app to log in without re-entering credentials</p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/privacy">
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <FileText className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">Privacy Policy</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Required for Play Store listing. Describes data collection, storage, and third-party services.</p>
             </CardContent>
           </Card>
         </Link>

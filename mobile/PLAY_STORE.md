@@ -1,5 +1,26 @@
 # Play Store Submission Guide
 
+## Quick-Reference Checklist
+
+| # | Item | Status | When | Est. Time |
+|---|---|---|---|---|
+| 1 | Google Play Developer account ($25) | ⬜ Pre-submit | Register at play.google.com/console | 1 day |
+| 2 | Set live `API_URL` in eas.json | ⬜ Pre-submit | `production-android.env.API_URL` | 5 min |
+| 3 | Generate screenshots (4 phone + 2 tablet) | ⬜ Pre-submit | See instructions below | 30 min |
+| 4 | Create feature graphic (1024×500) | ⬜ Pre-submit | Canva / Figma | 15 min |
+| 5 | Generate Google service account key | ⬜ Pre-submit | Google Cloud Console → IAM → Service Accounts | 15 min |
+| 6 | Upload signing keystore to EAS | ⬜ Auto | First `eas build` handles it | Auto |
+| 7 | Run production build | ⬜ Step 1 | `eas build --platform android --profile production-android` | ~15 min |
+| 8 | Run EAS Submit | ⬜ Step 2 | `eas submit --platform android --profile production-android` | ~5 min |
+| 9 | Complete store listing (screenshots, desc) | ⬜ Step 3 | Google Play Console | 30 min |
+| 10 | Content rating questionnaire | ⬜ Step 4 | Google Play Console | 10 min |
+| 11 | Pricing & distribution (free/paid) | ⬜ Step 5 | Google Play Console | 10 min |
+| 12 | Review & publish | ⬜ Final | Google Play Console | 5 min |
+
+**After #1 (pay $25)**, the remaining steps take ~1-2 hours total.
+
+---
+
 ## Prerequisites
 - [ ] Google Play Developer account ($25 one-time fee) — https://play.google.com/console/signup
 - [ ] Service account JSON key for EAS Submit (generated from Google Cloud Console)
@@ -104,3 +125,16 @@ npx eas submit --platform android --profile production-android
 - **EAS Build fails:** Check `expo export --platform android` passes locally first
 - **API doesn't connect:** Ensure `API_URL` in eas.json points to your server
 - **App signing issues:** Expo manages keystore — don't lose the backup they provide
+
+## Current Configuration (as checked in)
+
+| File | Key | Current Value | Change Needed? |
+|---|---|---|---|
+| `app.json` | `android.package` | `com.srinikc.mymoney` | ⬜ Only if you change it |
+| `app.json` | `version` | `1.0.0` | ⬜ Bump on each release |
+| `app.json` | `android.versionCode` | `1` | ⬜ Increment on each release |
+| `eas.json` | `production-android.env.API_URL` | `https://mymoney.yourdomain.com` | ✅ **Set to your live server** |
+| `eas.json` | `submit.production-android.serviceAccountKeyPath` | `./google-service-account.json` | ✅ **Create this file** |
+| `eas.json` | `submit.production-ios.appleId` | `your-apple-id@example.com` | ⬜ Set when doing iOS release |
+| `eas.json` | `submit.production-ios.ascAppId` | `your-apple-app-id` | ⬜ Set when doing iOS release |
+| `eas.json` | `submit.production-ios.appleTeamId` | `your-apple-team-id` | ⬜ Set when doing iOS release |

@@ -11,10 +11,14 @@ import {
   useColorScheme,
   ActivityIndicator,
 } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { useAuthStore } from '../store/auth';
 import { Colors } from '../constants/Colors';
+import api, { TOKEN_KEY } from '../api/client';
 
 export default function LoginScreen() {
   const colorScheme = useColorScheme();
@@ -52,14 +56,44 @@ export default function LoginScreen() {
     setLoading(true);
     setLocalError(null);
     try {
-      // Set the cookie via the API client's default, then check auth
-      const { TOKEN_KEY } = await import('../../api/client');
-      const SecureStore = await import('expo-secure-store');
-      await SecureStore.default.setItemAsync(TOKEN_KEY, linkToken.trim());
-      const { default: store } = await import('../../store/auth');
-      await store.getState().checkAuth();
+      await SecureStore.setItemAsync(TOKEN_KEY, linkToken.trim());
+      await checkAuth();
+      router.replace('/');
     } catch (err: any) {
       setLocalError(err.message || 'Failed to link. Try copying the token again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    setLocalError(null);
+    try {
+      // Get the Google OAuth URL from the web app
+      const res = await api.get('/api/auth/mobile-google');
+      const authUrl = res.data.url;
+      if (!authUrl) throw new Error('No auth URL received');
+
+      // Open in system browser with redirect back to app
+      const redirectUrl = Linking.createURL('auth');
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
+
+      if (result.type === 'success' && result.url) {
+        const parsed = new URL(result.url);
+        const token = parsed.searchParams.get('token');
+        if (token) {
+          await SecureStore.setItemAsync(TOKEN_KEY, token);
+          await checkAuth();
+          router.replace('/');
+        } else {
+          // Token not in URL — user may have copied it manually
+          setShowLinkInput(true);
+          setLocalError('Google login successful! Paste the token from the website to link.');
+        }
+      }
+    } catch (err: any) {
+      setLocalError(err.message || 'Google login failed');
     } finally {
       setLoading(false);
     }
@@ -132,6 +166,22 @@ export default function LoginScreen() {
             </View>
           ) : null}
 
+          <TouchableOpacity
+            style={[styles.googleButton, { borderColor: theme.border }, loading && styles.loginButtonDisabled]}
+            onPress={handleGoogleLogin}
+            disabled={loading}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="logo-google" size={20} color={theme.text} />
+            <Text style={[styles.googleButtonText, { color: theme.text }]}>Continue with Google</Text>
+          </TouchableOpacity>
+
+          <View style={[styles.divider, { marginVertical: 16 }]}>
+            <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
+            <Text style={[styles.dividerText, { color: theme.textTertiary, marginHorizontal: 12 }]}>or</Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
+          </View>
+
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: theme.textSecondary }]}>Email</Text>
             <View style={[styles.inputWrapper, { borderColor: theme.border }]}>
@@ -187,16 +237,13 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          <View style={{ marginTop: 16, alignItems: 'center' }}>
-            <View style={styles.divider}><Text style={[styles.dividerText, { color: theme.textTertiary }]}>or</Text></View>
-            <TouchableOpacity
-              onPress={() => setShowLinkInput(!showLinkInput)}
-              style={styles.linkWebBtn}
-            >
-              <Ionicons name="link-outline" size={18} color={theme.primary} />
-              <Text style={[styles.linkWebText, { color: theme.primary }]}>Link with Web</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            onPress={() => setShowLinkInput(!showLinkInput)}
+            style={[styles.linkWebBtn, { marginTop: 12 }]}
+          >
+            <Ionicons name="link-outline" size={16} color={theme.primary} />
+            <Text style={[styles.linkWebText, { color: theme.primary }]}>Already logged in on web? Link with Web</Text>
+          </TouchableOpacity>
 
           {showLinkInput && (
             <View style={[styles.linkInputContainer, { backgroundColor: theme.surface }]}>
@@ -344,10 +391,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  divider: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  dividerText: { fontSize: 12, fontWeight: '500', paddingHorizontal: 12 },
-  linkWebBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
-  linkWebText: { fontSize: 14, fontWeight: '600' },
+  googleButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 14, borderRadius: 12, borderWidth: 1, marginBottom: 8 },
+  googleButtonText: { fontSize: 15, fontWeight: '600' },
+  divider: { flexDirection: 'row', alignItems: 'center' },
+  dividerText: { fontSize: 12, fontWeight: '500' },
+  linkWebBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 },
+  linkWebText: { fontSize: 13, fontWeight: '600' },
   linkInputContainer: { borderRadius: 14, padding: 16, marginTop: 12, gap: 12 },
   linkInputLabel: { fontSize: 12, fontWeight: '500', textAlign: 'center' },
   linkInput: { borderRadius: 10, padding: 12, fontSize: 14, borderWidth: 1 },

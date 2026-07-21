@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Stack, SplashScreen } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useColorScheme, View, ActivityIndicator, StyleSheet } from 'react-native';
+import { useColorScheme, View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { useAuthStore } from '../store/auth';
 import { Colors } from '../constants/Colors';
+import * as LocalAuthentication from 'expo-local-authentication';
+import api from '../api/client';
+import { registerForPushNotifications, setupNotificationHandler } from '../lib/notifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -12,6 +15,8 @@ export default function RootLayout() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const { isLoggedIn, isLoading, checkAuth } = useAuthStore();
   const [ready, setReady] = useState(false);
+  const [biometricDone, setBiometricDone] = useState(false);
+  const biometricPrompted = useRef(false);
 
   useEffect(() => {
     async function init() {
@@ -21,6 +26,36 @@ export default function RootLayout() {
     }
     init();
   }, []);
+
+  // Biometric lock check after auth is confirmed
+  useEffect(() => {
+    if (!ready || !isLoggedIn || biometricPrompted.current) return;
+    biometricPrompted.current = true;
+
+    api.get('/api/users/preferences').then(async (res) => {
+      if (res.data?.biometricLock) {
+        const compatible = await LocalAuthentication.hasHardwareAsync();
+        const enrolled = await LocalAuthentication.isEnrolledAsync();
+        if (compatible && enrolled) {
+          const result = await LocalAuthentication.authenticateAsync({
+            promptMessage: 'Unlock MyMoney',
+            fallbackLabel: 'Enter PIN',
+          });
+          if (!result.success) {
+            Alert.alert('Biometric Required', 'Please authenticate to continue using the app.');
+          }
+        }
+      }
+    }).catch(() => {});
+  }, [ready, isLoggedIn]);
+
+  // Push notification registration and handler setup
+  useEffect(() => {
+    setupNotificationHandler();
+    if (isLoggedIn) {
+      registerForPushNotifications();
+    }
+  }, [isLoggedIn]);
 
   if (!ready || isLoading) {
     return (

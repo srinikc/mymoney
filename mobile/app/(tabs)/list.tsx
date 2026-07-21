@@ -21,6 +21,7 @@ import {
   INCOME_CATEGORIES,
 } from '../../utils/format';
 import api from '../../api/client';
+import QuickCaptureModal from '../../components/QuickCaptureModal';
 
 const PAGE_SIZE = 20;
 
@@ -39,6 +40,7 @@ export default function ListScreen() {
   const [search, setSearch] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [quickCaptureVisible, setQuickCaptureVisible] = useState(false);
 
   const fetchTransactions = useCallback(
     async (pageNum: number = 1, append: boolean = false) => {
@@ -316,6 +318,20 @@ export default function ListScreen() {
           ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: theme.borderLight }} />}
         />
       )}
+
+      <TouchableOpacity
+        onPress={() => setQuickCaptureVisible(true)}
+        style={[styles.fab, { backgroundColor: theme.primary }]}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </TouchableOpacity>
+
+      <QuickCaptureModal
+        visible={quickCaptureVisible}
+        onClose={() => setQuickCaptureVisible(false)}
+        onSaved={() => { setPage(1); fetchData(1, true); }}
+      />
     </View>
   );
 }
@@ -465,5 +481,20 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
 });

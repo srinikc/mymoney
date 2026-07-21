@@ -27,6 +27,8 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [linkToken, setLinkToken] = useState('');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
@@ -44,6 +46,24 @@ export default function LoginScreen() {
       }),
     ]).start();
   });
+
+  const handleLinkWeb = async () => {
+    if (!linkToken.trim()) { setLocalError('Please paste a session token'); return; }
+    setLoading(true);
+    setLocalError(null);
+    try {
+      // Set the cookie via the API client's default, then check auth
+      const { TOKEN_KEY } = await import('../../api/client');
+      const SecureStore = await import('expo-secure-store');
+      await SecureStore.default.setItemAsync(TOKEN_KEY, linkToken.trim());
+      const { default: store } = await import('../../store/auth');
+      await store.getState().checkAuth();
+    } catch (err: any) {
+      setLocalError(err.message || 'Failed to link. Try copying the token again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     setLocalError(null);
@@ -166,6 +186,37 @@ export default function LoginScreen() {
               </>
             )}
           </TouchableOpacity>
+
+          <View style={{ marginTop: 16, alignItems: 'center' }}>
+            <View style={styles.divider}><Text style={[styles.dividerText, { color: theme.textTertiary }]}>or</Text></View>
+            <TouchableOpacity
+              onPress={() => setShowLinkInput(!showLinkInput)}
+              style={styles.linkWebBtn}
+            >
+              <Ionicons name="link-outline" size={18} color={theme.primary} />
+              <Text style={[styles.linkWebText, { color: theme.primary }]}>Link with Web</Text>
+            </TouchableOpacity>
+          </View>
+
+          {showLinkInput && (
+            <View style={[styles.linkInputContainer, { backgroundColor: theme.surface }]}>
+              <Text style={[styles.linkInputLabel, { color: theme.text }]}>Paste session token from web app (Settings > Mobile Session Link)</Text>
+              <TextInput
+                value={linkToken}
+                onChangeText={setLinkToken}
+                placeholder="Paste token here"
+                placeholderTextColor={theme.textTertiary}
+                style={[styles.linkInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                style={[styles.linkButton, { backgroundColor: theme.primary }]}
+                onPress={handleLinkWeb}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700' }}>Link & Sign In</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </Animated.View>
     </KeyboardAvoidingView>
@@ -293,4 +344,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+  divider: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  dividerText: { fontSize: 12, fontWeight: '500', paddingHorizontal: 12 },
+  linkWebBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
+  linkWebText: { fontSize: 14, fontWeight: '600' },
+  linkInputContainer: { borderRadius: 14, padding: 16, marginTop: 12, gap: 12 },
+  linkInputLabel: { fontSize: 12, fontWeight: '500', textAlign: 'center' },
+  linkInput: { borderRadius: 10, padding: 12, fontSize: 14, borderWidth: 1 },
+  linkButton: { padding: 14, borderRadius: 12, alignItems: 'center' },
 });

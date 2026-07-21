@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Bell, Shield, Plug, Mail, Key, Server, ArrowLeft } from "lucide-react"
+import { Bell, Shield, Plug, Mail, Key, Server, Smartphone, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
 export default function SettingsPage() {
@@ -66,6 +66,20 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">Zerodha, Sharekhan, Groww, MF Central, Google Drive, and GPay import setup</p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/settings/session-link">
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Smartphone className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">Mobile Session Link</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Share your session with the mobile app to log in without re-entering credentials</p>
             </CardContent>
           </Card>
         </Link>

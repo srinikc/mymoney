@@ -1,8 +1,9 @@
-import { ScrollView, View, Text, TouchableOpacity, StyleSheet, useColorScheme, Alert } from 'react-native';
+import { ScrollView, View, Text, TouchableOpacity, StyleSheet, useColorScheme, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/auth';
 import { Colors } from '../../constants/Colors';
+import api from '../../api/client';
 
 interface MenuItem {
   title: string;
@@ -43,12 +44,18 @@ const MENU_SECTIONS: MenuSection[] = [
     ],
   },
   {
+    title: 'Integrations',
+    items: [
+      { title: 'GPay Sync', icon: 'logo-google', route: 'gpay' },
+      { title: 'Gmail Import', icon: 'mail-outline', route: '/gmail-import' },
+    ],
+  },
+  {
     title: 'Tools',
     items: [
       { title: 'Reports', icon: 'document-text-outline', route: '/reports' },
       { title: 'Tax Summary', icon: 'calculator-outline', route: '/tax' },
       { title: 'Auto-Link', icon: 'link-outline', route: '/auto-link' },
-      { title: 'Gmail Import', icon: 'mail-outline', route: '/gmail-import' },
       { title: 'Settings', icon: 'settings-outline', route: '/settings' },
     ],
   },
@@ -59,6 +66,20 @@ export default function MoreScreen() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const [gpayLoading, setGpayLoading] = useState(false);
+
+  const handleGpaySync = async () => {
+    setGpayLoading(true);
+    try {
+      const res = await api.post('/api/refresh-gpay');
+      Alert.alert('GPay Sync', `Sync started! Job ID: ${res.data?.jobId || 'pending'}\nCheck back in a few minutes.`);
+    } catch {
+      // Fallback: use the import endpoint for manual file
+      Alert.alert('GPay Sync', 'Please export from Google Takeout and import via the web app.');
+    } finally {
+      setGpayLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to log out?', [
@@ -116,7 +137,7 @@ export default function MoreScreen() {
                     styles.menuItem,
                     iIdx < section.items.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.borderLight },
                   ]}
-                  onPress={() => router.push(item.route as any)}
+                  onPress={() => item.route === 'gpay' ? handleGpaySync() : router.push(item.route as any)}
                   activeOpacity={0.6}
                 >
                   <View style={[styles.menuIcon, { backgroundColor: theme.primaryLight }]}>

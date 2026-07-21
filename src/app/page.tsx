@@ -83,11 +83,18 @@ export default function DashboardPage() {
 
   const stats = [
     {
+      title: "Total Income",
+      value: insights.totalIncome,
+      icon: IndianRupee,
+      sub: `${formatCurrency(Math.round(insights.totalIncome / 12))}/mo`,
+      up: insights.totalIncome > insights.totalExpenses,
+    },
+    {
       title: "Total Expenses",
       value: insights.totalExpenses,
-      icon: IndianRupee,
+      icon: Wallet,
       change: `${insights.monthlyTrend.at(-1)?.amount > insights.monthlyTrend.at(-2)?.amount ? "+" : ""}${formatCurrency(insights.monthlyTrend.at(-1)?.amount - insights.monthlyTrend.at(-2)?.amount)}`,
-      up: insights.monthlyTrend.at(-1)?.amount > insights.monthlyTrend.at(-2)?.amount,
+      up: insights.monthlyTrend.at(-1)?.amount < insights.monthlyTrend.at(-2)?.amount,
     },
     {
       title: "This Month",

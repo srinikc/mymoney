@@ -22,6 +22,7 @@ model User {
   profiles  Profile[]
   accounts  Account[]
   sessions  Session[]
+  userSettings UserSetting[]
 }
 
 model Profile {
@@ -47,6 +48,9 @@ model Profile {
   incomeSources IncomeSource[]
   loans        Loan[]
   insurances   Insurance[]
+  taxDocuments TaxDocument[]
+  itrRecords   ITRRecord[]
+  expenseLinks ExpenseLink[]
 }
 
 model Account {
@@ -151,6 +155,7 @@ model Expense {
   deletedAt       DateTime?
   profileId       Int?
   profile         Profile?        @relation(fields: [profileId], references: [id])
+  expenseLinks    ExpenseLink[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -483,4 +488,97 @@ model Insurance {
   updatedAt    DateTime @updatedAt
 
   @@index([profileId])
+}
+
+// -- Tax Document ------------------------------------------------------
+
+model TaxDocument {
+  id        Int      @id @default(autoincrement())
+  profileId Int?
+  profile   Profile? @relation(fields: [profileId], references: [id])
+
+  type     String   // form16 | form26as | form10e | capital_gains | home_loan_cert | rent_receipts | donation_receipt | other
+  fy       String   // e.g., "2024-25"
+  label    String?
+
+  fileName String
+  filePath String
+  mimeType String
+  fileSize Int
+
+  metadata Json?
+  notes    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([fy])
+  @@index([type])
+}
+
+// -- ITR Record --------------------------------------------------------
+
+model ITRRecord {
+  id        Int      @id @default(autoincrement())
+  profileId Int?
+  profile   Profile? @relation(fields: [profileId], references: [id])
+
+  ay              String    // assessment year, e.g., "2025-26"
+  itrForm         String    // ITR-1 | ITR-2 | ITR-3 | ITR-4
+  status          String    // not_filed | in_progress | filed | verified | refund_received
+  filedDate       DateTime?
+  acknowledgmentNo String?
+  refundAmount    Float?
+  taxableIncome   Float?
+  taxLiability    Float?
+  tdsClaimed      Float?
+  uploadedCopy    String?   // file path
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([ay])
+}
+
+// -- Expense Link (Auto-Linking) ----------------------------------------
+
+model ExpenseLink {
+  id        Int      @id @default(autoincrement())
+  profileId Int?
+  profile   Profile? @relation(fields: [profileId], references: [id])
+
+  expenseId Int
+  expense   Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  linkType  String   // income | investment | insurance | loan
+  targetId  Int      // ID of the linked entity
+
+  autoDetected Boolean @default(true)
+  confirmed    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([expenseId])
+  @@index([linkType])
+  @@index([confirmed])
+}
+
+// -- User Settings ------------------------------------------------------
+
+model UserSetting {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key       String
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, key])
+  @@index([userId])
 }

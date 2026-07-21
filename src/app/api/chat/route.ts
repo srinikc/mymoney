@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
     const prompt = buildFinancialPrompt(message, context)
 
     // Query the LLM
-    const rawResponse = await queryLLM(prompt)
+    const rawResponse = await queryLLM(prompt, Number(session.user.id))
 
     // Format the response
     const formattedResponse = formatResponse(rawResponse)

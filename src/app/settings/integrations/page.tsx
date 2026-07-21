@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { AlertCircle, CheckCircle2, Link2, RefreshCw, LogOut, Building2, Wallet, Loader2 } from "lucide-react"
+import { AlertCircle, CheckCircle2, Link2, RefreshCw, LogOut, Building2, Wallet, Loader2, Upload, FileSpreadsheet, FileText } from "lucide-react"
 
 type BrokerStatus = {
   configured: boolean
@@ -186,7 +186,78 @@ export default function IntegrationsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      <FileUploadCard
+        name="Groww"
+        icon={<FileSpreadsheet className="h-5 w-5" />}
+        color="bg-emerald-500/10 text-emerald-500"
+        description="Upload holdings/transactions CSV or XLSX downloaded from Groww web/app."
+        endpoint="/api/integrations/groww"
+        accepted=".csv,.xlsx,.xls"
+      />
+
+      <FileUploadCard
+        name="MF Central"
+        icon={<FileText className="h-5 w-5" />}
+        color="bg-amber-500/10 text-amber-500"
+        description="Upload your Consolidated Account Statement (CAS) PDF from CAMS or KFintech."
+        endpoint="/api/integrations/mf-central"
+        accepted=".pdf"
+      />
     </div>
+  )
+}
+
+function FileUploadCard({
+  name, icon, color, description, endpoint, accepted,
+}: {
+  name: string; icon: React.ReactNode; color: string; description: string; endpoint: string; accepted: string
+}) {
+  const [uploading, setUploading] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setMessage(null)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const res = await fetch(endpoint, { method: "POST", body: formData })
+      const data = await res.json()
+      setMessage(data.message || `Imported successfully!`)
+    } catch {
+      setMessage("Upload failed")
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-3">
+          <div className={`rounded-lg p-2 ${color}`}>{icon}</div>
+          <CardTitle className="text-base">{name}</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-muted-foreground">{description}</p>
+        {message && (
+          <p className={`text-sm ${message.includes("failed") ? "text-red-500" : "text-emerald-500"}`}>
+            {message}
+          </p>
+        )}
+        <div>
+          <Button variant="outline" size="sm" disabled={uploading} className="relative">
+            {uploading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Upload className="mr-1.5 h-4 w-4" />}
+            {uploading ? "Uploading..." : "Upload File"}
+            <input type="file" accept={accepted} onChange={handleUpload} className="absolute inset-0 opacity-0 cursor-pointer" disabled={uploading} />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Bell, Shield, Plug, ArrowLeft } from "lucide-react"
+import { Bell, Shield, Plug, Mail, Key, Server, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
 export default function SettingsPage() {
@@ -14,33 +14,63 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <Bell className="h-5 w-5 text-primary" />
-              <CardTitle className="text-base">Notifications</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">Configure in-app, email, and WhatsApp alerts</p>
-            <Badge variant="outline" className="mt-2 text-xs">Coming soon</Badge>
-          </CardContent>
-        </Card>
+        <Link href="/settings/api-keys">
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Key className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">API Keys</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Configure LLM (OpenAI/Claude), Resend, Zerodha, and Sharekhan API keys</p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <Plug className="h-5 w-5 text-primary" />
-              <CardTitle className="text-base">Plugins</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">Manage import sources, bank parsers, and categorizers</p>
-            <Badge variant="outline" className="mt-2 text-xs">Coming soon</Badge>
-          </CardContent>
-        </Card>
+        <Link href="/settings/environment">
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Server className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">Environment</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">View and override env config: DB URL, Auth secret, Google OAuth, App URL</p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+        <Link href="/settings/gmail-parser">
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Mail className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">Gmail Parsing</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Customize keywords for detecting UPI, purchases, gold, silver, bank, and other financial emails</p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/settings/integrations">
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Plug className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">Integrations</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Zerodha, Sharekhan, Groww, MF Central, Google Drive, and GPay import setup</p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
           <CardHeader>
             <div className="flex items-center gap-3">
               <Shield className="h-5 w-5 text-primary" />
@@ -49,6 +79,19 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">Rate limiting, audit logs, and access control</p>
+            <Badge variant="outline" className="mt-2 text-xs">Coming soon</Badge>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <Bell className="h-5 w-5 text-primary" />
+              <CardTitle className="text-base">Notifications</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">Configure in-app, email, and WhatsApp alerts</p>
             <Badge variant="outline" className="mt-2 text-xs">Coming soon</Badge>
           </CardContent>
         </Card>

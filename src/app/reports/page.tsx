@@ -433,6 +433,7 @@ export default function ReportsPage() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="income">Income</TabsTrigger>
           <TabsTrigger value="expenses">Expenses</TabsTrigger>
           <TabsTrigger value="investments">Investments</TabsTrigger>
           <TabsTrigger value="goals">Goals & Plans</TabsTrigger>
@@ -441,7 +442,11 @@ export default function ReportsPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 mt-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Income</CardTitle></CardHeader>
+              <CardContent><p className="text-2xl font-bold text-emerald-500">{formatIndianCurrency(insights.totalIncome)}</p></CardContent>
+            </Card>
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Expenses</CardTitle></CardHeader>
               <CardContent><p className="text-2xl font-bold">{formatIndianCurrency(insights.totalExpenses)}</p></CardContent>
@@ -547,6 +552,84 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="income" className="space-y-6 mt-6">
+          {insights.totalIncome === 0 && insights.incomeTrend?.every((m) => m.amount === 0) ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                <p className="text-lg font-medium">No income data available</p>
+                <p className="text-sm mt-1">Add income sources to see income reports here.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Income</CardTitle></CardHeader>
+                  <CardContent><p className="text-2xl font-bold text-emerald-500">{formatIndianCurrency(insights.totalIncome)}</p></CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Monthly Average</CardTitle></CardHeader>
+                  <CardContent><p className="text-2xl font-bold">{formatIndianCurrency(Math.round(insights.totalIncome / 12))}</p></CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Net Balance</CardTitle></CardHeader>
+                  <CardContent>
+                    <p className={`text-2xl font-bold ${insights.totalIncome - insights.totalExpenses >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+                      {formatIndianCurrency(insights.totalIncome - insights.totalExpenses)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Income − Expenses</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Savings Rate</CardTitle></CardHeader>
+                  <CardContent>
+                    <p className={`text-2xl font-bold ${insights.totalIncome > 0 ? (insights.totalIncome - insights.totalExpenses) / insights.totalIncome * 100 >= 20 ? "text-emerald-500" : "text-amber-500" : "text-muted-foreground"}`}>
+                      {insights.totalIncome > 0 ? `${((insights.totalIncome - insights.totalExpenses) / insights.totalIncome * 100).toFixed(1)}%` : "N/A"}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+              <div className="grid gap-6 lg:grid-cols-2">
+                <Card>
+                  <CardHeader><CardTitle>Monthly Income Trend</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={insights.incomeTrend}>
+                          <XAxis dataKey="month" stroke="#888" fontSize={12} />
+                          <YAxis stroke="#888" fontSize={12} tickFormatter={(v) => `\u20B9${(v / 1000).toFixed(0)}k`} />
+                          <Tooltip content={<ChartTooltip formatter={(v) => formatIndianCurrency(v)} />} />
+                          <Bar dataKey="amount" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader><CardTitle>Income vs Expenses</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={insights.incomeTrend?.map((m, i) => ({
+                          month: m.month,
+                          Income: m.amount,
+                          Expenses: insights.monthlyTrend[i]?.amount || 0,
+                        }))}>
+                          <XAxis dataKey="month" stroke="#888" fontSize={12} />
+                          <YAxis stroke="#888" fontSize={12} tickFormatter={(v) => `\u20B9${(v / 1000).toFixed(0)}k`} />
+                          <Tooltip content={<ChartTooltip formatter={(v) => formatIndianCurrency(v)} />} />
+                          <Bar dataKey="Income" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          )}
         </TabsContent>
 
         <TabsContent value="expenses" className="space-y-6 mt-6">

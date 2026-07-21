@@ -34,6 +34,7 @@ export async function GET(request: Request) {
     goals,
     investments,
     recentExpenses,
+    incomeSources,
   ] = await Promise.all([
     yearParam
       ? prisma.expense.aggregate({ where: { date: yearFilter }, _sum: { amount: true } })
@@ -59,6 +60,7 @@ export async function GET(request: Request) {
       orderBy: { date: "desc" },
       take: 10,
     }),
+    prisma.incomeSource.findMany(),
   ])
 
   const totalExpenses = totalExpensesAgg._sum.amount || 0
@@ -71,6 +73,15 @@ export async function GET(request: Request) {
   const totalInvestments = investments.reduce((s, i) => s + i.amount, 0)
   const totalCurrentValue = investments.reduce((s, i) => s + i.currentValue, 0)
   const investmentReturns = totalCurrentValue - totalInvestments
+
+  let totalIncome = 0
+  for (const source of incomeSources) {
+    switch (source.type) {
+      case "monthly": totalIncome += source.amount * 12; break
+      case "yearly": case "onetime": totalIncome += source.amount; break
+      case "variable": totalIncome += (source.amount || 0) * 12; break
+    }
+  }
 
   const activeGoals = goals.length
   const goalProgress = goals.length > 0
@@ -107,9 +118,32 @@ export async function GET(request: Request) {
     })
   )
 
+  const incomeTrend = Array.from({ length: 12 }, (_, i) => {
+    const monthName = new Date(year, i, 1).toLocaleString("en-US", { month: "short" })
+    let amount = 0
+    for (const source of incomeSources) {
+      switch (source.type) {
+        case "monthly":
+          amount += source.amount
+          break
+        case "yearly":
+        case "onetime":
+          if (source.startDate) {
+            const sd = new Date(source.startDate)
+            if (sd.getMonth() === i && sd.getFullYear() === year) amount += source.amount
+          }
+          break
+        case "variable":
+          amount += source.amount || 0
+          break
+      }
+    }
+    return { month: monthName, amount }
+  })
+
   return NextResponse.json({
     totalExpenses,
-    totalIncome: 0,
+    totalIncome,
     monthlyExpense,
     monthlyBudget: totalBudget,
     budgetUtilization,
@@ -120,6 +154,7 @@ export async function GET(request: Request) {
     investmentReturns,
     topCategories,
     monthlyTrend,
+    incomeTrend,
     categoryBreakdown,
     recentExpenses,
   })

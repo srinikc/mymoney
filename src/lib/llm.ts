@@ -10,17 +10,37 @@ interface LLMConfig {
   model?: string
 }
 
-function getConfig(): LLMConfig {
-  return {
+async function getConfig(userId?: number): Promise<LLMConfig> {
+  const fallback = {
     provider: (process.env.LLM_PROVIDER as LLMProvider) || "openai",
     openaiApiKey: process.env.OPENAI_API_KEY,
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
     model: process.env.LLM_MODEL,
   }
+
+  if (!userId) return fallback
+
+  try {
+    const { getConfig: getDbConfig } = await import("./get-config")
+    const [provider, openaiKey, anthropicKey, model] = await Promise.all([
+      getDbConfig("LLM_PROVIDER", userId),
+      getDbConfig("OPENAI_API_KEY", userId),
+      getDbConfig("ANTHROPIC_API_KEY", userId),
+      getDbConfig("LLM_MODEL", userId),
+    ])
+    return {
+      provider: (provider || fallback.provider) as LLMProvider,
+      openaiApiKey: openaiKey || fallback.openaiApiKey,
+      anthropicApiKey: anthropicKey || fallback.anthropicApiKey,
+      model: model || fallback.model,
+    }
+  } catch {
+    return fallback
+  }
 }
 
-export async function queryLLM(prompt: string): Promise<string> {
-  const config = getConfig()
+export async function queryLLM(prompt: string, userId?: number): Promise<string> {
+  const config = await getConfig(userId)
 
   if (config.provider === "claude" && config.anthropicApiKey) {
     return queryClaude(prompt, config)
@@ -39,8 +59,9 @@ export async function queryLLMStream(
   prompt: string,
   onChunk: (chunk: string) => void,
   signal?: AbortSignal,
+  userId?: number,
 ): Promise<string> {
-  const config = getConfig()
+  const config = await getConfig(userId)
 
   if (config.provider === "claude" && config.anthropicApiKey) {
     return queryClaudeStream(prompt, onChunk, config, signal)

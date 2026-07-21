@@ -140,6 +140,7 @@ export interface DashboardInsights {
   yearlyExpense: number
   topCategories: { name: string; amount: number; percentage: number }[]
   monthlyTrend: { month: string; amount: number }[]
+  incomeTrend: { month: string; amount: number }[]
   categoryBreakdown: { name: string; amount: number; color: string }[]
   recentExpenses: Expense[]
 }

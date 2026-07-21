@@ -36,6 +36,8 @@ import {
   ShieldCheck,
   Percent,
   Plus,
+  Link2,
+  Mail,
 } from "lucide-react"
 import { useUIStore } from "@/lib/store"
 import { ProfileSwitcher } from "./profile-switcher"
@@ -101,7 +103,7 @@ export function Sidebar() {
     return pathname.startsWith(href)
   }
 
-  const isInExpenses = pathname.startsWith("/expenses")
+  const isInExpenses = pathname.startsWith("/expenses") || pathname === "/auto-link" || pathname === "/gmail-import"
   const isInIncome = pathname.startsWith("/income")
   const isInPlanning = (paths: { href: string }[]) => paths.some((p) => pathname.startsWith(p.href))
   const isInAssets = (paths: { href: string }[]) => paths.some((p) => pathname.startsWith(p.href))
@@ -235,6 +237,8 @@ export function Sidebar() {
             { href: "/expenses/merchants", label: "Merchants", icon: Store },
             { href: "/expenses/review-duplicates", label: "Review", icon: Flag },
             { href: "/expenses/archive", label: "Archive", icon: Archive },
+            { href: "/auto-link", label: "Auto-Link", icon: Link2 },
+            { href: "/gmail-import", label: "Gmail Import", icon: Mail },
           ]}
         />
 

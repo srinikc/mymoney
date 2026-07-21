@@ -1,5 +1,8 @@
 ﻿import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { jwtVerify } from "jose"
+
+const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET || "my-money-secret-change-in-production-abc123xyz")
 
 // ── Rate Limiter ───────────────────────────────────────────────────────────
 // Simple in-memory rate limiter using a sliding window.
@@ -75,7 +78,7 @@ const AUTH_PREFIX = "/api/auth"
 const AUDIT_LOG_PREFIX = "/audit-log"
 
 // ── Middleware ─────────────────────────────────────────────────────────────
-export default function middleware(req: NextRequest) {
+export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   // ── 1. Rate limiting ──────────────────────────────────────────────────
@@ -132,8 +135,20 @@ export default function middleware(req: NextRequest) {
   // ── 3. Authentication check ───────────────────────────────────────────
   const sessionCookie = req.cookies.get("authjs.session-token")?.value
   
-  // For API routes, let the route handler handle auth (returns 401 JSON)
+  // For API routes, let the route handler handle auth
+  // But inject mobile JWT session if Bearer token is present
   if (pathname.startsWith("/api/")) {
+    const bearer = req.headers.get("authorization")?.replace("Bearer ", "")
+    if (bearer) {
+      try {
+        const { payload } = await jwtVerify(bearer, SECRET)
+        const response = NextResponse.next()
+        response.headers.set("x-mobile-user", JSON.stringify(payload))
+        return response
+      } catch {
+        // Invalid token — let route return 401
+      }
+    }
     return NextResponse.next()
   }
 

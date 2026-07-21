@@ -104,7 +104,7 @@ export async function GET(_req: Request) {
       bySource,
       currentMonth,
     })
-  } catch (error) {
+    } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

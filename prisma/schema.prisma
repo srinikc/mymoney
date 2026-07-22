@@ -602,6 +602,7 @@ model BankAccount {
   currency      String   @default("INR")
   source        String   @default("manual") // manual | aa (future)
   isActive      Boolean  @default(true)
+  lastSynced    DateTime? // last balance sync from email
   notes         String?
 
   fixedDeposits FixedDeposit[]

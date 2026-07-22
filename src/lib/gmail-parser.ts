@@ -35,6 +35,8 @@ export interface ParsedTransaction {
   description: string
   vendor?: string
   category?: string
+  balance?: number          // extracted from "Available Balance" in bank alerts
+  accountNumber?: string    // extracted from "A/c XX1234" in bank alerts
   metadata?: Record<string, any>
 }
 
@@ -69,6 +71,30 @@ export function parseUPIPayment(email: ParsedEmail, kw?: ParserKeywords): Parsed
   return { type: "expense", date: email.date, amount, description: email.subject || `UPI payment to ${vendor}`, vendor, category: "Other" }
 }
 
+function extractBalance(text: string): number | null {
+  const patterns = [
+    /(?:available|avl|closing)\s*(?:balance|bal)\s*(?:is|:)?\s*(?:rs|₹|inr)?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
+    /balance\s*(?:is|:)?\s*(?:rs|₹|inr)?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
+  ]
+  for (const p of patterns) {
+    const m = text.match(p)
+    if (m) return Number.parseFloat(m[1].replace(/,/g, ""))
+  }
+  return null
+}
+
+function extractAccountNumber(text: string): string | null {
+  const patterns = [
+    /(?:a\/c|account|ac)\s*(?:no|#|:)?\s*(x?[0-9]{4,})/i,
+    /(?:x+)([0-9]{4})\b/i,
+  ]
+  for (const p of patterns) {
+    const m = text.match(p)
+    if (m) return m[1]
+  }
+  return null
+}
+
 export function parseBankTransaction(email: ParsedEmail, kw?: ParserKeywords): ParsedTransaction | null {
   const text = email.bodyText || email.subject
   if (!contains(text, kw?.bank || DEFAULT_KEYWORDS.bank!)) return null
@@ -80,7 +106,16 @@ export function parseBankTransaction(email: ParsedEmail, kw?: ParserKeywords): P
   const vendorMatch = text.match(/(?:to|from|at|for)\s*([A-Za-z0-9\s\-]+?)(?:\s+(?:on|ref|by|via|.|$))/i)
   const vendor = vendorMatch?.[1]?.trim() || email.from
 
-  return { type: isCredit ? "income" : "expense", date: email.date, amount, description: email.subject || `Bank ${isCredit ? "credit" : "debit"}`, vendor, category: isCredit ? "Income" : "Other" }
+  return {
+    type: isCredit ? "income" : "expense",
+    date: email.date,
+    amount,
+    description: email.subject || `Bank ${isCredit ? "credit" : "debit"}`,
+    vendor,
+    category: isCredit ? "Income" : "Other",
+    balance: extractBalance(text),
+    accountNumber: extractAccountNumber(text),
+  }
 }
 
 export function parseSalaryEmail(email: ParsedEmail, kw?: ParserKeywords): ParsedTransaction | null {

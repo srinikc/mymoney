@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
-import { Landmark, Plus, Building2, ArrowRight, PiggyBank } from "lucide-react"
+import { Landmark, Plus, Building2, PiggyBank, RefreshCw, Loader2, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 
 interface FixedDeposit {
@@ -16,21 +16,40 @@ interface FixedDeposit {
 interface BankAccount {
   id: number; name: string; bankName: string; accountNumber?: string; type: string
   ifscCode?: string; balance: number; currency: string; source: string; isActive: boolean
-  fixedDeposits: FixedDeposit[]; transactionCount?: number; lastTransaction?: string | null
+  fixedDeposits: FixedDeposit[]; lastSynced?: string | null
 }
 
 export default function BankAccountsPage() {
   const [accounts, setAccounts] = useState<BankAccount[]>([])
   const [totals, setTotals] = useState({ balance: 0, fdValue: 0 })
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMessage, setSyncMessage] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetch("/api/bank-accounts")
-      .then((r) => r.json())
-      .then((data) => { setAccounts(data.accounts || []); setTotals(data.totals || { balance: 0, fdValue: 0 }) })
-      .catch(() => setAccounts([]))
-      .finally(() => setLoading(false))
-  }, [])
+  const fetchAccounts = async () => {
+    const res = await fetch("/api/bank-accounts")
+    const data = await res.json()
+    setAccounts(data.accounts || [])
+    setTotals(data.totals || { balance: 0, fdValue: 0 })
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchAccounts() }, [])
+
+  const handleSync = async () => {
+    setSyncing(true)
+    setSyncMessage(null)
+    try {
+      const res = await fetch("/api/bank-accounts/sync-balances", { method: "POST" })
+      const data = await res.json()
+      setSyncMessage(data.message || `Updated ${data.updated} account(s)`)
+      fetchAccounts()
+    } catch {
+      setSyncMessage("Sync failed. Ensure Gmail is connected.")
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const typeColors: Record<string, string> = {
     savings: "bg-emerald-500/10 text-emerald-500",
@@ -47,10 +66,25 @@ export default function BankAccountsPage() {
           <Landmark className="h-6 w-6" />
           <h1 className="text-2xl font-bold">Bank Accounts</h1>
         </div>
-        <Link href="/settings/bank-accounts">
-          <Button size="sm"><Plus className="h-4 w-4 mr-2" />Add Account</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>
+            {syncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            {syncing ? "Syncing..." : "Sync Balances"}
+          </Button>
+          <Link href="/settings/bank-accounts">
+            <Button size="sm"><Plus className="h-4 w-4 mr-2" />Add Account</Button>
+          </Link>
+        </div>
       </div>
+
+      {syncMessage && (
+        <Card className="border-emerald-500/30 bg-emerald-500/5">
+          <CardContent className="flex items-center gap-3 py-3 text-sm text-emerald-700">
+            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            {syncMessage}
+          </CardContent>
+        </Card>
+      )}
 
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -78,7 +112,7 @@ export default function BankAccountsPage() {
               <CardContent className="py-16 text-center text-muted-foreground">
                 <Landmark className="h-12 w-12 mx-auto mb-4 opacity-30" />
                 <p className="text-lg font-medium">No bank accounts configured</p>
-                <p className="text-sm mt-1">Add your bank accounts to see balances and transactions at a glance.</p>
+                <p className="text-sm mt-1">Add your bank accounts in Settings, then sync balances from Gmail.</p>
                 <Link href="/settings/bank-accounts"><Button className="mt-4" variant="outline"><Plus className="h-4 w-4 mr-2" />Add Bank Account</Button></Link>
               </CardContent>
             </Card>
@@ -114,6 +148,9 @@ export default function BankAccountsPage() {
                             </span>
                           )}
                         </div>
+                        {acc.lastSynced && (
+                          <p className="text-[10px] text-muted-foreground mt-2">Synced: {new Date(acc.lastSynced).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+                        )}
                       </CardContent>
                     </Card>
                   </Link>

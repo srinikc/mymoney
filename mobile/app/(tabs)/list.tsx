@@ -330,7 +330,7 @@ export default function ListScreen() {
       <QuickCaptureModal
         visible={quickCaptureVisible}
         onClose={() => setQuickCaptureVisible(false)}
-        onSaved={() => { setPage(1); fetchData(1, true); }}
+        onSaved={() => { setPage(1); fetchTransactions(1, true); }}
       />
     </View>
   );

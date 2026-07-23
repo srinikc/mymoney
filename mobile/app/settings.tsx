@@ -6,6 +6,17 @@ import { useAuthStore } from '../store/auth';
 import { Colors } from '../constants/Colors';
 import api from '../api/client';
 
+interface SettingsItem {
+  title: string;
+  icon: string;
+  color?: string;
+  subtitle?: string;
+  type: 'toggle' | 'action';
+  value?: boolean;
+  onToggle?: (v: boolean) => void;
+  onPress?: () => void;
+}
+
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
@@ -36,35 +47,36 @@ export default function SettingsScreen() {
     setBiometricLock(val);
     if (val) {
       try {
-        const { isAvailable } = await import('expo-local-authentication');
-        const avail = await isAvailable();
+        const la = await import('expo-local-authentication');
+        const avail = await la.hasHardwareAsync();
         if (!avail) { Alert.alert('Unavailable', 'Biometric authentication is not available on this device'); setBiometricLock(false); }
       } catch { setBiometricLock(false); }
     }
   };
 
-  const sections = [
+  const sections: { title: string; items: SettingsItem[] }[] = [
     {
       title: 'Preferences',
       items: [
         { title: 'Push Notifications', icon: 'notifications-outline', type: 'toggle' as const, value: notifications, onToggle: (v: boolean) => { setNotifications(v); savePreference('notifications', v); } },
         { title: 'Weekly Report', icon: 'document-text-outline', type: 'toggle' as const, value: weeklyReport, onToggle: (v: boolean) => { setWeeklyReport(v); savePreference('weeklyReport', v); } },
         { title: 'Compact Mode', icon: 'resize-outline', type: 'toggle' as const, value: compactMode, onToggle: (v: boolean) => { setCompactMode(v); savePreference('compactMode', v); } },
-        { title: 'Gmail Parser Keywords', icon: 'mail-outline', type: 'action' as const, onPress: () => router.push('/settings') },
+        { title: 'Gmail Parser Keywords', icon: 'mail-outline', type: 'action' as const, onPress: () => router.push('/gmail-parser') },
+        { title: 'Environment Config', icon: 'server-outline', type: 'action' as const, onPress: () => router.push('/environment') },
       ],
     },
     {
       title: 'Security',
       items: [
         { title: 'Biometric Lock', icon: 'finger-print-outline', type: 'toggle' as const, value: biometricLock, onToggle: handleBiometricToggle },
-        { title: 'API Keys & Integrations', icon: 'key-outline', type: 'action' as const, onPress: () => router.push('/settings') },
+        { title: 'API Keys & Integrations', icon: 'key-outline', type: 'action' as const, onPress: () => router.push('/api-keys') },
       ],
     },
     {
       title: 'Data',
       items: [
         { title: 'Export Data', icon: 'download-outline', type: 'action' as const, onPress: () => Alert.alert('Export', 'Export feature coming to mobile. Use the web app at /reports for now.') },
-        { title: 'Clear All Data', icon: 'trash-outline', type: 'action' as const, color: theme.expense, onPress: () => Alert.alert('Clear Data', 'Are you sure? This cannot be undone.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Clear', style: 'destructive' }]) },
+        { title: 'Clear All Data', icon: 'trash-outline', type: 'action' as const, color: theme.expense, onPress: () => { Alert.alert('Clear Data', 'Are you sure? This cannot be undone.', [{ text: 'Cancel', style: 'cancel' as const }, { text: 'Clear', style: 'destructive' as const }]); } },
       ],
     },
     {
@@ -93,7 +105,7 @@ export default function SettingsScreen() {
               {section.items.map((item, iIdx) => (
                 <View key={iIdx} style={[styles.settingRow, iIdx < section.items.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.borderLight }]}>
                   <View style={[styles.settingIcon, { backgroundColor: theme.primaryLight }]}>
-                    <Ionicons name={item.icon} size={18} color={item.color || theme.primary} />
+                    <Ionicons name={item.icon as any} size={18} color={item.color || theme.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.settingLabel, { color: item.color || theme.text }]}>{item.title}</Text>

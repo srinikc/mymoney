@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
+import { toast } from "sonner"
 import { Mail, RefreshCw, Check, AlertCircle, Loader2 } from "lucide-react"
 
 interface Transaction {
@@ -39,7 +40,7 @@ export default function GmailImportPage() {
       setSessionId(data.sessionId)
       setSelected(new Set((data.transactions || []).map((t: Transaction) => t.messageId)))
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Scan failed")
+      toast.error(err instanceof Error ? err.message : "Scan failed")
     } finally {
       setScanning(false)
     }
@@ -67,11 +68,11 @@ export default function GmailImportPage() {
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
-      alert(`Imported ${data.imported} transactions successfully!`)
+      toast.success(`Imported ${data.imported} transactions successfully!`)
       setTransactions([])
       setSummary(null)
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Import failed")
+      toast.error(err instanceof Error ? err.message : "Import failed")
     } finally {
       setImporting(false)
     }

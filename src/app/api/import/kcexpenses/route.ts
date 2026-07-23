@@ -233,7 +233,7 @@ export async function POST(req: Request) {
         total: parsed.length,
         dateRange: {
           from: parsed[0].date.toISOString().split("T")[0],
-          to: parsed.at(-1).date.toISOString().split("T")[0],
+          to: parsed.at(-1)?.date.toISOString().split("T")[0] ?? parsed[0].date.toISOString().split("T")[0],
         },
         totalAmount: Math.round(totalAmount),
         uniqueTypes: types.size,

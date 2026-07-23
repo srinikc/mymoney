@@ -13,6 +13,10 @@ import { DriveDialog } from "@/components/expenses/drive-dialog"
 import { formatCurrency, formatDate, toLocalDateString } from "@/lib/utils"
 import { TableSkeleton } from "@/components/ui/page-skeleton"
 import type { Expense, Category } from "@/types"
+import { toast } from "sonner"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import DatePicker from "@/components/ui/date-picker"
+import TransactionConfirm from "@/components/ui/transaction-confirm"
 import {
   Plus, Upload, Search, Download, FileSpreadsheet,
   Loader2, Cloud, LogOut, Edit3, ArrowUpDown, ChevronLeft, ChevronRight, RefreshCw, AlertCircle, CheckCircle2, X,
@@ -114,23 +118,38 @@ export default function ExpensesPage() {
   const [isAddingNew, setIsAddingNew] = useState(false)
   const newFormDefault = { date: new Date().toISOString().split("T")[0], amount: "", categoryId: "", vendor: "", description: "", paymentMode: "UPI", person: "", subCategory: "", bankAccount: "", notes: "" }
   const [newForm, setNewForm] = useState(newFormDefault)
+  const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; ids: number[] }>({ open: false, ids: [] })
+  const [confirmTx, setConfirmTx] = useState<{ open: boolean; pendingForm: typeof newFormDefault }>({ open: false, pendingForm: newFormDefault })
 
-  const handleAddNew = async () => {
-    if (!newForm.amount || !newForm.date) return
+  const doAddExpense = async (formData: typeof newFormDefault) => {
     try {
       const res = await fetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newForm),
+        body: JSON.stringify(formData),
       })
       if (res.ok) {
         setIsAddingNew(false)
         setNewForm(newFormDefault)
+        toast.success("Expense added")
         loadData()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || "Failed to add expense")
       }
     } catch (error) {
-      console.error("Add expense failed:", error)
+      toast.error("Failed to add expense")
     }
+  }
+
+  const handleAddNew = async () => {
+    if (!newForm.amount || !newForm.date) return
+    const amount = Number.parseFloat(newForm.amount)
+    if (amount >= 10000) {
+      setConfirmTx({ open: true, pendingForm: { ...newForm } })
+      return
+    }
+    await doAddExpense(newForm)
   }
 
   const loadData = useCallback(async (targetPage?: number) => {
@@ -212,7 +231,10 @@ export default function ExpensesPage() {
   }, [])
 
   const handleSubmit = async () => {
-    await fetch("/api/expenses", { method: "POST", body: JSON.stringify(form) })
+    const res = await fetch("/api/expenses", { method: "POST", body: JSON.stringify(form) })
+    if (res.ok) {
+      toast.success("Expense added via dialog")
+    }
     setOpen(false)
     setForm({ date: new Date().toISOString().split("T")[0], amount: "", categoryId: "", vendor: "", description: "", paymentMode: "UPI", notes: "" })
     loadData()
@@ -231,13 +253,16 @@ export default function ExpensesPage() {
       console.log("[FILE IMPORT] Response:", result)
       if (res.ok) {
         setImportResult(result.message || "Imported successfully")
+        toast.success(result.message || "File imported successfully")
         setPage(1)
         fetch("/api/import-sessions").then(r => r.json()).then(setImportSessions)
       } else {
         setImportResult(result.error || "Import failed (" + res.status + ")")
+        toast.error(result.error || "Import failed")
       }
     } catch (error) {
       setImportResult("Import failed: " + String(error))
+      toast.error("Import failed: " + String(error))
     } finally { setImporting(false); e.target.value = "" }
   }
 
@@ -825,24 +850,31 @@ export default function ExpensesPage() {
       if (res.ok) {
         setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)))
         setEditingId(null)
+        toast.success("Expense updated")
+      } else {
+        toast.error("Failed to update expense")
       }
     } catch (error) {
-      console.error("Save failed:", error)
+      toast.error("Failed to update expense")
     }
   }
 
   const deleteExpense = async (id: number) => {
-    if (!window.confirm("Archive this expense? It can be restored later from Archive.")) return
     try {
       const res = await fetch(`/api/expenses?id=${id}`, { method: "DELETE" })
       if (res.ok) {
         setExpenses((prev) => prev.filter((e) => e.id !== id))
         setEditingId(null)
+        toast.success("Expense archived")
         loadData()
       }
     } catch (error) {
-      console.error("Delete failed:", error)
+      toast.error("Failed to archive expense")
     }
+  }
+
+  const promptDeleteExpense = (id: number) => {
+    setConfirmDelete({ open: true, ids: [id] })
   }
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
@@ -866,7 +898,6 @@ export default function ExpensesPage() {
   const deleteSelected = async () => {
     const ids = [...selectedIds]
     if (ids.length === 0) return
-    if (!window.confirm(`Archive ${ids.length} selected expense${ids.length > 1 ? "s" : ""}? They can be restored later from Archive.`)) return
     try {
       const res = await fetch("/api/expenses/batch-delete", {
         method: "POST",
@@ -875,11 +906,18 @@ export default function ExpensesPage() {
       })
       if (res.ok) {
         setSelectedIds(new Set())
+        toast.success(`${ids.length} expense${ids.length > 1 ? "s" : ""} archived`)
         loadData()
       }
     } catch (error) {
-      console.error("Batch delete failed:", error)
+      toast.error("Batch archive failed")
     }
+  }
+
+  const promptDeleteSelected = () => {
+    const ids = [...selectedIds]
+    if (ids.length === 0) return
+    setConfirmDelete({ open: true, ids })
   }
 
   const toggleSort = (field: SortField) => {
@@ -1112,7 +1150,7 @@ export default function ExpensesPage() {
       <div className="flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[180px]">
           <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search vendor, description, notes..." className="pl-8 h-8 text-xs"
+          <Input placeholder="Search vendor, description, notes..." aria-label="Search expenses" className="pl-8 h-8 text-xs"
             value={search} onChange={(e) => handleSearchChange(e.target.value)} />
         </div>
         <Select value={datePreset} onValueChange={handleDatePreset}>
@@ -1153,7 +1191,7 @@ export default function ExpensesPage() {
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-2 py-1">
           <span className="text-xs text-muted-foreground">{selectedIds.size} selected</span>
-          <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={deleteSelected}>
+          <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={promptDeleteSelected}>
             Archive Selected
           </Button>
           <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedIds(new Set())}>
@@ -1168,16 +1206,16 @@ export default function ExpensesPage() {
             Page {page} of {totalPages}
           </p>
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={page <= 1} onClick={() => setPage(1)}>
+            <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={page <= 1} onClick={() => setPage(1)} aria-label="First page">
               First
             </Button>
-            <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Previous page">
               <ChevronLeft className="h-3 w-3" />
             </Button>
-            <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+            <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} aria-label="Next page">
               <ChevronRight className="h-3 w-3" />
             </Button>
-            <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>
+            <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={page >= totalPages} onClick={() => setPage(totalPages)} aria-label="Last page">
               Last
             </Button>
           </div>
@@ -1196,7 +1234,7 @@ export default function ExpensesPage() {
             <div className="p-4"><TableSkeleton /></div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-[1400px]">
+              <table role="grid" aria-label="Expenses transactions" className="min-w-[1400px]">
                 <thead>
                   <tr className="border-b text-left text-[10px] font-medium text-muted-foreground">
                     <th className="px-1.5 py-1 w-8">
@@ -1260,8 +1298,7 @@ export default function ExpensesPage() {
                     <tr className="border-b text-xs bg-muted/10">
                       <td className="px-1.5 py-1"></td>
                       <td className="px-1.5 py-1">
-                        <input type="date" className="h-6 text-[10px] px-1 rounded border border-input bg-transparent w-28 focus:outline-none focus:ring-1 focus:ring-primary"
-                          value={newForm.date} onChange={(e) => setNewForm({ ...newForm, date: e.target.value })} />
+                        <DatePicker value={newForm.date} onChange={(d) => setNewForm({ ...newForm, date: d })} label="Date" />
                       </td>
                       <td className="px-1.5 py-1">
                         <input list="vendor-edit" className="h-6 text-[10px] px-1 rounded border border-input bg-transparent w-24 focus:outline-none focus:ring-1 focus:ring-primary"
@@ -1309,11 +1346,11 @@ export default function ExpensesPage() {
                       <td className="px-1.5 py-1 text-right whitespace-nowrap">
                         <div className="flex gap-0.5">
                           <Button variant="ghost" size="icon" className="h-5 w-5 text-emerald-500 hover:text-emerald-600"
-                            onClick={handleAddNew}>
+                            onClick={handleAddNew} aria-label="Save">
                             <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
                           </Button>
                           <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-foreground"
-                            onClick={() => { setIsAddingNew(false); setNewForm(newFormDefault) }}>
+                            onClick={() => { setIsAddingNew(false); setNewForm(newFormDefault) }} aria-label="Cancel">
                             <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
                           </Button>
                         </div>
@@ -1396,21 +1433,21 @@ export default function ExpensesPage() {
                           {isEditing ? (
                             <div className="flex gap-0.5">
                               <Button variant="ghost" size="icon" className="h-5 w-5 text-emerald-500 hover:text-emerald-600"
-                                onClick={() => saveInlineEdit(expense)}>
+                                onClick={() => saveInlineEdit(expense)} aria-label="Save">
                                 <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
                               </Button>
                               <Button variant="ghost" size="icon" className="h-5 w-5 text-red-500 hover:text-red-600"
-                                onClick={() => deleteExpense(expense.id)}>
+                                onClick={() => promptDeleteExpense(expense.id)} aria-label="Delete">
                                 <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
                               </Button>
                               <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-foreground"
-                                onClick={cancelInlineEdit}>
+                                onClick={cancelInlineEdit} aria-label="Cancel">
                                 <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
                               </Button>
                             </div>
                           ) : (
                             <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-primary"
-                              onClick={() => startInlineEdit(expense)}>
+                              onClick={() => startInlineEdit(expense)} aria-label="Edit expense">
                               <Edit3 className="h-3 w-3" />
                             </Button>
                           )}
@@ -1444,16 +1481,16 @@ export default function ExpensesPage() {
             Page {page} of {totalPages}
           </p>
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={page <= 1} onClick={() => setPage(1)}>
+            <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={page <= 1} onClick={() => setPage(1)} aria-label="First page">
               First
             </Button>
-            <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Previous page">
               <ChevronLeft className="h-3 w-3" />
             </Button>
-            <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+            <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} aria-label="Next page">
               <ChevronRight className="h-3 w-3" />
             </Button>
-            <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>
+            <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={page >= totalPages} onClick={() => setPage(totalPages)} aria-label="Last page">
               Last
             </Button>
           </div>
@@ -1712,6 +1749,40 @@ export default function ExpensesPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <TransactionConfirm
+        open={confirmTx.open}
+        onOpenChange={(open) => setConfirmTx((prev) => ({ ...prev, open }))}
+        title="Confirm Large Expense"
+        description="You are about to add a large expense. Please review and confirm."
+        amount={Number.parseFloat(confirmTx.pendingForm.amount || "0")}
+        actionLabel="Add Expense"
+        onConfirm={async () => {
+          await doAddExpense(confirmTx.pendingForm)
+          setConfirmTx({ open: false, pendingForm: newFormDefault })
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmDelete.open}
+        onOpenChange={(open) => setConfirmDelete((prev) => ({ ...prev, open }))}
+        title={confirmDelete.ids.length === 1 ? "Archive this expense?" : `Archive ${confirmDelete.ids.length} expenses?`}
+        description={
+          confirmDelete.ids.length === 1
+            ? "This expense will be archived. It can be restored later from Archive."
+            : `${confirmDelete.ids.length} expenses will be archived. They can be restored later from Archive.`
+        }
+        confirmLabel="Archive"
+        variant="destructive"
+        onConfirm={() => {
+          if (confirmDelete.ids.length === 1) {
+            deleteExpense(confirmDelete.ids[0])
+          } else {
+            deleteSelected()
+          }
+          setConfirmDelete((prev) => ({ ...prev, open: false }))
+        }}
+      />
     </div>
   )
 }

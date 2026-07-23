@@ -93,8 +93,8 @@ export default function DashboardPage() {
       title: "Total Expenses",
       value: insights.totalExpenses,
       icon: Wallet,
-      change: `${insights.monthlyTrend.at(-1)?.amount > insights.monthlyTrend.at(-2)?.amount ? "+" : ""}${formatCurrency(insights.monthlyTrend.at(-1)?.amount - insights.monthlyTrend.at(-2)?.amount)}`,
-      up: insights.monthlyTrend.at(-1)?.amount < insights.monthlyTrend.at(-2)?.amount,
+      change: `${(insights.monthlyTrend.at(-1)?.amount ?? 0) > (insights.monthlyTrend.at(-2)?.amount ?? 0) ? "+" : ""}${formatCurrency((insights.monthlyTrend.at(-1)?.amount ?? 0) - (insights.monthlyTrend.at(-2)?.amount ?? 0))}`,
+      up: (insights.monthlyTrend.at(-1)?.amount ?? 0) < (insights.monthlyTrend.at(-2)?.amount ?? 0),
     },
     {
       title: "This Month",

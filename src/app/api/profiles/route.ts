@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { PLANS, type PlanId } from "@/lib/pricing"
 
 /**
  * GET /api/profiles — List all profiles for the authenticated user.
@@ -61,6 +62,19 @@ export async function POST(req: Request) {
   }
 
   const profileCount = await prisma.profile.count({ where: { userId } })
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { tier: true },
+  })
+  const tier = (user?.tier || "free") as PlanId
+  const maxProfiles = PLANS[tier]?.profiles ?? 1
+
+  if (profileCount >= maxProfiles) {
+    return NextResponse.json({
+      error: `Your ${PLANS[tier].name} plan allows up to ${maxProfiles} profile${maxProfiles > 1 ? "s" : ""}. Upgrade to add more.`,
+    }, { status: 403 })
+  }
 
   const profile = await prisma.profile.create({
     data: {

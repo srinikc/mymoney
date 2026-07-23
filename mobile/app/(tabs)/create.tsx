@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,8 @@ import {
   formatFullDate,
 } from '../../utils/format';
 import api from '../../api/client';
+import TransactionConfirm from '../../components/ui/TransactionConfirm';
+import Toast from '../../components/ui/Toast';
 
 export default function CreateScreen() {
   const colorScheme = useColorScheme();
@@ -40,6 +42,9 @@ export default function CreateScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState<any>(null);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' });
 
   const categories = transactionType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
 
@@ -61,7 +66,29 @@ export default function CreateScreen() {
     setError(null);
   };
 
-  const handleSave = async () => {
+  const submitTransaction = useCallback(async (payload: any) => {
+    setLoading(true);
+    try {
+      if (payload.type === 'expense') {
+        await api.post('/api/expenses', payload);
+      } else {
+        await api.post('/api/income/sources', payload);
+      }
+      setShowSuccess(true);
+      setToast({ visible: true, message: 'Saved successfully!', type: 'success' });
+      setTimeout(() => {
+        setShowSuccess(false);
+        resetForm();
+      }, 1500);
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Failed to save. Please try again.');
+      setToast({ visible: true, message: 'Failed to save', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleSave = () => {
     setError(null);
 
     const numericAmount = parseFloat(amount);
@@ -74,33 +101,21 @@ export default function CreateScreen() {
       return;
     }
 
-    setLoading(true);
-    try {
-      const payload = {
-        amount: numericAmount,
-        category: selectedCategory,
-        name: name || categories.find((c) => c.value === selectedCategory)?.label || '',
-        notes,
-        date: date.toISOString(),
-        paymentMode: selectedMode || 'cash',
-        type: transactionType,
-      };
+    const payload = {
+      amount: numericAmount,
+      category: selectedCategory,
+      name: name || categories.find((c) => c.value === selectedCategory)?.label || '',
+      notes,
+      date: date.toISOString(),
+      paymentMode: selectedMode || 'cash',
+      type: transactionType,
+    };
 
-      if (transactionType === 'expense') {
-        await api.post('/api/expenses', payload);
-      } else {
-        await api.post('/api/income/sources', payload);
-      }
-
-      setShowSuccess(true);
-      setTimeout(() => {
-        setShowSuccess(false);
-        resetForm();
-      }, 1500);
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Failed to save. Please try again.');
-    } finally {
-      setLoading(false);
+    if (transactionType === 'expense' && numericAmount >= 10000) {
+      setPendingPayload(payload);
+      setConfirmOpen(true);
+    } else {
+      submitTransaction(payload);
     }
   };
 
@@ -372,6 +387,25 @@ export default function CreateScreen() {
           </View>
         </View>
       ) : null}
+
+      <TransactionConfirm
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Confirm Transaction"
+        description="This is a high-value transaction. Please review the details below."
+        amount={pendingPayload?.amount}
+        onConfirm={() => {
+          setConfirmOpen(false);
+          if (pendingPayload) submitTransaction(pendingPayload);
+        }}
+      />
+
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onDismiss={() => setToast(prev => ({ ...prev, visible: false }))}
+      />
 
       <Modal visible={showDatePicker} transparent animationType="fade">
         <TouchableOpacity

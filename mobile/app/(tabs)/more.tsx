@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ScrollView, View, Text, TouchableOpacity, StyleSheet, useColorScheme, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -26,6 +27,13 @@ const MENU_SECTIONS: MenuSection[] = [
       { title: 'Goals', icon: 'flag-outline', route: '/goals' },
       { title: 'Investments', icon: 'trending-up-outline', route: '/investments' },
       { title: 'Net Worth', icon: 'bar-chart-outline', route: '/net-worth' },
+      { title: 'Subscriptions', icon: 'refresh-outline', route: '/subscriptions' },
+      { title: 'Expenses', icon: 'receipt-outline', route: '/expenses' },
+      { title: 'Expenses — Archive', icon: 'archive-outline', route: '/expenses/archive' },
+      { title: 'Expenses — Import', icon: 'cloud-upload-outline', route: '/expenses/import' },
+      { title: 'Expenses — Merchants', icon: 'storefront-outline', route: '/expenses/merchants' },
+      { title: 'Expenses — Duplicates', icon: 'copy-outline', route: '/expenses/review-duplicates' },
+      { title: 'Deals', icon: 'pricetag-outline', route: '/deals' },
     ],
   },
   {
@@ -40,8 +48,19 @@ const MENU_SECTIONS: MenuSection[] = [
     title: 'Protection',
     items: [
       { title: 'Insurance', icon: 'shield-checkmark-outline', route: '/insurance' },
-      { title: 'Subscriptions', icon: 'refresh-outline', route: '/subscriptions' },
       { title: 'Reminders', icon: 'notifications-outline', route: '/reminders' },
+    ],
+  },
+  {
+    title: 'Analysis',
+    items: [
+      { title: 'Reports', icon: 'document-text-outline', route: '/reports' },
+      { title: 'Insights', icon: 'analytics-outline', route: '/insights' },
+      { title: 'Financial Health', icon: 'heart-outline', route: '/health' },
+      { title: 'Tax Summary', icon: 'calculator-outline', route: '/tax' },
+      { title: 'Risk Profile', icon: 'shield-checkmark-outline', route: '/risk-profile' },
+      { title: 'What-If Simulator', icon: 'trending-up-outline', route: '/what-if' },
+      { title: 'Audit Log', icon: 'document-text-outline', route: '/audit-log' },
     ],
   },
   {
@@ -49,15 +68,28 @@ const MENU_SECTIONS: MenuSection[] = [
     items: [
       { title: 'GPay Sync', icon: 'logo-google', route: 'gpay' },
       { title: 'Gmail Import', icon: 'mail-outline', route: '/gmail-import' },
+      { title: 'Auto-Link', icon: 'link-outline', route: '/auto-link' },
+      { title: 'Broker Integrations', icon: 'trending-up-outline', route: '/settings/integrations' },
     ],
   },
   {
-    title: 'Tools',
+    title: 'Account',
     items: [
-      { title: 'Reports', icon: 'document-text-outline', route: '/reports' },
-      { title: 'Tax Summary', icon: 'calculator-outline', route: '/tax' },
-      { title: 'Auto-Link', icon: 'link-outline', route: '/auto-link' },
+      { title: 'Onboarding Wizard', icon: 'rocket-outline', route: '/onboarding' },
+      { title: 'Family Sharing', icon: 'people-outline', route: '/family' },
+      { title: 'Plans', icon: 'diamond-outline', route: '/plans' },
+    ],
+  },
+  {
+    title: 'Settings',
+    items: [
       { title: 'Settings', icon: 'settings-outline', route: '/settings' },
+      { title: 'API Keys', icon: 'key-outline', route: '/api-keys' },
+      { title: 'Environment', icon: 'server-outline', route: '/environment' },
+      { title: 'Gmail Keywords', icon: 'mail-outline', route: '/gmail-parser' },
+      { title: 'Bank Accounts', icon: 'business-outline', route: '/settings/bank-accounts' },
+      { title: 'Session Link', icon: 'link-outline', route: '/settings/session-link' },
+      { title: 'Privacy Policy', icon: 'shield-outline', route: '/privacy' },
     ],
   },
 ];
@@ -126,6 +158,21 @@ export default function MoreScreen() {
           ) : null}
           <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
         </TouchableOpacity>
+
+        {user?.role === 'admin' ? (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.textTertiary }]}>Admin</Text>
+            <View style={[styles.sectionCard, { backgroundColor: theme.surface }]}>
+              <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/admin' as any)} activeOpacity={0.6}>
+                <View style={[styles.menuIcon, { backgroundColor: '#FEF3C7' }]}>
+                  <Ionicons name="shield-checkmark" size={18} color="#D97706" />
+                </View>
+                <Text style={[styles.menuLabel, { color: theme.text }]}>Admin Panel</Text>
+                <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
 
         {MENU_SECTIONS.map((section, sIdx) => (
           <View key={sIdx} style={styles.section}>

@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware"
 
 interface UIState {
   sidebarOpen: boolean
+  mobileSidebarOpen: boolean
   expensesExpanded: boolean
   incomeExpanded: boolean
   planningExpanded: boolean
@@ -11,6 +12,7 @@ interface UIState {
   analysisExpanded: boolean
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
+  setMobileSidebarOpen: (open: boolean) => void
   toggleExpensesExpanded: () => void
   toggleIncomeExpanded: () => void
   togglePlanningExpanded: () => void
@@ -27,6 +29,7 @@ export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
       sidebarOpen: true,
+      mobileSidebarOpen: false,
       expensesExpanded: true,
       incomeExpanded: true,
       planningExpanded: true,
@@ -35,6 +38,7 @@ export const useUIStore = create<UIState>()(
       analysisExpanded: true,
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
+      setMobileSidebarOpen: (open) => set({ mobileSidebarOpen: open }),
       toggleExpensesExpanded: () => set((s) => ({ expensesExpanded: !s.expensesExpanded })),
       toggleIncomeExpanded: () => set((s) => ({ incomeExpanded: !s.incomeExpanded })),
       togglePlanningExpanded: () => set((s) => ({ planningExpanded: !s.planningExpanded })),

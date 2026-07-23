@@ -23,6 +23,7 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { toast } from "sonner"
 import { TableSkeleton } from "@/components/ui/page-skeleton"
+import DatePicker from "@/components/ui/date-picker"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -127,7 +128,7 @@ function IncomeFormDialog({
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<IncomeFormValues>({
-    resolver: zodResolver(incomeFormSchema),
+    resolver: zodResolver(incomeFormSchema) as any,
     defaultValues: defaultFormValues,
   })
 
@@ -228,7 +229,7 @@ function IncomeFormDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="startDate">Start Date</Label>
-              <Input id="startDate" type="date" {...register("startDate")} />
+              <DatePicker value={watch("startDate")} onChange={(d) => setValue("startDate", d, { shouldValidate: true })} label="Start Date" />
               {errors.startDate && <p className="text-xs text-red-500">{errors.startDate.message}</p>}
             </div>
           </div>

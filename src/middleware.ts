@@ -1,18 +1,23 @@
 ﻿import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { jwtVerify } from "jose"
+import { getTierLimit, TIER_LIMITS } from "@/shared/middleware/rate-limit"
 
 const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET || "my-money-secret-change-in-production-abc123xyz")
 
 // ── Rate Limiter ───────────────────────────────────────────────────────────
-// Simple in-memory rate limiter using a sliding window.
+// Per-tier in-memory rate limiter using a sliding window.
 
 interface RateLimitEntry {
   count: number
   resetAt: number
 }
 
-const rateLimitMap = new Map<string, RateLimitEntry>()
+interface TieredRateLimitEntry extends RateLimitEntry {
+  tier: string
+}
+
+const rateLimitMap = new Map<string, TieredRateLimitEntry>()
 
 // Cleanup stale entries periodically
 setInterval(() => {
@@ -24,50 +29,56 @@ setInterval(() => {
   }
 }, 60_000)
 
-function getRateLimitKey(req: NextRequest, prefix: string): string {
-  // Use X-Forwarded-For, then X-Real-IP, then fallback to local
-  const ip =
+function getClientIp(req: NextRequest): string {
+  return (
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("x-real-ip") ||
     "127.0.0.1"
-  return `${prefix}:${ip}`
+  )
+}
+
+function getTierFromRequest(req: NextRequest): string {
+  // Check mobile user header (set by JWT auth)
+  const mobileUser = req.headers.get("x-mobile-user")
+  if (mobileUser) {
+    try {
+      const parsed = JSON.parse(mobileUser)
+      if (parsed.tier) return parsed.tier
+    } catch {}
+  }
+  // Check session cookie for web users
+  const cookie = req.cookies.get("authjs.session-token")?.value
+  if (cookie) {
+    // For web users, middleware can't easily decode session,
+    // but the tier header can be set by page components via middleware rewrite
+  }
+  return "free"
 }
 
 function checkRateLimit(
-  req: NextRequest,
-  prefix: string,
-  limit: number,
-  windowMs: number
-): { allowed: boolean; retryAfter: number } {
+  req: NextRequest
+): { allowed: boolean; retryAfter: number; limit: number; remaining: number } {
   const now = Date.now()
-  const key = getRateLimitKey(req, prefix)
+  const ip = getClientIp(req)
+  const tier = getTierFromRequest(req)
+  const config = getTierLimit(tier)
+  const key = `${tier}:${ip}`
   const entry = rateLimitMap.get(key)
 
   if (!entry || entry.resetAt < now) {
-    // New window
-    rateLimitMap.set(key, { count: 1, resetAt: now + windowMs })
-    return { allowed: true, retryAfter: 0 }
+    rateLimitMap.set(key, { count: 1, resetAt: now + config.windowMs, tier })
+    return { allowed: true, retryAfter: 0, limit: config.limit, remaining: config.limit - 1 }
   }
 
   entry.count++
-  if (entry.count > limit) {
+  const remaining = config.limit - entry.count
+
+  if (entry.count > config.limit) {
     const retryAfter = Math.ceil((entry.resetAt - now) / 1000)
-    return { allowed: false, retryAfter }
+    return { allowed: false, retryAfter, limit: config.limit, remaining: 0 }
   }
 
-  return { allowed: true, retryAfter: 0 }
-}
-
-// ── Rate limit configurations ──────────────────────────────────────────────
-interface RateLimitConfig {
-  limit: number
-  windowMs: number
-}
-
-const RATE_LIMITS: Record<string, RateLimitConfig> = {
-  api: { limit: 500, windowMs: 60_000 },       // 500 req/min for API
-  auth: { limit: 50, windowMs: 60_000 },        // 50 req/min for auth
-  default: { limit: 200, windowMs: 60_000 },    // 200 req/min for other routes
+  return { allowed: true, retryAfter: 0, limit: config.limit, remaining }
 }
 
 // ── Admin / Manager route patterns ─────────────────────────────────────────
@@ -81,21 +92,9 @@ const AUDIT_LOG_PREFIX = "/audit-log"
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // ── 1. Rate limiting ──────────────────────────────────────────────────
+  // ── 1. Per-tier rate limiting ─────────────────────────────────────────
   if (process.env.E2E !== "true") {
-    let rateLimitConfig = RATE_LIMITS.default
-    if (pathname.startsWith(API_PREFIX)) {
-      rateLimitConfig = pathname.startsWith(AUTH_PREFIX)
-        ? RATE_LIMITS.auth
-        : RATE_LIMITS.api
-    }
-
-    const rateLimitResult = checkRateLimit(
-      req,
-      "rl",
-      rateLimitConfig.limit,
-      rateLimitConfig.windowMs
-    )
+    const rateLimitResult = checkRateLimit(req)
 
     if (!rateLimitResult.allowed) {
       return new NextResponse(
@@ -105,10 +104,10 @@ export default async function middleware(req: NextRequest) {
         headers: {
           "Content-Type": "application/json",
           "Retry-After": String(rateLimitResult.retryAfter),
-          "X-RateLimit-Limit": String(rateLimitConfig.limit),
+          "X-RateLimit-Limit": String(rateLimitResult.limit),
           "X-RateLimit-Remaining": "0",
           "X-RateLimit-Reset": String(
-            Math.ceil((Date.now() + rateLimitConfig.windowMs) / 1000)
+            Math.ceil((Date.now() + rateLimitResult.retryAfter * 1000) / 1000)
           ),
         },
       }
@@ -117,7 +116,7 @@ export default async function middleware(req: NextRequest) {
   }
 
   // ── 2. Public route check ─────────────────────────────────────────────
-  const publicRoutes = ["/api/auth", "/api/drive", "/login", "/"]
+  const publicRoutes = ["/api/auth", "/api/drive", "/login", "/setup", "/"]
   const isPublic = publicRoutes.some((r) => pathname.startsWith(r))
 
   // Static assets and images are always public

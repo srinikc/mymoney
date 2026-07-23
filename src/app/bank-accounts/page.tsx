@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
+import { toast } from "sonner"
 import { Landmark, Plus, Building2, PiggyBank, RefreshCw, Loader2, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 
@@ -42,10 +43,14 @@ export default function BankAccountsPage() {
     try {
       const res = await fetch("/api/bank-accounts/sync-balances", { method: "POST" })
       const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Sync failed")
       setSyncMessage(data.message || `Updated ${data.updated} account(s)`)
+      toast.success("Balances synced successfully")
       fetchAccounts()
-    } catch {
-      setSyncMessage("Sync failed. Ensure Gmail is connected.")
+    } catch (err: any) {
+      const msg = "Sync failed. Ensure Gmail is connected."
+      setSyncMessage(msg)
+      toast.error(err.message || msg)
     } finally {
       setSyncing(false)
     }

@@ -116,12 +116,19 @@ export default function HomeScreen() {
     return 'User';
   };
 
+  const getGreeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { backgroundColor: theme.surface }]}>
         <View style={styles.headerTop}>
           <View>
-            <Text style={[styles.greeting, { color: theme.textSecondary }]}>Good morning</Text>
+            <Text style={[styles.greeting, { color: theme.textSecondary }]}>{getGreeting()}</Text>
             <Text style={[styles.userName, { color: theme.text }]}>{getName()}</Text>
           </View>
           <TouchableOpacity
@@ -248,6 +255,39 @@ export default function HomeScreen() {
                 </View>
               </View>
             )}
+
+            <View style={styles.quickLinksRow}>
+              <TouchableOpacity style={[styles.quickLinkCard, { backgroundColor: theme.surface }]} onPress={() => router.push('/health')}>
+                <View style={[styles.qlIcon, { backgroundColor: theme.incomeLight }]}>
+                  <Ionicons name="heart-outline" size={18} color={theme.income} />
+                </View>
+                <Text style={[styles.qlText, { color: theme.textSecondary }]}>Health</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.quickLinkCard, { backgroundColor: theme.surface }]} onPress={() => router.push('/what-if')}>
+                <View style={[styles.qlIcon, { backgroundColor: theme.warningLight }]}>
+                  <Ionicons name="trending-up-outline" size={18} color={theme.warning} />
+                </View>
+                <Text style={[styles.qlText, { color: theme.textSecondary }]}>What-If</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.quickLinkCard, { backgroundColor: theme.surface }]} onPress={() => router.push('/risk-profile')}>
+                <View style={[styles.qlIcon, { backgroundColor: theme.primaryLight }]}>
+                  <Ionicons name="shield-checkmark-outline" size={18} color={theme.primary} />
+                </View>
+                <Text style={[styles.qlText, { color: theme.textSecondary }]}>Risk</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.quickLinkCard, { backgroundColor: theme.surface }]} onPress={() => router.push('/deals')}>
+                <View style={[styles.qlIcon, { backgroundColor: '#F3E8FF' }]}>
+                  <Ionicons name="pricetag-outline" size={18} color="#8B5CF6" />
+                </View>
+                <Text style={[styles.qlText, { color: theme.textSecondary }]}>Deals</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.quickLinkCard, { backgroundColor: theme.surface }]} onPress={() => router.push('/expenses')}>
+                <View style={[styles.qlIcon, { backgroundColor: '#FEE2E2' }]}>
+                  <Ionicons name="receipt-outline" size={18} color="#EF4444" />
+                </View>
+                <Text style={[styles.qlText, { color: theme.textSecondary }]}>Expenses</Text>
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Transactions</Text>
@@ -570,6 +610,34 @@ const styles = StyleSheet.create({
   recentDate: {
     fontSize: 11,
     fontWeight: '500',
+  },
+  quickLinksRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 20,
+  },
+  quickLinkCard: {
+    flex: 1,
+    borderRadius: 14,
+    padding: 12,
+    alignItems: 'center',
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  qlIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qlText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   fab: {
     position: 'absolute',

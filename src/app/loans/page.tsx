@@ -111,7 +111,7 @@ function LoanFormDialog({
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<LoanFormValues>({
-    resolver: zodResolver(loanFormSchema),
+    resolver: zodResolver(loanFormSchema) as any,
     defaultValues: defaultFormValues,
   })
 

@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
-import { Stack, SplashScreen } from 'expo-router';
+import { Stack, SplashScreen, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme, View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { useAuthStore } from '../store/auth';
 import { Colors } from '../constants/Colors';
 import * as LocalAuthentication from 'expo-local-authentication';
 import api from '../api/client';
-import { registerForPushNotifications, setupNotificationHandler } from '../lib/notifications';
+import { registerForPushNotifications, setupNotificationHandler, checkBudgetAlerts } from '../lib/notifications';
+import { HelpButton } from '../components/help/HelpButton';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -17,6 +18,7 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const [biometricDone, setBiometricDone] = useState(false);
   const biometricPrompted = useRef(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     async function init() {
@@ -54,6 +56,9 @@ export default function RootLayout() {
     setupNotificationHandler();
     if (isLoggedIn) {
       registerForPushNotifications();
+      const budgetInterval = setInterval(() => { checkBudgetAlerts().catch(() => {}); }, 30 * 60 * 1000);
+      checkBudgetAlerts().catch(() => {});
+      return () => clearInterval(budgetInterval);
     }
   }, [isLoggedIn]);
 
@@ -135,6 +140,7 @@ export default function RootLayout() {
           </>
         )}
       </Stack>
+      {isLoggedIn && <HelpButton path={pathname} />}
     </>
   );
 }

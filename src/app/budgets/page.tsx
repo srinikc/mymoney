@@ -11,6 +11,7 @@ import { formatCurrency, formatMonthYear, getCurrentMonth, getCurrentYear } from
 import { CardGridSkeleton } from "@/components/ui/page-skeleton"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Budget, Category } from "@/types"
+import { toast } from "sonner"
 import { Plus, Download, AlertTriangle, TrendingUp } from "lucide-react"
 
 export default function BudgetsPage() {
@@ -21,6 +22,15 @@ export default function BudgetsPage() {
   const [year, setYear] = useState(getCurrentYear())
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ categoryId: "", amount: "" })
+  const [errors, setErrors] = useState<{ categoryId?: string; amount?: string }>({})
+
+  const validateForm = () => {
+    const errs: typeof errors = {}
+    if (!form.categoryId) errs.categoryId = "Category is required"
+    if (!form.amount || Number(form.amount) <= 0) errs.amount = "Amount must be greater than 0"
+    setErrors(errs)
+    return Object.keys(errs).length === 0
+  }
   const [income, setIncome] = useState(0)
   const [incomeLoading, setIncomeLoading] = useState(true)
   const [incomeError, setIncomeError] = useState(false)
@@ -60,21 +70,35 @@ export default function BudgetsPage() {
   useEffect(() => { loadIncome() }, [loadIncome])
 
   const handleSubmit = async () => {
-    await fetch("/api/budgets", {
-      method: "POST",
-      body: JSON.stringify({ ...form, month, year }),
-    })
-    setOpen(false)
-    setForm({ categoryId: "", amount: "" })
-    loadData()
+    if (!validateForm()) return
+    try {
+      const res = await fetch("/api/budgets", {
+        method: "POST",
+        body: JSON.stringify({ ...form, month, year }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to create budget")
+      toast.success("Budget created successfully")
+      setOpen(false)
+      setForm({ categoryId: "", amount: "" })
+      setErrors({})
+      loadData()
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create budget")
+    }
   }
 
   const handleExport = async () => {
-    const res = await fetch(`/api/export?type=budgets&format=xlsx`)
-    const blob = await res.blob()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a"); a.href = url; a.download = "budgets-export.xlsx"; a.click()
-    URL.revokeObjectURL(url)
+    try {
+      const res = await fetch(`/api/export?type=budgets&format=xlsx`)
+      if (!res.ok) throw new Error("Export failed")
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a"); a.href = url; a.download = "budgets-export.xlsx"; a.click()
+      URL.revokeObjectURL(url)
+      toast.success("Export downloaded")
+    } catch {
+      toast.error("Failed to export budgets")
+    }
   }
 
   const totalBudget = budgets.reduce((s, b) => s + b.amount, 0)
@@ -97,7 +121,7 @@ export default function BudgetsPage() {
               <div className="grid gap-4">
                 <div>
                   <label className="text-sm font-medium">Category</label>
-                  <Select value={form.categoryId} onValueChange={(v) => setForm({ ...form, categoryId: v })}>
+                  <Select value={form.categoryId} onValueChange={(v) => { setForm({ ...form, categoryId: v }); setErrors((p) => ({ ...p, categoryId: undefined })) }}>
                     <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                     <SelectContent>
                       {categories.filter((c) => !budgets.find((b) => b.categoryId === c.id)).map((c) => (
@@ -105,10 +129,12 @@ export default function BudgetsPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {errors.categoryId && <p className="text-sm text-red-500 mt-1">{errors.categoryId}</p>}
                 </div>
                 <div>
                   <label className="text-sm font-medium">Monthly Limit (₹)</label>
-                  <Input type="number" placeholder="0" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+                  <Input type="number" placeholder="0" value={form.amount} onChange={(e) => { setForm({ ...form, amount: e.target.value }); setErrors((p) => ({ ...p, amount: undefined })) }} />
+                  {errors.amount && <p className="text-sm text-red-500 mt-1">{errors.amount}</p>}
                 </div>
                 <Button onClick={handleSubmit}>Save Budget</Button>
               </div>

@@ -104,8 +104,10 @@ export function parseEcasText(text: string): EcasDocument {
         if (numbers && numbers.length >= 2) {
           const companyMatch = rest.match(/^(.+?)\s{2,}/)
           const company = companyMatch ? companyMatch[1].trim() : rest.replaceAll(/\s+/g, " ").trim()
-          const quantity = Number.parseFloat(numbers.at(-2).replaceAll(',', ""))
-          const marketValue = Number.parseFloat(numbers.at(-1).replaceAll(',', ""))
+          const lastTwo = numbers.at(-2)
+          const lastOne = numbers.at(-1)
+          const quantity = lastTwo ? Number.parseFloat(lastTwo.replaceAll(',', "")) : 0
+          const marketValue = lastOne ? Number.parseFloat(lastOne.replaceAll(',', "")) : 0
 
           if (!Number.isNaN(quantity) && !Number.isNaN(marketValue)) {
             entries.push({
@@ -161,8 +163,10 @@ export function parseEcasText(text: string): EcasDocument {
         const company = beforeIsin || afterIsin.replaceAll(/[\d\s,.]+/g, "").trim()
 
         if (numbers && numbers.length >= 2) {
-          const quantity = Number.parseFloat(numbers.at(-2).replaceAll(',', ""))
-          const marketValue = Number.parseFloat(numbers.at(-1).replaceAll(',', ""))
+          const lastTwo = numbers.at(-2)
+          const lastOne = numbers.at(-1)
+          const quantity = lastTwo ? Number.parseFloat(lastTwo.replaceAll(',', "")) : 0
+          const marketValue = lastOne ? Number.parseFloat(lastOne.replaceAll(',', "")) : 0
 
           if (!Number.isNaN(quantity) && !Number.isNaN(marketValue)) {
             entries.push({

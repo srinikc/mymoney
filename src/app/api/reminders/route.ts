@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { auth } from "@/lib/auth"
+import { sendPushToUser } from "@/lib/expo-push"
 import { validateBody } from "@/shared/validate"
 import { ReminderCreateSchema, ReminderUpdateSchema } from "@/shared/validation"
 
@@ -28,6 +30,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const { data: body, error } = await validateBody(req, ReminderCreateSchema)
   if (error) return error
+  const session = await auth()
   const reminder = await prisma.reminder.create({
     data: {
       title: body.title,
@@ -41,6 +44,20 @@ export async function POST(req: Request) {
       recurring: body.recurring || "none",
     },
   })
+
+  if (session?.user?.id && reminder.dueDate) {
+    const due = new Date(reminder.dueDate)
+    const now = new Date()
+    const diffMs = due.getTime() - now.getTime()
+    if (diffMs > 0 && diffMs < 7 * 24 * 60 * 60 * 1000) {
+      sendPushToUser(Number(session.user.id), {
+        title: reminder.title,
+        body: `Due ${due.toLocaleDateString()}${reminder.amount ? ` — ${Number(reminder.amount).toLocaleString()}` : ""}`,
+        data: { type: "reminder", reminderId: reminder.id },
+      }).catch(() => {})
+    }
+  }
+
   return NextResponse.json(reminder, { status: 201 })
 }
 

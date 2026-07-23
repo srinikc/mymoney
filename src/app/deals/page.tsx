@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { formatDate } from "@/lib/utils"
+import { toast } from "sonner"
 import { Gift, Plus, Trash2 } from "lucide-react"
 import { CardGridSkeleton } from "@/components/ui/page-skeleton"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -39,15 +40,27 @@ export default function DealsPage() {
   useEffect(() => { loadDeals() }, [])
 
   const handleSubmit = async () => {
-    await fetch("/api/deals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
-    setOpen(false)
-    setForm({ merchant: "", title: "", description: "", discount: "", couponCode: "", url: "", validUntil: "", category: "" })
-    loadDeals()
+    try {
+      const res = await fetch("/api/deals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to add deal")
+      toast.success("Deal added successfully")
+      setOpen(false)
+      setForm({ merchant: "", title: "", description: "", discount: "", couponCode: "", url: "", validUntil: "", category: "" })
+      loadDeals()
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add deal")
+    }
   }
 
   const handleDelete = async (id: number) => {
-    await fetch(`/api/deals`, { method: "DELETE", body: JSON.stringify({ id }) })
-    loadDeals()
+    try {
+      const res = await fetch(`/api/deals`, { method: "DELETE", body: JSON.stringify({ id }) })
+      if (!res.ok) throw new Error("Failed to delete deal")
+      toast.success("Deal deleted")
+      loadDeals()
+    } catch {
+      toast.error("Failed to delete deal")
+    }
   }
 
   return (

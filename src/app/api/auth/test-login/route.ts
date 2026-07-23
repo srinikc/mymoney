@@ -2,8 +2,11 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import crypto from "node:crypto"
 
-// Only available on localhost for E2E testing
 export async function GET() {
+  if (process.env.E2E !== "true") {
+    return NextResponse.json({ error: "Test login is only available in E2E mode" }, { status: 403 })
+  }
+
   try {
     const user = await prisma.user.findUnique({
       where: { email: "test@example.com" },

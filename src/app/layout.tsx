@@ -6,6 +6,8 @@ import { AppShell } from "@/components/layout/app-shell"
 import { SessionProvider } from "@/components/auth/session-provider"
 import { FloatingChat } from "@/components/chat/floating-chat"
 import { ToastProvider } from "@/components/ui/toast-provider"
+import { ThemeProvider } from "next-themes"
+import SkipToContent from "@/components/layout/skip-to-content"
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -45,13 +47,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
-        <SessionProvider>
-          <Suspense fallback={<div className="min-h-screen" />}>
-            <AppShell>{children}</AppShell>
-            <FloatingChat />
-          </Suspense>
-          <ToastProvider />
-        </SessionProvider>
+        <SkipToContent />
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <SessionProvider>
+            <Suspense fallback={<div className="min-h-screen animate-pulse bg-muted" />}>
+              <AppShell>{children}</AppShell>
+              <FloatingChat />
+            </Suspense>
+            <ToastProvider />
+          </SessionProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

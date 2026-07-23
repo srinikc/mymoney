@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { toast } from "sonner"
 import { ArrowLeft, Save, RotateCcw, Plus, X, Mail } from "lucide-react"
 import Link from "next/link"
 
@@ -85,9 +86,9 @@ export default function GmailParserSettingsPage() {
         body: JSON.stringify({ keywords }),
       })
       if (!res.ok) throw new Error("Save failed")
-      alert("Keywords saved successfully!")
+      toast.success("Keywords saved successfully!")
     } catch {
-      alert("Failed to save keywords")
+      toast.error("Failed to save keywords")
     } finally {
       setSaving(false)
     }

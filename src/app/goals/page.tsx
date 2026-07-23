@@ -121,7 +121,7 @@ function GoalFormDialog({
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<GoalFormValues>({
-    resolver: zodResolver(goalFormSchema),
+    resolver: zodResolver(goalFormSchema) as any,
     defaultValues: defaultFormValues,
   })
 

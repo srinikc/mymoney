@@ -6,7 +6,7 @@ import { z } from "zod"
 
 const TierChangeSchema = z.object({
   userId: z.union([z.string(), z.number()]).transform(Number),
-  tier: z.enum(["free", "pro", "premium"]),
+  tier: z.enum(["free", "pro", "premium", "enterprise"]),
 })
 
 /**
@@ -16,7 +16,10 @@ const TierChangeSchema = z.object({
  */
 export async function PUT(req: Request) {
   const session = await auth()
-  const forbid = requireRole(session?.user as any, "admin")
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+  const forbid = requireRole(session.user as any, "admin")
   if (forbid) return forbid
 
   let body: z.infer<typeof TierChangeSchema>

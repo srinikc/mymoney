@@ -11,6 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { CardGridSkeleton } from "@/components/ui/page-skeleton"
 import type { Asset } from "@/types"
+import { toast } from "sonner"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import DatePicker from "@/components/ui/date-picker"
 import { Plus, Home, Diamond, Wrench, Car, Building2, Layers, Pencil, Trash2 } from "lucide-react"
 
 const categoryConfig: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
@@ -34,6 +37,8 @@ export default function AssetsPage() {
   const [open, setOpen] = useState(false)
   const [editAsset, setEditAsset] = useState<Asset | null>(null)
   const [form, setForm] = useState(defaultForm)
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; id: number | null }>({ open: false, id: null })
 
   const loadData = async () => {
     const res = await fetch("/api/assets")
@@ -49,21 +54,40 @@ export default function AssetsPage() {
 
   useEffect(() => { loadData() }, [])
 
+  const validateForm = () => {
+    const errors: Record<string, string> = {}
+    if (!form.name.trim()) errors.name = "Name is required"
+    if (!form.currentValue || Number(form.currentValue) <= 0) errors.currentValue = "Valid value required"
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
   const handleSubmit = async () => {
+    if (!validateForm()) return
     const body = { ...form }
-    if (editAsset) {
-      await fetch("/api/assets", { method: "PUT", body: JSON.stringify({ id: editAsset.id, ...body }) })
-    } else {
-      await fetch("/api/assets", { method: "POST", body: JSON.stringify(body) })
+    try {
+      if (editAsset) {
+        const res = await fetch("/api/assets", { method: "PUT", body: JSON.stringify({ id: editAsset.id, ...body }) })
+        if (!res.ok) throw new Error("Update failed")
+        toast.success("Asset updated")
+      } else {
+        const res = await fetch("/api/assets", { method: "POST", body: JSON.stringify(body) })
+        if (!res.ok) throw new Error("Add failed")
+        toast.success("Asset added")
+      }
+      setOpen(false)
+      setEditAsset(null)
+      setForm(defaultForm)
+      setFormErrors({})
+      loadData()
+    } catch {
+      toast.error("Failed to save asset")
     }
-    setOpen(false)
-    setEditAsset(null)
-    setForm(defaultForm)
-    loadData()
   }
 
   const handleEdit = (asset: Asset) => {
     setEditAsset(asset)
+    setFormErrors({})
     setForm({
       name: asset.name,
       type: asset.type,
@@ -79,9 +103,15 @@ export default function AssetsPage() {
   }
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Delete this asset?")) return
-    await fetch(`/api/assets?id=${id}`, { method: "DELETE" })
-    loadData()
+    try {
+      const res = await fetch(`/api/assets?id=${id}`, { method: "DELETE" })
+      if (res.ok) {
+        toast.success("Asset deleted")
+        loadData()
+      }
+    } catch {
+      toast.error("Failed to delete asset")
+    }
   }
 
   const grouped = assets.reduce<Record<string, Asset[]>>((acc, a) => {
@@ -111,7 +141,8 @@ export default function AssetsPage() {
             <div className="grid gap-4">
               <div>
                 <label className="text-sm font-medium">Name</label>
-                <Input placeholder="e.g. 2BHK Flat" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <Input placeholder="e.g. 2BHK Flat" value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setFormErrors((prev) => ({ ...prev, name: "" })) }} className={formErrors.name ? "border-destructive" : ""} />
+                {formErrors.name && <p className="mt-1 text-xs text-destructive">{formErrors.name}</p>}
               </div>
               <div>
                 <label className="text-sm font-medium">Type</label>
@@ -132,7 +163,8 @@ export default function AssetsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium">Current Value (₹)</label>
-                  <Input type="number" placeholder="0" value={form.currentValue} onChange={(e) => setForm({ ...form, currentValue: e.target.value })} />
+                  <Input type="number" placeholder="0" value={form.currentValue} onChange={(e) => { setForm({ ...form, currentValue: e.target.value }); setFormErrors((prev) => ({ ...prev, currentValue: "" })) }} className={formErrors.currentValue ? "border-destructive" : ""} />
+                  {formErrors.currentValue && <p className="mt-1 text-xs text-destructive">{formErrors.currentValue}</p>}
                 </div>
                 <div>
                   <label className="text-sm font-medium">Purchase Price (₹)</label>
@@ -142,7 +174,7 @@ export default function AssetsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium">Purchase Date</label>
-                  <Input type="date" value={form.purchaseDate} onChange={(e) => setForm({ ...form, purchaseDate: e.target.value })} />
+                  <DatePicker value={form.purchaseDate} onChange={(d) => setForm({ ...form, purchaseDate: d })} label="Purchase Date" />
                 </div>
                 <div>
                   <label className="text-sm font-medium">Quantity</label>
@@ -224,18 +256,31 @@ export default function AssetsPage() {
         </TabsList>
 
         <TabsContent value="all" className="mt-6">
-          {loading ? <CardGridSkeleton /> : renderGrid(assets, handleEdit, handleDelete)}
+          {loading ? <CardGridSkeleton /> : renderGrid(assets, handleEdit, (id) => setConfirmDelete({ open: true, id }))}
         </TabsContent>
         {Object.entries(categoryConfig).map(([key]) => {
           const items = grouped[key] || []
           if (items.length === 0) return null
           return (
             <TabsContent key={key} value={key} className="mt-6">
-              {renderGrid(items, handleEdit, handleDelete)}
+              {renderGrid(items, handleEdit, (id) => setConfirmDelete({ open: true, id }))}
             </TabsContent>
           )
         })}
       </Tabs>
+
+      <ConfirmDialog
+        open={confirmDelete.open}
+        onOpenChange={(open) => setConfirmDelete((prev) => ({ ...prev, open }))}
+        title="Delete this asset?"
+        description="This action cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={() => {
+          if (confirmDelete.id) handleDelete(confirmDelete.id)
+          setConfirmDelete({ open: false, id: null })
+        }}
+      />
     </div>
   )
 }
@@ -262,10 +307,10 @@ function renderGrid(assets: Asset[], onEdit: (a: Asset) => void, onDelete: (id: 
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button className="rounded-md p-1 text-muted-foreground hover:bg-muted" onClick={() => onEdit(asset)}>
+                  <button className="rounded-md p-1 text-muted-foreground hover:bg-muted" onClick={() => onEdit(asset)} aria-label="Edit">
                     <Pencil className="h-4 w-4" />
                   </button>
-                  <button className="rounded-md p-1 text-red-400 hover:bg-muted" onClick={() => onDelete(asset.id)}>
+                  <button className="rounded-md p-1 text-red-400 hover:bg-muted" onClick={() => onDelete(asset.id)} aria-label="Delete">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>

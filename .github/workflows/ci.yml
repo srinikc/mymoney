@@ -75,6 +75,11 @@ jobs:
           npx prisma migrate deploy
           npx prisma db seed
 
+      - name: Build app
+        env:
+          NEXTAUTH_SECRET: test-secret
+        run: npx next build
+
       - name: Start app
         env:
           DATABASE_URL: postgresql://mymoney:mymoney@localhost:5432/mymoney

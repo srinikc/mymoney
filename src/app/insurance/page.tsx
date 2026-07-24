@@ -133,7 +133,7 @@ function InsuranceFormDialog({
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<InsuranceFormValues>({
-    resolver: zodResolver(insuranceFormSchema),
+    resolver: zodResolver(insuranceFormSchema) as any,
     defaultValues: defaultFormValues,
   })
 

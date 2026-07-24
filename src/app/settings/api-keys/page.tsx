@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { toast } from "sonner"
 import { ArrowLeft, Save, Eye, EyeOff, Key } from "lucide-react"
 import Link from "next/link"
 
@@ -52,9 +53,9 @@ export default function ApiKeysSettingsPage() {
         body: JSON.stringify({ keys }),
       })
       if (!res.ok) throw new Error("Save failed")
-      alert("API keys saved successfully!")
+      toast.success("API keys saved successfully!")
     } catch {
-      alert("Failed to save API keys")
+      toast.error("Failed to save API keys")
     } finally {
       setSaving(false)
     }

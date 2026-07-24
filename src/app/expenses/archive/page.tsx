@@ -4,6 +4,8 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { toast } from "sonner"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { ArchiveRestore, AlertCircle, Trash2 } from "lucide-react"
 import type { Expense } from "@/types"
 
@@ -11,6 +13,7 @@ export default function ArchivePage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
   const [autoPurged, setAutoPurged] = useState(0)
+  const [confirmState, setConfirmState] = useState<{ open: boolean; ids: number[]; action: "purge" | "purge-all" }>({ open: false, ids: [], action: "purge" })
 
   const loadArchived = async () => {
     setLoading(true)
@@ -55,6 +58,7 @@ export default function ArchivePage() {
     })
     if (res.ok) {
       setExpenses((prev) => prev.filter((e) => e.id !== id))
+      toast.success("Expense restored")
     }
   }
 
@@ -68,34 +72,35 @@ export default function ArchivePage() {
     if (res.ok) {
       setSelectedIds(new Set())
       loadArchived()
+      toast.success(`${ids.length} expense${ids.length > 1 ? "s" : ""} restored`)
     }
   }
 
-  const purge = async (id: number) => {
-    if (!window.confirm("Permanently delete this expense? This cannot be undone.")) return
-    const res = await fetch("/api/expenses/archive", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "purge", ids: [id] }),
-    })
-    if (res.ok) {
-      setExpenses((prev) => prev.filter((e) => e.id !== id))
-    }
-  }
-
-  const purgeSelected = async () => {
-    const ids = [...selectedIds]
-    if (ids.length === 0) return
-    if (!window.confirm(`Permanently delete ${ids.length} expense${ids.length > 1 ? "s" : ""}? This cannot be undone.`)) return
+  const executePurge = async (ids: number[]) => {
     const res = await fetch("/api/expenses/archive", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "purge", ids }),
     })
     if (res.ok) {
-      setSelectedIds(new Set())
-      loadArchived()
+      if (confirmState.action === "purge" && ids.length === 1) {
+        setExpenses((prev) => prev.filter((e) => e.id !== ids[0]))
+      } else {
+        setSelectedIds(new Set())
+        loadArchived()
+      }
+      toast.success(`${ids.length} expense${ids.length > 1 ? "s" : ""} permanently deleted`)
     }
+  }
+
+  const promptPurge = (id: number) => {
+    setConfirmState({ open: true, ids: [id], action: "purge" })
+  }
+
+  const promptPurgeSelected = () => {
+    const ids = [...selectedIds]
+    if (ids.length === 0) return
+    setConfirmState({ open: true, ids, action: "purge-all" })
   }
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
@@ -145,7 +150,7 @@ export default function ArchivePage() {
                 <ArchiveRestore className="h-3 w-3 mr-1" />
                 Restore Selected
               </Button>
-              <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={purgeSelected}>
+              <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={promptPurgeSelected}>
                 <Trash2 className="h-3 w-3 mr-1" />
                 Delete Permanently
               </Button>
@@ -197,7 +202,7 @@ export default function ArchivePage() {
                           <Button variant="ghost" size="icon" className="h-6 w-6" title="Restore" onClick={() => restore(exp.id)}>
                             <ArchiveRestore className="h-3 w-3" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 hover:text-destructive" title="Delete permanently" onClick={() => purge(exp.id)}>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 hover:text-destructive" title="Delete permanently" onClick={() => promptPurge(exp.id)}>
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
@@ -210,6 +215,23 @@ export default function ArchivePage() {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={confirmState.open}
+        onOpenChange={(open) => setConfirmState((prev) => ({ ...prev, open }))}
+        title="Permanently delete?"
+        description={
+          confirmState.ids.length === 1
+            ? "This expense will be permanently deleted. This cannot be undone."
+            : `${confirmState.ids.length} expenses will be permanently deleted. This cannot be undone.`
+        }
+        confirmLabel="Delete permanently"
+        variant="destructive"
+        onConfirm={() => {
+          executePurge(confirmState.ids)
+          setConfirmState((prev) => ({ ...prev, open: false }))
+        }}
+      />
     </div>
   )
 }

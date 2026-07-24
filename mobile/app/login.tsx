@@ -24,7 +24,7 @@ export default function LoginScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
-  const { login, error, clearError } = useAuthStore();
+  const { login, checkAuth, error, clearError } = useAuthStore();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -247,7 +247,7 @@ export default function LoginScreen() {
 
           {showLinkInput && (
             <View style={[styles.linkInputContainer, { backgroundColor: theme.surface }]}>
-              <Text style={[styles.linkInputLabel, { color: theme.text }]}>Paste session token from web app (Settings > Mobile Session Link)</Text>
+              <Text style={[styles.linkInputLabel, { color: theme.text }]}>Paste session token from web app (Settings {'>'} Mobile Session Link)</Text>
               <TextInput
                 value={linkToken}
                 onChangeText={setLinkToken}

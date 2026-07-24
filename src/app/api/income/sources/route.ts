@@ -62,7 +62,7 @@ export async function POST(req: Request) {
         name: body.name,
         type: body.type || "monthly",
         amount: body.amount,
-        categoryId,
+        categoryId: categoryId ?? 1,
         autoDetect: body.autoDetect ?? false,
         matchMerchant: body.matchMerchant ?? null,
         matchPerson: body.matchPerson ?? null,

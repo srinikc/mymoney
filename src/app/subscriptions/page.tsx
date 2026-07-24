@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { CardGridSkeleton } from "@/components/ui/page-skeleton"
 import type { Subscription } from "@/types"
+import { toast } from "sonner"
 import { Plus, CreditCard, Bell, MoreHorizontal } from "lucide-react"
 
 function calcDaysUntilDue(dateStr: string | null): number | undefined {
@@ -59,26 +60,44 @@ export default function SubscriptionsPage() {
   useEffect(() => { loadData() }, [])
 
   const handleSubmit = async () => {
-    await fetch("/api/subscriptions", { method: "POST", body: JSON.stringify(form) })
-    setOpen(false)
-    setForm({ name: "", provider: "", amount: "", billingCycle: "monthly", nextDueDate: "", category: "entertainment", notes: "" })
-    loadData()
+    try {
+      const res = await fetch("/api/subscriptions", { method: "POST", body: JSON.stringify(form) })
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to add subscription")
+      toast.success("Subscription added")
+      setOpen(false)
+      setForm({ name: "", provider: "", amount: "", billingCycle: "monthly", nextDueDate: "", category: "entertainment", notes: "" })
+      loadData()
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add subscription")
+    }
   }
 
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this subscription?")) return
-    await fetch(`/api/subscriptions?id=${id}`, { method: "DELETE" })
-    loadData()
+    try {
+      const res = await fetch(`/api/subscriptions?id=${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete subscription")
+      toast.success("Subscription deleted")
+      loadData()
+    } catch {
+      toast.error("Failed to delete subscription")
+    }
   }
 
   const handleToggleStatus = async (sub: Subscription) => {
     const newStatus = sub.status === "active" ? "paused" : "active"
-    await fetch("/api/subscriptions", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: sub.id, status: newStatus }),
-    })
-    loadData()
+    try {
+      const res = await fetch("/api/subscriptions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: sub.id, status: newStatus }),
+      })
+      if (!res.ok) throw new Error("Failed to update subscription")
+      toast.success(`Subscription ${newStatus === "active" ? "activated" : "paused"}`)
+      loadData()
+    } catch {
+      toast.error("Failed to update subscription")
+    }
   }
 
   const totalMonthly = subscriptions

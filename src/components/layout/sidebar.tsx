@@ -1,5 +1,6 @@
 ﻿"use client"
 
+import { useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
@@ -70,6 +71,7 @@ const analysisItems = [
 const otherItems = [
   { href: "/deals", label: "Deals", icon: Gift },
   { href: "/reminders", label: "Reminders", icon: Bell },
+  { href: "/family", label: "Family Sharing", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/what-if", label: "What-If", icon: Plus },
 ]
@@ -87,6 +89,8 @@ export function Sidebar() {
   const {
     sidebarOpen,
     toggleSidebar,
+    mobileSidebarOpen,
+    setMobileSidebarOpen,
     incomeExpanded,
     toggleIncomeExpanded,
     planningExpanded,
@@ -160,6 +164,7 @@ export function Sidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  aria-current={active ? "page" : undefined}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                     active
@@ -178,32 +183,53 @@ export function Sidebar() {
     )
   }
 
+  // Close mobile sidebar on navigation
+  useEffect(() => {
+    setMobileSidebarOpen(false)
+  }, [pathname, setMobileSidebarOpen])
+
   return (
-    <aside
-      className={cn(
-        "fixed left-0 top-0 z-40 flex h-screen flex-col border-r bg-sidebar text-sidebar-foreground transition-all duration-300",
-        sidebarOpen ? "w-64" : "w-16"
+    <>
+      {/* Mobile overlay backdrop */}
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
       )}
-    >
-      <div className={cn("flex h-16 items-center border-b border-white/10 px-4", sidebarOpen ? "justify-between" : "justify-center")}>
-        {sidebarOpen && (
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-xs font-bold text-white">
-              M
-            </div>
-            <span className="text-lg font-bold">MyMoney</span>
-          </Link>
+      <aside
+        className={cn(
+          "fixed left-0 top-0 z-40 flex h-screen flex-col border-r bg-sidebar text-sidebar-foreground transition-all duration-300",
+          sidebarOpen ? "w-64" : "w-16",
+          "max-lg:fixed max-lg:left-0 max-lg:top-0 max-lg:h-screen max-lg:transition-transform max-lg:duration-300",
+          mobileSidebarOpen ? "max-lg:translate-x-0" : "max-lg:-translate-x-full"
         )}
-        <button
-          onClick={toggleSidebar}
-          className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/10 hover:text-white",
-            !sidebarOpen && "mx-auto"
+      >
+        <div className={cn("flex h-16 items-center border-b border-white/10 px-4", sidebarOpen ? "justify-between" : "justify-center")}>
+          {sidebarOpen && (
+            <Link href="/" className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-xs font-bold text-white">
+                M
+              </div>
+              <span className="text-lg font-bold">MyMoney</span>
+            </Link>
           )}
-        >
-          <ChevronLeft className={cn("h-5 w-5 transition-transform", !sidebarOpen && "rotate-180")} />
-        </button>
-      </div>
+          <button
+            onClick={() => {
+              if (window.innerWidth < 1024) {
+                setMobileSidebarOpen(false)
+              } else {
+                toggleSidebar()
+              }
+            }}
+            className={cn(
+              "flex h-8 w-8 items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/10 hover:text-white",
+              !sidebarOpen && "mx-auto"
+            )}
+          >
+            <ChevronLeft className={cn("h-5 w-5 transition-transform", !sidebarOpen && "rotate-180")} />
+          </button>
+        </div>
 
       <ProfileSwitcher />
 
@@ -211,6 +237,7 @@ export function Sidebar() {
         {/* Dashboard always on top */}
         <Link
           href="/"
+          aria-current={pathname === "/" ? "page" : undefined}
           className={cn(
             "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
             pathname === "/"
@@ -291,6 +318,7 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={active ? "page" : undefined}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                 active
@@ -326,6 +354,7 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={active ? "page" : undefined}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                 active
@@ -344,9 +373,10 @@ export function Sidebar() {
         )}
       </nav>
 
-      <div className={cn("border-t border-white/10 p-4 text-xs text-white/40", !sidebarOpen && "p-2 text-center")}>
+      <div className={cn("border-t border-white/10 p-4 text-xs text-white/40", !sidebarOpen && "p-2 text-center lg:block")}>
         {sidebarOpen ? "MyMoney v1.0" : "v1"}
       </div>
     </aside>
+    </>
   )
 }

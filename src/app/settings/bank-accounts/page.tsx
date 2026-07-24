@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { toast } from "sonner"
 import { ArrowLeft, Building2, Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
 
@@ -28,20 +29,32 @@ export default function BankAccountsSettingsPage() {
   useEffect(() => { fetchAccounts() }, [])
 
   const handleSave = async () => {
-    await fetch("/api/bank-accounts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, balance: parseFloat(form.balance) || 0 }),
-    })
-    setShowForm(false)
-    setForm({ bankName: "", name: "", accountNumber: "", type: "savings", ifscCode: "", balance: "" })
-    fetchAccounts()
+    try {
+      const res = await fetch("/api/bank-accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, balance: parseFloat(form.balance) || 0 }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to save account")
+      toast.success("Bank account added")
+      setShowForm(false)
+      setForm({ bankName: "", name: "", accountNumber: "", type: "savings", ifscCode: "", balance: "" })
+      fetchAccounts()
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save account")
+    }
   }
 
   const handleDelete = async (id: number) => {
     if (confirm("Delete this bank account?")) {
-      await fetch(`/api/bank-accounts/${id}`, { method: "DELETE" })
-      fetchAccounts()
+      try {
+        const res = await fetch(`/api/bank-accounts/${id}`, { method: "DELETE" })
+        if (!res.ok) throw new Error("Failed to delete account")
+        toast.success("Bank account deleted")
+        fetchAccounts()
+      } catch {
+        toast.error("Failed to delete account")
+      }
     }
   }
 

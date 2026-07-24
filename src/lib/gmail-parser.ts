@@ -113,8 +113,8 @@ export function parseBankTransaction(email: ParsedEmail, kw?: ParserKeywords): P
     description: email.subject || `Bank ${isCredit ? "credit" : "debit"}`,
     vendor,
     category: isCredit ? "Income" : "Other",
-    balance: extractBalance(text),
-    accountNumber: extractAccountNumber(text),
+    balance: extractBalance(text) ?? undefined,
+    accountNumber: extractAccountNumber(text) ?? undefined,
   }
 }
 

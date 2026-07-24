@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { formatDate } from '../utils/format';
+import { scheduleReminderNotification, cancelReminderNotification } from '../lib/notifications';
 import api from '../api/client';
 
 export default function RemindersScreen() {
@@ -19,6 +20,7 @@ export default function RemindersScreen() {
   const [showForm, setShowForm] = useState(false);
   const [formTitle, setFormTitle] = useState('');
   const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10));
+  const [formDescription, setFormDescription] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -38,7 +40,11 @@ export default function RemindersScreen() {
     if (!formTitle.trim()) { setFormError('Please enter a title'); return; }
     setFormLoading(true);
     try {
-      await api.post('/api/reminders', { title: formTitle.trim(), date: formDate, dueDate: formDate });
+      const res = await api.post('/api/reminders', { title: formTitle.trim(), date: formDate, dueDate: formDate, description: formDescription.trim() || undefined });
+      const reminder = res.data;
+      if (reminder?.id && formDate) {
+        scheduleReminderNotification({ id: reminder.id, title: formTitle.trim(), dueDate: formDate, description: formDescription.trim() }).catch(() => {});
+      }
       setShowForm(false);
       fetch();
     } catch (err: any) { setFormError(err.response?.data?.message || 'Failed to save'); }
@@ -48,7 +54,13 @@ export default function RemindersScreen() {
   const handleDelete = (id: string) => {
     Alert.alert('Delete Reminder', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => { try { await api.delete(`/api/reminders/${id}`); fetch(); } catch { Alert.alert('Error', 'Failed to delete'); } } },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          await api.delete(`/api/reminders/${id}`);
+          cancelReminderNotification(Number(id)).catch(() => {});
+          fetch();
+        } catch { Alert.alert('Error', 'Failed to delete'); }
+      } },
     ]);
   };
 
@@ -95,6 +107,8 @@ export default function RemindersScreen() {
           {formError ? <View style={[styles.formError, { backgroundColor: theme.expenseLight }]}><Text style={{ color: theme.expense, fontSize: 13 }}>{formError}</Text></View> : null}
           <Text style={[styles.label, { color: theme.textSecondary }]}>Title</Text>
           <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formTitle} onChangeText={setFormTitle} placeholder="e.g. Pay electricity bill" placeholderTextColor={theme.textTertiary} />
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Description</Text>
+          <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formDescription} onChangeText={setFormDescription} placeholder="Optional details" placeholderTextColor={theme.textTertiary} />
           <Text style={[styles.label, { color: theme.textSecondary }]}>Date</Text>
           <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formDate} onChangeText={setFormDate} placeholder="YYYY-MM-DD" placeholderTextColor={theme.textTertiary} />
           <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.primary }]} onPress={handleSave} disabled={formLoading}>

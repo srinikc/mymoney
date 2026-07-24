@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { toast } from "sonner"
 import { ArrowLeft, Save, Server, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
 
@@ -54,9 +55,9 @@ export default function EnvironmentSettingsPage() {
         body: JSON.stringify({ vars: overrides }),
       })
       if (!res.ok) throw new Error("Save failed")
-      alert("Environment overrides saved!")
+      toast.success("Environment overrides saved!")
     } catch {
-      alert("Failed to save")
+      toast.error("Failed to save environment overrides")
     } finally {
       setSaving(false)
     }

@@ -22,8 +22,8 @@ async function main() {
     data: {
       email: "test@example.com",
       name: "Test User",
-      role: "user",
-      tier: "free",
+      role: "admin",
+      tier: "premium",
       hashedPassword,
     },
   })

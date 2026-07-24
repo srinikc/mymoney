@@ -23,6 +23,9 @@ model User {
   accounts  Account[]
   sessions  Session[]
   userSettings UserSetting[]
+  payments  Payment[]
+  invitedSharedProfiles SharedProfile[] @relation("InvitedUser")
+  sentInvitations SharedProfile[] @relation("Inviter")
 }
 
 model Profile {
@@ -53,6 +56,7 @@ model Profile {
   expenseLinks ExpenseLink[]
   bankAccounts BankAccount[]
   fixedDeposits FixedDeposit[]
+  sharedProfiles SharedProfile[]
 }
 
 model Account {
@@ -585,6 +589,25 @@ model UserSetting {
   @@index([userId])
 }
 
+model Payment {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId   String   @unique
+  paymentId String?
+  signature String?
+  amount    Int
+  currency  String   @default("INR")
+  plan      String
+  status    String   @default("created") // created | paid | failed
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([status])
+}
+
 // -- Bank Account -------------------------------------------------------
 
 model BankAccount {
@@ -636,5 +659,27 @@ model FixedDeposit {
 
   @@index([profileId])
   @@index([bankAccountId])
+  @@index([status])
+}
+
+// ── Family Sharing ─────────────────────────────────────────────────────
+
+model SharedProfile {
+  id          Int      @id @default(autoincrement())
+  profileId   Int
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  invitedEmail String
+  invitedUser   User?   @relation("InvitedUser", fields: [invitedUserId], references: [id])
+  invitedUserId Int?
+  invitedBy   Int
+  inviter     User     @relation("Inviter", fields: [invitedBy], references: [id])
+  role        String   @default("viewer") // viewer | editor
+  status      String   @default("pending") // pending | accepted | revoked
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([profileId, invitedEmail])
+  @@index([invitedUserId])
+  @@index([invitedBy])
   @@index([status])
 }

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import type { Category } from "@/types"
+import { toast } from "sonner"
 import { Plus, Bell, CheckCircle2, Trash2, ShoppingCart, Heart, Clock, Sparkles } from "lucide-react"
 import { CardGridSkeleton } from "@/components/ui/page-skeleton"
 
@@ -52,33 +53,57 @@ export default function RemindersPage() {
   useEffect(() => { load() }, [load])
 
   const handleCreate = async () => {
-    await fetch("/api/reminders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    })
-    setOpen(false)
-    setForm({ title: "", description: "", type: "custom", priority: "normal", dueDate: "", amount: "", categoryId: "", recurring: "none" })
-    load()
+    try {
+      const res = await fetch("/api/reminders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      })
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to create reminder")
+      toast.success("Reminder created")
+      setOpen(false)
+      setForm({ title: "", description: "", type: "custom", priority: "normal", dueDate: "", amount: "", categoryId: "", recurring: "none" })
+      load()
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create reminder")
+    }
   }
 
   const handleToggle = async (r: Reminder) => {
-    await fetch("/api/reminders", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: r.id, isCompleted: !r.isCompleted }),
-    })
-    load()
+    try {
+      const res = await fetch("/api/reminders", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: r.id, isCompleted: !r.isCompleted }),
+      })
+      if (!res.ok) throw new Error("Failed to update reminder")
+      toast.success(r.isCompleted ? "Reminder reopened" : "Reminder completed")
+      load()
+    } catch {
+      toast.error("Failed to update reminder")
+    }
   }
 
   const handleDelete = async (id: number) => {
-    await fetch(`/api/reminders?id=${id}`, { method: "DELETE" })
-    load()
+    try {
+      const res = await fetch(`/api/reminders?id=${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete reminder")
+      toast.success("Reminder deleted")
+      load()
+    } catch {
+      toast.error("Failed to delete reminder")
+    }
   }
 
   const handleAutoDetect = async () => {
-    await fetch("/api/reminders/auto-detect", { method: "POST" })
-    load()
+    try {
+      const res = await fetch("/api/reminders/auto-detect", { method: "POST" })
+      if (!res.ok) throw new Error((await res.json()).error || "Auto-detect failed")
+      toast.success("Reminders auto-detected")
+      load()
+    } catch (err: any) {
+      toast.error(err.message || "Auto-detect failed")
+    }
   }
 
   const typeIcon: Record<string, React.ReactNode> = {

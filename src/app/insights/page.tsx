@@ -342,8 +342,8 @@ export default function InsightsPage() {
                       ))}
                       <td className="py-2.5 text-right">
                         {yoyData.length >= 2 ? (() => {
-                          const latest = yoyData.at(-1).amount
-                          const prev = yoyData.at(-2).amount
+                          const latest = yoyData.at(-1)?.amount ?? 0
+                          const prev = yoyData.at(-2)?.amount ?? 0
                           const chg = prev > 0 ? ((latest - prev) / prev) * 100 : 0
                           const isGood = chg <= 0
                           return (
@@ -355,8 +355,8 @@ export default function InsightsPage() {
                       </td>
                       <td className="py-2.5 text-right">
                         {yoyData.length >= 2 ? (() => {
-                          const latest = yoyData.at(-1).amount
-                          const prev = yoyData.at(-2).amount
+                          const latest = yoyData.at(-1)?.amount ?? 0
+                          const prev = yoyData.at(-2)?.amount ?? 0
                           const isDown = latest <= prev
                           return isDown ? (
                             <ArrowDownRight className="inline h-4 w-4 text-emerald-500" />

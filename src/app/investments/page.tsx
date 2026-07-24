@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { CardGridSkeleton } from "@/components/ui/page-skeleton"
 import type { Investment } from "@/types"
+import { toast } from "sonner"
 import { Plus, TrendingUp, TrendingDown, Download, Building2, Pencil, Trash2 } from "lucide-react"
 
 const defaultForm = {
@@ -38,15 +39,22 @@ export default function InvestmentsPage() {
 
   const handleSubmit = async () => {
     const body = { ...form }
-    if (editInv) {
-      await fetch("/api/investments", { method: "PUT", body: JSON.stringify({ id: editInv.id, ...body }) })
-    } else {
-      await fetch("/api/investments", { method: "POST", body: JSON.stringify(body) })
+    try {
+      let res: Response
+      if (editInv) {
+        res = await fetch("/api/investments", { method: "PUT", body: JSON.stringify({ id: editInv.id, ...body }) })
+      } else {
+        res = await fetch("/api/investments", { method: "POST", body: JSON.stringify(body) })
+      }
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to save investment")
+      toast.success(editInv ? "Investment updated" : "Investment added")
+      setOpen(false)
+      setEditInv(null)
+      setForm(defaultForm)
+      loadData()
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save investment")
     }
-    setOpen(false)
-    setEditInv(null)
-    setForm(defaultForm)
-    loadData()
   }
 
   const handleEdit = (inv: Investment) => {
@@ -62,16 +70,28 @@ export default function InvestmentsPage() {
 
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this investment?")) return
-    await fetch(`/api/investments?id=${id}`, { method: "DELETE" })
-    loadData()
+    try {
+      const res = await fetch(`/api/investments?id=${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete investment")
+      toast.success("Investment deleted")
+      loadData()
+    } catch {
+      toast.error("Failed to delete investment")
+    }
   }
 
   const handleExport = async () => {
-    const res = await fetch(`/api/export?type=investments&format=xlsx`)
-    const blob = await res.blob()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a"); a.href = url; a.download = "investments-export.xlsx"; a.click()
-    URL.revokeObjectURL(url)
+    try {
+      const res = await fetch(`/api/export?type=investments&format=xlsx`)
+      if (!res.ok) throw new Error("Export failed")
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a"); a.href = url; a.download = "investments-export.xlsx"; a.click()
+      URL.revokeObjectURL(url)
+      toast.success("Export downloaded")
+    } catch {
+      toast.error("Failed to export investments")
+    }
   }
 
   const totalInvested = investments.reduce((s, i) => s + i.amount, 0)

@@ -49,7 +49,7 @@ export async function POST(req: Request) {
         totalCredit: Math.round(totalCredit * 100) / 100,
         dateRange: {
           from: parsed.rows[0].date,
-          to: parsed.rows.at(-1).date,
+          to: parsed.rows.at(-1)?.date ?? parsed.rows[0].date,
         },
         sample: parsed.rows.slice(0, 10).map((r) => ({
           date: r.date,

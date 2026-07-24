@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
+import { toast } from "sonner"
 import { Link2, Check, X, Loader2 } from "lucide-react"
 
 interface Suggestion {
@@ -45,8 +46,13 @@ export default function AutoLinkPage() {
       })
       if (res.ok) {
         setAccepted((prev) => new Set(prev).add(key))
+        toast.success("Link accepted")
+      } else {
+        throw new Error((await res.json()).error || "Failed to accept link")
       }
-    } catch { /* ignore */ }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to accept link")
+    }
   }
 
   const typeColors: Record<string, string> = {

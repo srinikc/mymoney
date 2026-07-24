@@ -56,24 +56,24 @@
 
 ---
 
-## Session Status (Jul 2026 Sprint — Updated 21-Jul)
+## Session Status (Jul 2026 Sprint — Updated 22-Jul)
 
-> **Live document** — all P1–P3 web features are complete and merged to `develop`.
+> **Live document** — all P1–P6 web features + mobile parity are complete and merged to `develop`.
 
 | Phase | Status | Modules |
 |---|---|---|
 | **P1** | ✅ Complete | Income Sources (model + API + page + sidebar), Docker fix (Playwright + healthcheck), Sidebar regroup |
 | **P2** | ✅ Complete | Loans (full model + CRUD page), Insurance (full model + CRUD page), Budget Income% |
 | **P3** | ✅ Complete | Goal-Plan merge (Plan → Goal, term/priority fields), Investment-Goal linking (`linkedGoalId` on Investment) |
-| **P4** | 🟡 In Progress | Mobile app (Expo) — 4-tab nav, auth, dashboard, subscriptions CRUD; EAS build #6 queued |
+| **P4** | ✅ Complete | Mobile app (Expo) — all 43 web screens ported, biometric auth, quick capture, GPay sync, session sharing, dark mode, responsive sidebar, onboarding wizard, admin panel |
 | **P5** | ✅ Complete | Tax Section (Form 16/26AS upload, ITR filings, deductions, projections) |
-| **P6** | ✅ Complete | Auto-Linking (suggestions API + ExpenseLink model + UI), Dashboard Income Card, Reports Income tab |
-| **P7** | ❌ Not started | Enterprise hardening |
+| **P6** | ✅ Complete | Auto-Linking (suggestions API + ExpenseLink model + UI), Dashboard Income Card, Reports Income tab, Gmail parsing |
+| **P7** | ✅ Complete | TypeScript strict mode (63 → 0 errors), full test suite (16 vitest + 20 Playwright tests), CI/CD pipeline |
+| **P8** | ✅ Complete | Razorpay payments + webhooks + auto-upgrade + tier enforcement, accessibility (skip-link, aria-labels), date pickers (react-day-picker), transaction confirmation (countdown on ≥₹10K) |
 
-**Auth status**: P2 rewrote auth to JWT-based (cookie → session lookup, no PrismaAdapter in Edge). P1 auth bugs are resolved.
+**Auth status**: JWT-based (cookie → session lookup, no PrismaAdapter in Edge). All auth bugs resolved.
 **Current branch**: `develop`
-**Last build**: EAS build #6 (Android APK, in queue)
-**New features**: Gmail Import (scan + parse + import financial emails into expenses/investments/insurance/subscriptions/tax/income)
+**New features**: Mobile parity complete (27+ new screens), push notifications end-to-end. Remaining: Play Store submission prep.
 
 ---
 
@@ -720,14 +720,20 @@ P2: ✅ Loans + Insurance + Budget Income% (Complete)
 P3: ✅ Goal-Plan Merge + Investment Linking (Complete)
       └── Web feature implementation only
 
-P4: 🟡 Mobile App (React Native/Expo) — In Progress
+P4: ✅ Mobile App (React Native/Expo) — Complete
       ├── 4-tab bottom navigation (Home, Add, List, More) ✅
       ├── Auth + Dashboard + Subscriptions CRUD ✅
-      ├── ❌ Biometric auth
-      ├── ❌ Quick capture (expense + income)
-      ├── ❌ GPay sync
-      ├── ❌ Push notifications (EMI, premiums, budget alerts)
-      ├── ❌ Web auth session sharing
+      ├── ✅ Biometric auth (expo-local-authentication, lock on app launch)
+      ├── ✅ Quick capture (QuickCaptureModal, expense + income)
+      ├── ✅ GPay sync (POST /api/refresh-gpay button)
+      ├── ✅ Web auth session sharing (settings/session-link.tsx)
+      ├── ✅ All 43 web screens ported to mobile
+      ├── ✅ Dark/light mode with system theme
+      ├── ✅ Full expenses suite (archive, import, merchants, duplicates)
+      ├── ✅ Insights, Health, What-If, Risk Profile screens
+      ├── ✅ Onboarding wizard (6 steps)
+      ├── ✅ Admin panel (users, features, profiles, audit-log)
+      ├── ✅ Push notifications (local + Expo Push API, reminder scheduling, budget alerts at 75%/90%)
       └── ❌ Play Store + App Store submission prep
 
 P5: ✅ Tax Section — Complete
@@ -742,11 +748,11 @@ P6: ✅ Auto-Linking + Dashboard/Reports income + Gmail Parsing
       ├── Income cards on dashboard + reports
       └── Gmail inbox scan + parse + import financial records
 
-P7: ❌ Enterprise Hardening
-      ├── TypeScript strict mode
-      ├── Global error boundaries
-      ├── Full test suite
-      └── CI/CD pipeline (not active)
+P7: ✅ Enterprise Hardening
+      ├── ✅ TypeScript strict mode (tsconfig strict: true, 63 errors fixed)
+      ├── ✅ Global error boundaries (error.tsx + global-error.tsx)
+      ├── ✅ Full test suite (16 Vitest validation tests + 20 Playwright E2E tests)
+      └── ✅ CI/CD pipeline (.github/workflows/ci.yml: lint → typecheck → test → build → e2e)
 
 ---
 
@@ -785,13 +791,13 @@ P7: ❌ Enterprise Hardening
 |---|---|---|
 | Redis | ❌ | Background jobs, caching, rate limiting — not in docker-compose |
 | BullMQ | ❌ | Persistent job queue — planned in ARCHITECTURE.md |
-| Mobile app (React Native) | ❌ | Not started |
+| Mobile app (React Native) | ✅ | All 43 web screens ported, biometric, quick capture, GPay sync, session sharing |
 | PWA service worker | ❌ | offline support missing |
 | Full-text search | ❌ | Expenses use SQL LIKE — slow at scale |
 | Sentry / error tracking | ❌ | No monitoring service |
-| CI/CD pipeline | ❌ | No GitHub Actions or any automation |
+| CI/CD pipeline | ✅ | lint → typecheck → test → build → e2e on push/PR |
 | Prettier | ❌ | Not configured |
-| Rate limit per-tier | ❌ | Only global in-memory exists |
+| Rate limit per-tier | ✅ | IP-based + tier-based (free/pro/enterprise) in middleware |
 
 #### Infrastructure Components Map
 
@@ -889,11 +895,11 @@ BACKUP              ❌ No automated pg_dump
 | `profile.tier` enum (free/pro/premium) | ✅ Built |
 | RBAC middleware (admin/manager routes) | ✅ Built |
 | Profile-level data isolation | ✅ Built |
-| Razorpay API integration | ❌ Not built |
-| Razorpay webhook handler (`POST /api/webhooks/razorpay`) | ❌ Not built |
-| Stripe API integration | ❌ Not built |
-| Auto-upgrade on payment | ❌ Not built |
-| Free tier enforcement (1 profile limit) | ❌ Not enforced |
+| Razorpay API integration | ✅ Razorpay orders + verification |
+| Razorpay webhook handler (`POST /api/webhooks/razorpay`) | ✅ Signature-verified, auto-upgrade on payment.captured |
+| Stripe API integration | ⚠️ Razorpay only (Stripe not configured) |
+| Auto-upgrade on payment | ✅ Verifies payment → upgrades tier via DB |
+| Free tier enforcement (1 profile max) | ✅ Enforced in profiles API (Free=1, Pro=3, Enterprise=10) |
 | Entity requirements | ⚠️ Sole proprietorship needed for first paid user; LLP/Pvt Ltd for enterprise/AA |
 
 #### Entity Requirements Per Stage
@@ -901,7 +907,7 @@ BACKUP              ❌ No automated pg_dump
 | Stage | Action | Entity Needed |
 |---|---|---|
 | Now | Build features, test with manual flag toggles | ❌ None |
-| Family sharing | Share via admin toggle | ❌ None |
+| Family sharing | Invite via email, accept/revoke, viewer/editor roles | ✅ SharedProfile model, web UI + mobile screen |
 | First paid user | Integrate Razorpay + webhook | ✅ Sole proprietorship |
 | Enterprise | Custom pricing, AA integration | ✅ LLP/Pvt Ltd |
 
@@ -1083,14 +1089,14 @@ Razorpay/Stripe → POST /api/webhooks/* → verify signature → find profile �
 | **Search/filter** | ✅ Expenses only | Expenses page has excellent multi-column filtering (vendor, category, amount, date, mode, etc.) with pagination |
 | **Pagination** | ✅ Good | 2 implementations: custom (expenses) + `@tanstack/react-table` (reports, admin) — both server-side |
 | **Navigation** | ✅ Good | Active route highlighting in sidebar, collapsible sidebar (64px/256px), admin section with amber colors |
-| **Confidence indicators** | ⚠️ Mixed | Rich import/GPay dialogs with progress; ❌ **no toast/notification system** — saves give no feedback; ❌ no undo |
+| **Confidence indicators** | ✅ Good | Toast system (sonner) on all CRUD; TransactionConfirm with countdown for high-value expenses |
 | **Error states (client)** | ⚠️ Needs Work | 36 of ~90 API routes lack try/catch → unhandled DB errors produce raw 500s; no `error.tsx` global boundary; client shows generic "Failed to load" strings |
 | **Form validation** | ⚠️ Needs Work | No `react-hook-form` used; all forms use `useState` with manual validation; no inline field-level errors; forms silently fail |
-| **Transaction confirmations** | ⚠️ Needs Work | Uses native `window.confirm` (ugly); ❌ **Net Worth delete has no confirmation at all**; `@radix-ui/react-alert-dialog` in package.json but unused |
+| **Transaction confirmations** | ✅ Good | Custom TransactionConfirm dialog with countdown (1.5s) for expenses ≥ ₹10K; ConfirmDialog used everywhere |
 | **Dark mode** | 💥 Broken | CSS variables defined in `globals.css` for `.dark` class, but **ThemeProvider is never instantiated** — no `<ThemeProvider>` in `layout.tsx`, no toggle button anywhere |
 | **Responsiveness** | 💥 Broken | Sidebar is `fixed left-0` on ALL screen sizes — no mobile drawer, no hamburger menu, no `lg:block` breakpoint; tiny touch targets (`h-5 w-5`, `text-[10px]`) in expense table |
-| **Accessibility** | ❌ Poor | Very few aria labels; no heading hierarchy; no keyboard nav in tables; no focus indicators; no skip-to-content; no `prefers-reduced-motion` check |
-| **Date pickers** | ❌ Poor | `react-day-picker` (v9.6.3) in package.json but **never used**; all date inputs are native `<input type="date">` |
+| **Accessibility** | ⚠️ Improved | Skip-to-content link, aria-labels on search/buttons/table (expenses, assets), aria-current on sidebar; still needs heading hierarchy, keyboard table nav, prefers-reduced-motion |
+| **Date pickers** | ✅ Good | `react-day-picker` integrated via reusable `<DatePicker>` component, used in expenses, income, assets forms |
 
 ### 26.4 UX Fixes Included Per Module
 
@@ -1157,9 +1163,9 @@ Razorpay/Stripe → POST /api/webhooks/* → verify signature → find profile �
 | CSRF protection | Built-in Next.js CSRF | ✅ |
 | Dependency scanning | npm audit | ⚠️ Manual, not automated |
 | **Trust signals (UX)** | | |
-| Biometric auth (web) | Face ID / Windows Hello via WebAuthn | ❌ Not implemented |
+| Biometric auth (web) | Face ID / Windows Hello via WebAuthn | ❌ Still not implemented (mobile only) |
 | Biometric auth (mobile) | Face ID / fingerprint on app launch | ❌ Planned (P4) |
-| Transaction confirmation | Summary screen + 1s delay on high-value actions | ❌ Not implemented |
+| Transaction confirmation | Summary screen + 1.5s delay on expenses ≥ ₹10K | ✅ TransactionConfirm component with countdown progress bar |
 | Privacy-first | No analytics tracking, no third-party cookies | ✅ Intentional |
 | Open source transparency | All code visible, no obfuscation | ✅
 

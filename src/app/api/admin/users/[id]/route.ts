@@ -61,7 +61,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
-  const forbid = requireRole(session?.user as any, "admin")
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+  const forbid = requireRole(session.user as any, "admin")
   if (forbid) return forbid
 
   const { id } = await params
@@ -131,7 +134,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
-  const forbid = requireRole(session?.user as any, "admin")
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+  const forbid = requireRole(session.user as any, "admin")
   if (forbid) return forbid
 
   const { id } = await params

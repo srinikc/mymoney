@@ -20,6 +20,7 @@ interface AuthStore {
   logout: () => Promise<void>
   checkAuth: () => Promise<void>
   clearError: () => void
+  setUser: (user: User | null) => void
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -68,4 +69,5 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   clearError: () => set({ error: null }),
+  setUser: (user: User | null) => set({ user }),
 }))

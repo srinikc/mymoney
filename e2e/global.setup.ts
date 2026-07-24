@@ -8,7 +8,10 @@ export default async function globalSetup() {
   await page.locator("#email").fill("test@example.com")
   await page.locator("#password").fill("test123")
   await page.getByRole("button", { name: "Sign in with Email" }).click()
-  await page.waitForURL("**/", { timeout: 15000 })
+  await page.waitForURL((url) => !url.pathname.includes("/login"), { timeout: 15000 })
+  if (page.url().includes("/onboarding")) {
+    await page.goto("http://localhost:3005/", { waitUntil: "networkidle" })
+  }
   await page.waitForTimeout(2000)
   await page.context().storageState({ path: "e2e/.auth.json" })
   await browser.close()

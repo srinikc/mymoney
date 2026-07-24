@@ -50,7 +50,7 @@ const knownRoutes = [
 ]
 
 describe("Help content coverage", () => {
-  test.each(knownRoutes)("route %s has dedicated help content entry", (route) => {
+  test.each(knownRoutes)("route %s has dedicated help content entry", (route: string) => {
     expect(helpContent[route]).toBeDefined()
   })
 

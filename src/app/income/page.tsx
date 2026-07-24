@@ -47,13 +47,13 @@ interface IncomeSource {
   bankAccount: string | null
   startDate: string
   notes: string | null
-  revenue: number | null
+  businessRevenue: number | null
   businessExpenses: number | null
-  otherExpensesDescription: string | null
-  otherExpensesAmount: number | null
-  investment: number | null
-  profit: number | null
+  businessOtherExp: string | null
+  businessOtherAmt: number | null
+  businessInvestment: number | null
   isProfitPostTax: boolean | null
+  category: { id: number; name: string } | null
   createdAt: string
   updatedAt: string
 }
@@ -151,12 +151,12 @@ function IncomeFormDialog({
         bankAccount: editing.bankAccount || "",
         startDate: editing.startDate?.split("T")[0] ?? "",
         notes: editing.notes || "",
-        revenue: editing.revenue || 0,
+        revenue: editing.businessRevenue || 0,
         businessExpenses: editing.businessExpenses || 0,
-        otherExpensesDescription: editing.otherExpensesDescription || "",
-        otherExpensesAmount: editing.otherExpensesAmount || 0,
-        investment: editing.investment || 0,
-        profit: editing.profit || 0,
+        otherExpensesDescription: editing.businessOtherExp || "",
+        otherExpensesAmount: editing.businessOtherAmt || 0,
+        investment: editing.businessInvestment || 0,
+        profit: 0,
         isProfitPostTax: editing.isProfitPostTax || false,
       })
     } else {
@@ -326,8 +326,17 @@ export default function IncomePage() {
       if (!res.ok) throw new Error("Failed to fetch income sources")
       const data = await res.json()
 
-      const sourcesList: IncomeSource[] = data.sources || data.data || data || []
-      const src = Array.isArray(sourcesList) ? sourcesList : Array.isArray(data) ? data : []
+      const raw = data.sources || data.data || data || []
+      const rawList = Array.isArray(raw) ? raw : Array.isArray(data) ? data : []
+      const src: IncomeSource[] = rawList.map((s: any) => ({
+        ...s,
+        sourceCategory: s.category?.name || "Other",
+        businessRevenue: s.businessRevenue ?? null,
+        businessExpenses: s.businessExpenses ?? null,
+        businessOtherExp: s.businessOtherExp ?? null,
+        businessOtherAmt: s.businessOtherAmt ?? null,
+        businessInvestment: s.businessInvestment ?? null,
+      }))
 
       setSources(src)
 

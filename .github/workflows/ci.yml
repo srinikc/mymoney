@@ -8,7 +8,7 @@ on:
 
 jobs:
   quality:
-    name: Lint & TypeCheck & Test
+    name: build
     runs-on: ubuntu-latest
 
     steps:

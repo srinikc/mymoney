@@ -344,6 +344,7 @@ export default function IncomePage() {
 
       const thisMonth = src
         .filter((s) => {
+          if (!s.startDate) return false
           const start = new Date(s.startDate)
           if (start > now) return false
           if (s.type === "monthly") return true
@@ -591,7 +592,7 @@ export default function IncomePage() {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-xs text-muted-foreground">{source.paymentMode}</td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground">{formatDate(source.startDate)}</td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground">{source.startDate ? formatDate(source.startDate) : "—"}</td>
                           <td className="px-4 py-3 text-right whitespace-nowrap">
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(source)}>
                               <Pencil className="h-3.5 w-3.5" />

@@ -459,6 +459,67 @@ export const helpContent: Record<string, HelpSection> = {
     ],
   },
 
+  "/audit-log": {
+    title: "Audit Log",
+    summary: "Track all changes made to your account — who did what and when.",
+    details: "The Audit Log records every administrative action on your account: role changes, profile management, feature flag toggles. Each entry shows the user, action, and timestamp.",
+    relatedFeatures: [
+      { name: "Admin Audit Log", description: "Admins can see all changes across the entire system." },
+    ],
+  },
+
+  "/settings/api-keys": {
+    title: "API Keys",
+    summary: "Generate and manage API keys for programmatic access to your data.",
+    details: "Create API keys to access your financial data from external tools and scripts. Each key has a name, a generated token, and the last used timestamp. You can revoke keys at any time.",
+    workflow: [
+      { step: "Create a key", description: "Give it a name so you know what it's for. Copy the token immediately — it won't be shown again." },
+      { step: "Use the key", description: "Pass it as a Bearer token in the Authorization header when calling the API." },
+      { step: "Revoke if needed", description: "Click delete to revoke a key. It stops working immediately." },
+    ],
+    relatedFeatures: [{ name: "Settings", description: "All integrations are managed from Settings." }],
+  },
+
+  "/settings/bank-accounts": {
+    title: "Bank Accounts",
+    summary: "Manage your linked bank accounts from Settings.",
+    details: "View and manage all bank accounts you've linked. Update balances, edit account details, or remove accounts.",
+  },
+
+  "/settings/environment": {
+    title: "Environment",
+    summary: "Configure self-hosted environment variables and Docker settings.",
+    details: "For self-hosted instances, configure environment variables, Docker settings, and deployment options here.",
+  },
+
+  "/settings/gmail-parser": {
+    title: "Gmail Parser",
+    summary: "Configure how emails from Gmail are parsed into financial records.",
+    details: "Set up rules for parsing Gmail messages: which senders to recognize, how to extract amounts, dates, and categories. Fine-tune the parser to match your email formats.",
+    relatedFeatures: [{ name: "Gmail Import", description: "Scan your inbox to import financial emails." }],
+  },
+
+  "/settings/integrations": {
+    title: "Integrations",
+    summary: "Connect external services — GPay, Zerodha, Sharekhan, Groww, MF Central.",
+    details: "Manage all external integrations. Connect your GPay account for automatic expense syncing, link your brokerage accounts (Zerodha, Sharekhan, Groww, MF Central) for portfolio imports, or disconnect any integration that's no longer needed.",
+    workflow: [
+      { step: "Connect a service", description: "Click 'Connect' next to the service you want to link. Follow the OAuth flow." },
+      { step: "Sync data", description: "Once connected, use the sync button to pull in your latest data." },
+      { step: "Disconnect", description: "Click 'Disconnect' to remove access. Your existing data stays." },
+    ],
+    relatedFeatures: [
+      { name: "GPay Auto-Sync", description: "Connected GPay syncs expenses automatically." },
+      { name: "Investments", description: "Broker integrations pull in your portfolio." },
+    ],
+  },
+
+  "/settings/session-link": {
+    title: "Session Link",
+    summary: "Link your mobile app session to the web app for seamless access.",
+    details: "Use Session Link to connect your mobile app to this web session. Scan the QR code from your mobile app or enter the session code to authenticate without re-entering credentials.",
+  },
+
   "/login": {
     title: "Sign In",
     summary: "Sign in to your MyMoney account to manage your finances.",

@@ -37,26 +37,9 @@ import {
   IndianRupee,
 } from "lucide-react"
 
-interface IncomeSource {
-  id: number
-  name: string
-  type: "monthly" | "yearly" | "onetime" | "variable"
-  amount: number
-  sourceCategory: string
-  paymentMode: string
-  bankAccount: string | null
-  startDate: string
-  notes: string | null
-  businessRevenue: number | null
-  businessExpenses: number | null
-  businessOtherExp: string | null
-  businessOtherAmt: number | null
-  businessInvestment: number | null
-  isProfitPostTax: boolean | null
-  category: { id: number; name: string } | null
-  createdAt: string
-  updatedAt: string
-}
+import { IncomeSourceResponseSchema, type IncomeSourceResponse } from "@/shared/income-validation"
+
+type IncomeSource = IncomeSourceResponse & { sourceCategory: string }
 
 interface IncomeSummary {
   totalMonthly: number
@@ -328,15 +311,17 @@ export default function IncomePage() {
 
       const raw = data.sources || data.data || data || []
       const rawList = Array.isArray(raw) ? raw : Array.isArray(data) ? data : []
-      const src: IncomeSource[] = rawList.map((s: any) => ({
-        ...s,
-        sourceCategory: s.category?.name || "Other",
-        businessRevenue: s.businessRevenue ?? null,
-        businessExpenses: s.businessExpenses ?? null,
-        businessOtherExp: s.businessOtherExp ?? null,
-        businessOtherAmt: s.businessOtherAmt ?? null,
-        businessInvestment: s.businessInvestment ?? null,
-      }))
+      const src: IncomeSource[] = rawList.map((s: unknown) => {
+        const parsed = IncomeSourceResponseSchema.safeParse(s)
+        if (!parsed.success) {
+          console.warn("IncomeSource response validation failed:", parsed.error.issues)
+          return null
+        }
+        return {
+          ...parsed.data,
+          sourceCategory: parsed.data.category?.name || "Other",
+        }
+      }).filter(Boolean) as IncomeSource[]
 
       setSources(src)
 
@@ -359,6 +344,7 @@ export default function IncomePage() {
 
       const thisMonth = src
         .filter((s) => {
+          if (!s.startDate) return false
           const start = new Date(s.startDate)
           if (start > now) return false
           if (s.type === "monthly") return true
@@ -606,7 +592,7 @@ export default function IncomePage() {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-xs text-muted-foreground">{source.paymentMode}</td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground">{formatDate(source.startDate)}</td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground">{source.startDate ? formatDate(source.startDate) : "—"}</td>
                           <td className="px-4 py-3 text-right whitespace-nowrap">
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(source)}>
                               <Pencil className="h-3.5 w-3.5" />

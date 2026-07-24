@@ -26,6 +26,42 @@ export const IncomeSourceCreateSchema = z.object({
   notes: z.string().optional().nullable(),
 })
 
+const CategorySchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  type: z.string(),
+  icon: z.string(),
+  color: z.string(),
+})
+
+export const IncomeSourceResponseSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  type: z.enum(["monthly", "yearly", "onetime", "variable"]),
+  amount: z.number(),
+  categoryId: z.number(),
+  category: CategorySchema.nullable(),
+  profileId: z.number().nullable(),
+  autoDetect: z.boolean(),
+  matchMerchant: z.string().nullable(),
+  matchPerson: z.string().nullable(),
+  paymentMode: z.string().nullable(),
+  bankAccount: z.string().nullable(),
+  businessRevenue: z.number().nullable(),
+  businessExpenses: z.number().nullable(),
+  businessOtherExp: z.string().nullable(),
+  businessOtherAmt: z.number().nullable(),
+  businessInvestment: z.number().nullable(),
+  isProfitPostTax: z.boolean(),
+  startDate: z.string().nullable(),
+  endDate: z.string().nullable(),
+  notes: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+
+export type IncomeSourceResponse = z.infer<typeof IncomeSourceResponseSchema>
+
 export const IncomeSourceUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   type: z.enum(["monthly", "yearly", "onetime", "variable"]).optional(),

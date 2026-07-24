@@ -83,8 +83,9 @@ jobs:
       - name: Start app
         env:
           DATABASE_URL: postgresql://mymoney:mymoney@localhost:5432/mymoney
-          NEXTAUTH_SECRET: test-secret
           AUTH_SECRET: test-secret
+          AUTH_URL: http://localhost:3005
+          NEXTAUTH_SECRET: test-secret
           E2E: "true"
           PORT: 3005
         run: |

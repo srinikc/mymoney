@@ -41,7 +41,7 @@ test.describe("Admin Setup & Login UI", () => {
   test("login page shows sign-in form", async ({ page }) => {
     await page.goto("/login", { waitUntil: "domcontentloaded" })
     await page.waitForTimeout(3000)
-    await expect(page.getByText("Sign in")).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible()
   })
 })
 

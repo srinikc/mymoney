@@ -20,7 +20,12 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      router.push("/")
+      fetch("/api/onboarding/status")
+        .then((r) => r.json())
+        .then((data) => {
+          router.push(data.completed ? "/" : "/onboarding")
+        })
+        .catch(() => router.push("/"))
       return
     }
     fetch("/api/setup/status")
@@ -61,8 +66,6 @@ export default function LoginPage() {
 
       if (result?.error) {
         setError("Invalid email or password")
-      } else if (result?.ok) {
-        router.push("/")
       }
     } catch {
       setError("An error occurred. Please try again.")

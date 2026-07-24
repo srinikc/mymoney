@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import crypto from "node:crypto"
+import { SignJWT } from "jose"
+
+const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET || "my-money-secret-change-in-production-abc123xyz")
 
 export async function GET() {
   if (process.env.E2E !== "true") {
@@ -22,24 +24,26 @@ export async function GET() {
       select: { id: true },
     })
 
-    const sessionToken = crypto.randomUUID()
-    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000)
-
-    await prisma.session.create({
-      data: {
-        sessionToken,
-        userId: user.id,
-        expires,
-      },
+    const token = await new SignJWT({
+      sub: String(user.id),
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      profileId: profile?.id,
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
     })
+      .setProtectedHeader({ alg: "HS256" })
+      .sign(SECRET)
 
     const response = NextResponse.json({
       ok: true,
       user: { id: user.id, email: user.email, name: user.name, role: user.role, profileId: profile?.id },
+      token,
     })
 
-    response.cookies.set("authjs.session-token", sessionToken, {
-      expires,
+    response.cookies.set("authjs.session-token", token, {
+      expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
       httpOnly: true,
       sameSite: "lax",
       path: "/",

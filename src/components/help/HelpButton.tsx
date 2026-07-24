@@ -11,6 +11,9 @@ export function HelpButton() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
 
+  const hideOnPaths = ["/login", "/setup"]
+  if (hideOnPaths.includes(pathname)) return null
+
   const section = getHelpForPath(pathname)
   if (!section) return null
 

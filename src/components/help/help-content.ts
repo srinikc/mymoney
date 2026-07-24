@@ -459,6 +459,55 @@ export const helpContent: Record<string, HelpSection> = {
     ],
   },
 
+  "/login": {
+    title: "Sign In",
+    summary: "Sign in to your MyMoney account to manage your finances.",
+    details: "Enter your email and password to sign in, or use Google OAuth for a faster login. If this is your first time and no admin account exists yet, you'll be redirected to set up the admin account first.",
+    workflow: [
+      { step: "Enter your credentials", description: "Type your registered email and password, then click 'Sign in with Email'." },
+      { step: "Or use Google", description: "Click 'Continue with Google' to sign in with your Google account (must match the email on your account)." },
+      { step: "First time?", description: "If no admin exists yet, you'll be redirected to the setup page to create the admin account." },
+    ],
+  },
+
+  "/setup": {
+    title: "Admin Setup",
+    summary: "Create the first admin account to start using MyMoney.",
+    details: "On first run, when no admin user exists, you'll be redirected here to create the admin account. Enter your email, set a strong password (at least 8 characters), and confirm it. Once created, you can sign in and start setting up your finances.",
+    workflow: [
+      { step: "Enter email", description: "Your admin email address (e.g., srinikc@gmail.com)." },
+      { step: "Set a password", description: "At least 8 characters. Use a mix of letters, numbers, and symbols." },
+      { step: "Confirm password", description: "Re-enter the same password." },
+      { step: "Create account", description: "Click submit. You'll be redirected to the login page to sign in." },
+    ],
+  },
+
+  "/onboarding": {
+    title: "Onboarding Wizard",
+    summary: "Set up your profile and get started with MyMoney step by step.",
+    details: "The onboarding wizard walks you through the essential setup after your first login: add your name, set your preferences, and configure key integrations. Complete all steps to unlock the full dashboard.",
+    workflow: [
+      { step: "Fill in your details", description: "Enter your name, preferred currency, and timezone." },
+      { step: "Connect accounts", description: "Optionally link your bank accounts, Gmail, or broker accounts." },
+      { step: "Finish setup", description: "Complete the wizard to go to your dashboard." },
+    ],
+  },
+
+  "/guide": {
+    title: "User Guide",
+    summary: "A comprehensive guide to using all MyMoney features.",
+    details: "The User Guide covers everything from basic navigation to advanced features like tax planning, what-if simulations, and family sharing. Browse by section or use the table of contents to find what you need.",
+    relatedFeatures: [
+      { name: "Help Icon", description: "Click the floating ? button on any page for context-specific help." },
+    ],
+  },
+
+  "/privacy": {
+    title: "Privacy Policy",
+    summary: "How MyMoney handles your data and protects your privacy.",
+    details: "MyMoney takes your privacy seriously. We store your financial data securely using encryption at rest and in transit. Your data is never shared with third parties. You can export or delete your data at any time. See the full policy for details.",
+  },
+
   "/settings": {
     title: "Settings",
     summary: "Manage your account, connect integrations, and configure how the app works.",

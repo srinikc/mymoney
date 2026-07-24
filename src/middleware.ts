@@ -116,8 +116,14 @@ export default async function middleware(req: NextRequest) {
   }
 
   // ── 2. Public route check ─────────────────────────────────────────────
-  const publicRoutes = ["/api/auth", "/api/drive", "/login", "/setup"]
-  const isPublic = publicRoutes.some((r) => pathname.startsWith(r))
+  // Each entry must state WHY the route is public.
+  const publicRoutes: { prefix: string; reason: string }[] = [
+    { prefix: "/api/auth", reason: "NextAuth sign-in/callback/CSRF endpoints must be accessible without auth" },
+    { prefix: "/api/drive", reason: "Google Drive file upload callback used before user is fully authenticated" },
+    { prefix: "/login", reason: "Unauthenticated users must be able to reach the login page" },
+    { prefix: "/setup", reason: "First-run admin setup must work before any user account exists" },
+  ]
+  const isPublic = publicRoutes.some((r) => pathname.startsWith(r.prefix))
 
   // Static assets and images are always public
   if (

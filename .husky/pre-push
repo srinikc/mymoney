@@ -1,0 +1,4 @@
+# Unit tests check before push (fast, <2s)
+npm test 2>/dev/null || { echo "❌ Unit tests failed"; exit 1; }
+echo "✅ Unit tests passed (17/17)"
+echo "To override (PO only): git push --no-verify"

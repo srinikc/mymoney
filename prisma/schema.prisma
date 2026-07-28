@@ -1,0 +1,685 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Auth & Multi-Profile ──────────────────────────────────────────────
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  name      String?
+  image     String?
+  hashedPassword String?
+  role      String    @default("user") // user | admin | manager | viewer
+  tier      String    @default("free") // free | pro | premium
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  profiles  Profile[]
+  accounts  Account[]
+  sessions  Session[]
+  userSettings UserSetting[]
+  payments  Payment[]
+  invitedSharedProfiles SharedProfile[] @relation("InvitedUser")
+  sentInvitations SharedProfile[] @relation("Inviter")
+}
+
+model Profile {
+  id        Int      @id @default(autoincrement())
+  name      String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations to all data tables
+  expenses    Expense[]
+  budgets     Budget[]
+  goals       Goal[]
+  investments Investment[]
+  reminders   Reminder[]
+  deals       Deal[]
+  assets      Asset[]
+  liabilities Liability[]
+  auditLogs   AuditLog[]
+  subscriptions Subscription[]
+  incomeSources IncomeSource[]
+  loans        Loan[]
+  insurances   Insurance[]
+  taxDocuments TaxDocument[]
+  itrRecords   ITRRecord[]
+  expenseLinks ExpenseLink[]
+  bankAccounts BankAccount[]
+  fixedDeposits FixedDeposit[]
+  sharedProfiles SharedProfile[]
+}
+
+model Account {
+  id                Int      @id @default(autoincrement())
+  userId            Int
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           Int      @id @default(autoincrement())
+  sessionToken String   @unique
+  userId       Int
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model FeatureFlag {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  enabled   Boolean  @default(false)
+  tier      String   @default("free") // free | pro | premium
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  profileId Int
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  action    String   // create | update | delete | view | export | import
+  entity    String   // expense | budget | goal | etc.
+  entityId  Int?
+  metadata  String?  // JSON string with extra context
+  createdAt DateTime @default(now())
+
+  @@index([profileId])
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+}
+
+// ── Categories ────────────────────────────────────────────────────────
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  type      String    @default("expense")
+  icon      String    @default("circle")
+  color     String    @default("#6366f1")
+  createdAt DateTime  @default(now())
+  expenses      Expense[]
+  budgets       Budget[]
+  reminders     Reminder[]
+  incomeSources IncomeSource[]
+}
+
+// ── Expense ───────────────────────────────────────────────────────────
+
+model Expense {
+  id              Int             @id @default(autoincrement())
+  date            DateTime
+  amount          Float
+  categoryId      Int
+  category        Category        @relation(fields: [categoryId], references: [id])
+  subCategory     String?
+  person          String?
+  vendor          String?
+  description     String?
+  paymentMode     String          @default("UPI")
+  recurrenceType  String          @default("onetime")
+  otherType       String?
+  tags            String?
+  receiptUrl      String?
+  isShared        Boolean         @default(false)
+  sharedWith      String?
+  paidThrough     String?
+  bankAccount     String?
+  notes           String?
+  importSessionId Int?
+  importSession   ImportSession?  @relation(fields: [importSessionId], references: [id])
+  flagged         Boolean         @default(false)
+  deletedAt       DateTime?
+  profileId       Int?
+  profile         Profile?        @relation(fields: [profileId], references: [id])
+  expenseLinks    ExpenseLink[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([date])
+  @@index([categoryId])
+  @@index([vendor])
+  @@index([person])
+  @@index([importSessionId])
+  @@index([profileId])
+}
+
+// ── Budget ────────────────────────────────────────────────────────────
+
+model Budget {
+  id         Int      @id @default(autoincrement())
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id])
+  month      Int
+  year       Int
+  amount     Float
+  profileId  Int?
+  profile    Profile? @relation(fields: [profileId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([categoryId, month, year])
+  @@index([categoryId])
+  @@index([profileId])
+}
+
+// ── Goal ──────────────────────────────────────────────────────────────
+
+model Goal {
+  id                  Int      @id @default(autoincrement())
+  name                String
+  targetAmount        Float
+  currentAmount       Float    @default(0)
+  deadline            DateTime?
+  category            String   @default("savings")
+  term                String   @default("medium") // short | medium | long
+  priority            String   @default("P1")    // P0 | P1 | P2
+  type                String   @default("Other")  // custom category type
+  description         String?
+  monthlyContribution Float?
+  notes               String?
+  status              String   @default("active")
+  profileId           Int?
+  profile             Profile? @relation(fields: [profileId], references: [id])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  investments         Investment[]
+
+  @@index([profileId])
+}
+
+// ── Investment ────────────────────────────────────────────────────────
+
+model Investment {
+  id             Int       @id @default(autoincrement())
+  type           String
+  name           String
+  symbol         String?   // stock ticker (e.g. RELIANCE, TCS)
+  quantity       Int?      // number of shares
+  buyPrice       Float?    // price per share
+  amount         Float     // total invested = quantity * buyPrice
+  currentValue   Float
+  purchaseDate   DateTime
+  returnRate     Float?
+  purpose        String?   // e.g., "retirement", "education", "wealth"
+  linkedGoalId   Int?      // FK to Goal
+  linkedGoal     Goal?     @relation(fields: [linkedGoalId], references: [id])
+  notes          String?
+  status         String    @default("active")
+  profileId      Int?
+  profile        Profile?  @relation(fields: [profileId], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([profileId])
+  @@index([type])
+  @@index([symbol])
+  @@index([linkedGoalId])
+}
+
+// ── Merchant Mapping ──────────────────────────────────────────────────
+
+model MerchantMapping {
+  id          Int      @id @default(autoincrement())
+  merchantKey String   @unique
+  description String?
+  expenseType String?
+  subCategory String?
+  person      String?
+  source      String   @default("manual")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([merchantKey])
+}
+
+// ── Import Session ────────────────────────────────────────────────────
+
+model ImportSession {
+  id           Int       @id @default(autoincrement())
+  source       String
+  fileName     String?
+  totalRows    Int       @default(0)
+  autoMapped   Int       @default(0)
+  newMerchants Int       @default(0)
+  skipped      Int       @default(0)
+  status       String    @default("preview")
+  createdAt    DateTime  @default(now())
+  expenses     Expense[]
+}
+
+// ── Reminder ──────────────────────────────────────────────────────────
+
+model Reminder {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  type        String    @default("custom")
+  priority    String    @default("normal")
+  dueDate     DateTime?
+  amount      Float?
+  categoryId  Int?
+  category    Category? @relation(fields: [categoryId], references: [id])
+  merchantKey String?
+  recurring   String    @default("none")
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  profileId   Int?
+  profile     Profile?  @relation(fields: [profileId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([dueDate])
+  @@index([isCompleted])
+  @@index([categoryId])
+  @@index([profileId])
+}
+
+// ── Deal ──────────────────────────────────────────────────────────────
+
+model Deal {
+  id          Int       @id @default(autoincrement())
+  merchant    String
+  title       String
+  description String?
+  discount    String?
+  couponCode  String?
+  url         String?
+  validUntil  DateTime?
+  category    String?
+  isActive    Boolean   @default(true)
+  profileId   Int?
+  profile     Profile?  @relation(fields: [profileId], references: [id])
+  createdAt   DateTime  @default(now())
+
+  @@index([merchant])
+  @@index([isActive])
+  @@index([profileId])
+}
+
+// ── Asset ─────────────────────────────────────────────────────────────
+
+model Asset {
+  id            Int       @id @default(autoincrement())
+  name          String
+  type          String    @default("other") // property | building | gold | silver | precious_metals | equipment | vehicle | stocks | other
+  currentValue  Float
+  purchasePrice Float?
+  purchaseDate  DateTime?
+  quantity      Float?
+  unit          String?   // grams | kg | sqft | carats | units | etc.
+  location      String?   // for property
+  status        String    @default("owned") // owned | sold | inherited
+  notes         String?
+  profileId     Int?
+  profile       Profile?  @relation(fields: [profileId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([profileId])
+  @@index([type])
+  @@index([status])
+}
+
+// ── Liability ─────────────────────────────────────────────────────────
+
+model Liability {
+  id           Int      @id @default(autoincrement())
+  name         String
+  type         String   @default("other")
+  amount       Float
+  interestRate Float?
+  dueDate      DateTime?
+  notes        String?
+  profileId    Int?
+  profile      Profile? @relation(fields: [profileId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([profileId])
+}
+
+// ── Subscription ──────────────────────────────────────────────────────
+
+model Subscription {
+  id           Int       @id @default(autoincrement())
+  name         String
+  provider     String
+  amount       Float
+  billingCycle String    @default("monthly") // monthly | yearly | quarterly | weekly
+  nextDueDate  DateTime?
+  category     String    @default("entertainment") // entertainment | productivity | utilities | health | other
+  status       String    @default("active") // active | paused | cancelled
+  notes        String?
+  profileId    Int?
+  profile      Profile?  @relation(fields: [profileId], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([profileId])
+  @@index([nextDueDate])
+  @@index([status])
+}
+
+// ── Alerts & Notifications ────────────────────────────────────────────
+
+model AlertRule {
+  id        Int      @id @default(autoincrement())
+  name      String
+  type      String
+  config    String?
+  isEnabled Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model NotificationConfig {
+  id         Int      @id @default(autoincrement())
+  channel    String   @unique
+  enabled    Boolean  @default(false)
+  config     String?
+  alertTypes String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ── Income Source ────────────────────────────────────────────────────
+
+model IncomeSource {
+  id          Int      @id @default(autoincrement())
+  profileId   Int?
+  profile     Profile? @relation(fields: [profileId], references: [id])
+
+  name         String
+  type         String   @default("monthly") // monthly | yearly | onetime | variable
+  amount       Float
+  categoryId   Int
+  category     Category @relation(fields: [categoryId], references: [id])
+
+  autoDetect   Boolean  @default(false)
+  matchMerchant String?
+  matchPerson  String?
+
+  paymentMode  String?
+  bankAccount  String?
+
+  businessRevenue    Float?
+  businessExpenses   Float?
+  businessOtherExp   String?
+  businessOtherAmt   Float?
+  businessInvestment Float?
+  isProfitPostTax    Boolean @default(false)
+
+  startDate    DateTime?
+  endDate      DateTime?
+  notes        String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([categoryId])
+}
+
+model Loan {
+  id          Int      @id @default(autoincrement())
+  profileId   Int?
+  profile     Profile? @relation(fields: [profileId], references: [id])
+
+  name         String
+  type         String   @default("Other")
+  principal    Float
+  interestRate Float
+  tenureMonths Int
+  emiAmount    Float
+  startDate    DateTime
+  endDate      DateTime?
+  lender       String?
+  notes        String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([profileId])
+}
+
+// ── Insurance ─────────────────────────────────────────────────────────
+model Insurance {
+  id          Int      @id @default(autoincrement())
+  profileId   Int?
+  profile     Profile? @relation(fields: [profileId], references: [id])
+
+  name         String
+  type         String   @default("Other")
+  provider     String?
+  policyNumber String?
+  sumAssured   Float?
+  premium      Float
+  premiumFrequency String @default("yearly")
+  startDate    DateTime
+  renewalDate  DateTime?
+  nominee      String?
+  notes        String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([profileId])
+}
+
+// -- Tax Document ------------------------------------------------------
+
+model TaxDocument {
+  id        Int      @id @default(autoincrement())
+  profileId Int?
+  profile   Profile? @relation(fields: [profileId], references: [id])
+
+  type     String   // form16 | form26as | form10e | capital_gains | home_loan_cert | rent_receipts | donation_receipt | other
+  fy       String   // e.g., "2024-25"
+  label    String?
+
+  fileName String
+  filePath String
+  mimeType String
+  fileSize Int
+
+  metadata Json?
+  notes    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([fy])
+  @@index([type])
+}
+
+// -- ITR Record --------------------------------------------------------
+
+model ITRRecord {
+  id        Int      @id @default(autoincrement())
+  profileId Int?
+  profile   Profile? @relation(fields: [profileId], references: [id])
+
+  ay              String    // assessment year, e.g., "2025-26"
+  itrForm         String    // ITR-1 | ITR-2 | ITR-3 | ITR-4
+  status          String    // not_filed | in_progress | filed | verified | refund_received
+  filedDate       DateTime?
+  acknowledgmentNo String?
+  refundAmount    Float?
+  taxableIncome   Float?
+  taxLiability    Float?
+  tdsClaimed      Float?
+  uploadedCopy    String?   // file path
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([ay])
+}
+
+// -- Expense Link (Auto-Linking) ----------------------------------------
+
+model ExpenseLink {
+  id        Int      @id @default(autoincrement())
+  profileId Int?
+  profile   Profile? @relation(fields: [profileId], references: [id])
+
+  expenseId Int
+  expense   Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  linkType  String   // income | investment | insurance | loan
+  targetId  Int      // ID of the linked entity
+
+  autoDetected Boolean @default(true)
+  confirmed    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([expenseId])
+  @@index([linkType])
+  @@index([confirmed])
+}
+
+// -- User Settings ------------------------------------------------------
+
+model UserSetting {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key       String
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, key])
+  @@index([userId])
+}
+
+model Payment {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId   String   @unique
+  paymentId String?
+  signature String?
+  amount    Int
+  currency  String   @default("INR")
+  plan      String
+  status    String   @default("created") // created | paid | failed
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([status])
+}
+
+// -- Bank Account -------------------------------------------------------
+
+model BankAccount {
+  id            Int      @id @default(autoincrement())
+  profileId     Int?
+  profile       Profile? @relation(fields: [profileId], references: [id])
+
+  name          String   // e.g., "Salary Account"
+  bankName      String   // e.g., "HDFC Bank"
+  accountNumber String?  // masked: "XXXX1234"
+  type          String   @default("savings") // savings | current | salary | credit_card | loan
+  ifscCode      String?
+  branch        String?
+  balance       Float    @default(0)
+  currency      String   @default("INR")
+  source        String   @default("manual") // manual | aa (future)
+  isActive      Boolean  @default(true)
+  lastSynced    DateTime? // last balance sync from email
+  notes         String?
+
+  fixedDeposits FixedDeposit[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([bankName])
+}
+
+model FixedDeposit {
+  id            Int      @id @default(autoincrement())
+  profileId     Int?
+  profile       Profile? @relation(fields: [profileId], references: [id])
+
+  bankAccountId Int
+  bankAccount   BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+
+  fdNumber      String?
+  principal     Float
+  interestRate  Float    @default(0)
+  startDate     DateTime?
+  maturityDate  DateTime?
+  maturityAmount Float?
+  status        String   @default("active") // active | matured | closed
+  notes         String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([bankAccountId])
+  @@index([status])
+}
+
+// ── Family Sharing ─────────────────────────────────────────────────────
+
+model SharedProfile {
+  id          Int      @id @default(autoincrement())
+  profileId   Int
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  invitedEmail String
+  invitedUser   User?   @relation("InvitedUser", fields: [invitedUserId], references: [id])
+  invitedUserId Int?
+  invitedBy   Int
+  inviter     User     @relation("Inviter", fields: [invitedBy], references: [id])
+  role        String   @default("viewer") // viewer | editor
+  status      String   @default("pending") // pending | accepted | revoked
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([profileId, invitedEmail])
+  @@index([invitedUserId])
+  @@index([invitedBy])
+  @@index([status])
+}

@@ -1,0 +1,33 @@
+{
+  "cli": { "version": ">= 14.0.0" },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": { "API_URL": "http://localhost:3005" }
+    },
+    "production-android": {
+      "android": { "buildType": "app-bundle" },
+      "env": { "API_URL": "https://mymoney.yourdomain.com" }
+    },
+    "production-ios": {
+      "ios": { "image": "latest" },
+      "env": { "API_URL": "https://mymoney.yourdomain.com" }
+    }
+  },
+  "submit": {
+    "production-android": {
+      "android": {
+        "serviceAccountKeyPath": "./google-service-account.json",
+        "track": "production"
+      }
+    },
+    "production-ios": {
+      "ios": {
+        "appleId": "your-apple-id@example.com",
+        "ascAppId": "your-apple-app-id",
+        "appleTeamId": "your-apple-team-id"
+      }
+    }
+  }
+}

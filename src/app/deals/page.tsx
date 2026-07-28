@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { formatDate } from "@/lib/utils"
 import { toast } from "sonner"
-import { Gift, Plus, Trash2 } from "lucide-react"
+import { Plus, Trash2 } from "lucide-react"
 import { CardGridSkeleton } from "@/components/ui/page-skeleton"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -47,8 +47,8 @@ export default function DealsPage() {
       setOpen(false)
       setForm({ merchant: "", title: "", description: "", discount: "", couponCode: "", url: "", validUntil: "", category: "" })
       loadDeals()
-    } catch (err: any) {
-      toast.error(err.message || "Failed to add deal")
+    } catch (err: unknown) {
+      toast.error((err as Error).message || "Failed to add deal")
     }
   }
 

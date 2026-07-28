@@ -23,8 +23,18 @@ export function HelpButton() {
   const hideOnPaths = ["/login", "/setup"]
   if (hideOnPaths.includes(pathname)) return null
 
-  const section = getHelpForPath(pathname)
-  if (!section) return null
+  const section = getHelpForPath(pathname) || {
+    title: "Help",
+    summary: `Help & guidance for this page.`,
+    details: `This page helps you manage your financial data. Use the buttons and controls on this page to view, add, edit, or delete information. Refer to the User Guide for detailed instructions on every feature.`,
+    workflow: [
+      { step: "Explore the page", description: "Use the buttons, filters, and controls available on this page to interact with your data." },
+      { step: "Need more help?", description: "Check the full User Guide at /guide for detailed documentation." },
+    ],
+    relatedFeatures: [
+      { name: "User Guide", description: "Comprehensive guide to all MyMoney features." },
+    ],
+  }
 
   return (
     <>

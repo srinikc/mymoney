@@ -62,5 +62,20 @@
     "dev-dashboard/",
     "next-env.d.ts",
     "prisma/seed.ts"
+  ],
+  "overrides": [
+    {
+      "files": ["scripts/**/*.ts", "prisma/seed-test.ts"],
+      "rules": {
+        "no-console": "off",
+        "unicorn/no-process-exit": "off",
+        "unicorn/prefer-top-level-await": "off",
+        "unicorn/prefer-module": "off",
+        "unicorn/no-array-for-each": "off",
+        "unicorn/prefer-code-point": "off",
+        "@typescript-eslint/no-unused-vars": "off",
+        "@typescript-eslint/no-explicit-any": "off"
+      }
+    }
   ]
 }

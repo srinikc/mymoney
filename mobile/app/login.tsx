@@ -59,8 +59,8 @@ export default function LoginScreen() {
       await SecureStore.setItemAsync(TOKEN_KEY, linkToken.trim());
       await checkAuth();
       router.replace('/');
-    } catch (err: any) {
-      setLocalError(err.message || 'Failed to link. Try copying the token again.');
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : 'Failed to link. Try copying the token again.');
     } finally {
       setLoading(false);
     }
@@ -92,8 +92,8 @@ export default function LoginScreen() {
           setLocalError('Google login successful! Paste the token from the website to link.');
         }
       }
-    } catch (err: any) {
-      setLocalError(err.message || 'Google login failed');
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : 'Google login failed');
     } finally {
       setLoading(false);
     }
@@ -116,8 +116,8 @@ export default function LoginScreen() {
     try {
       await login(email.trim(), password);
       router.replace('/');
-    } catch (err: any) {
-      setLocalError(err.message || 'Login failed');
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setLoading(false);
     }

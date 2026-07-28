@@ -51,6 +51,7 @@ export async function GET() {
 
     return response
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Test login error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

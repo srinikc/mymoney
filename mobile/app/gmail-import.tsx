@@ -6,13 +6,23 @@ import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
 
+interface GmailTxn {
+  messageId: string;
+  type: string;
+  date: string;
+  amount: number;
+  description: string;
+  vendor?: string;
+  category?: string;
+}
+
 export default function GmailImportScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
   const [scanning, setScanning] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<GmailTxn[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [summary, setSummary] = useState<{ totalEmails: number; parsed: number } | null>(null);
 
@@ -23,7 +33,7 @@ export default function GmailImportScreen() {
       const data = res.data;
       setTransactions(data.transactions || []);
       setSummary({ totalEmails: data.totalEmails, parsed: data.parsed });
-      setSelected(new Set((data.transactions || []).map((t: any) => t.messageId)));
+      setSelected(new Set((data.transactions || []).map((t: GmailTxn) => t.messageId)));
     } catch { Alert.alert('Error', 'Scan failed. Ensure Gmail is connected via Google OAuth.'); }
     finally { setScanning(false); }
   };
@@ -34,7 +44,7 @@ export default function GmailImportScreen() {
       const items = transactions.filter((t) => selected.has(t.messageId));
       const res = await api.post('/api/gmail/import', {
         sessionId: Date.now(),
-        transactions: items.map((t: any) => ({
+        transactions: items.map((t: GmailTxn) => ({
           type: t.type, date: t.date, amount: t.amount, description: t.description, vendor: t.vendor, category: t.category, messageId: t.messageId,
         })),
       });

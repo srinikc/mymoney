@@ -52,16 +52,16 @@ export async function POST(req: Request) {
       )
 
       if (htmlEntry) {
-        console.log("[DRIVE IMPORT] Found HTML entry:", htmlEntry.entryName)
+        console.warn("[DRIVE IMPORT] Found HTML entry:", htmlEntry.entryName)
         const content = htmlEntry.getData().toString("utf-8")
-        console.log("[DRIVE IMPORT] HTML size:", content.length, "First 800 chars:", content.slice(0, 800))
+        console.warn("[DRIVE IMPORT] HTML size:", content.length, "First 800 chars:", content.slice(0, 800))
         // Debug: search for transaction data in stripped text
         const stripped = content.replaceAll(/<[^>]+>/g, " ").replaceAll('&nbsp;', " ")
         const paidMatch = stripped.match(/paid|sent|received/gi)
-        console.log("[DRIVE IMPORT] 'Paid/Sent/Received' occurrences:", paidMatch?.length || 0)
+        console.warn("[DRIVE IMPORT] 'Paid/Sent/Received' occurrences:", paidMatch?.length || 0)
         if (paidMatch) {
           const idx = stripped.search(/paid|sent|received/i)
-          console.log("[DRIVE IMPORT] First occurrence around:", stripped.substring(Math.max(0, idx - 50), idx + 200))
+          console.warn("[DRIVE IMPORT] First occurrence around:", stripped.substring(Math.max(0, idx - 50), idx + 200))
         }
         let htmlTxns = parseGpayTakeoutHtml(content)
         // Filter to only transactions after last DB entry
@@ -69,9 +69,9 @@ export async function POST(req: Request) {
         if (maxDate) {
           const before = htmlTxns.length
           htmlTxns = htmlTxns.filter((t) => t.date >= maxDate)
-          console.log("[DRIVE IMPORT] Date filter: max DB date:", maxDate, "kept", htmlTxns.length, "of", before)
+          console.warn("[DRIVE IMPORT] Date filter: max DB date:", maxDate, "kept", htmlTxns.length, "of", before)
         }
-        console.log("[DRIVE IMPORT] Parsed from HTML:", htmlTxns.length)
+        console.warn("[DRIVE IMPORT] Parsed from HTML:", htmlTxns.length)
         const driveVendors: string[] = []
         for (const txn of htmlTxns) {
           total++
@@ -126,7 +126,7 @@ export async function POST(req: Request) {
           return NextResponse.json({ success: true, imported, skipped, total, message: `Imported ${imported} GPay transactions from Drive, skipped ${skipped}` })
         }
       }
-    } catch (error) { console.log("[DRIVE IMPORT] ZIP error:", error); /* not a ZIP, try as standalone HTML */ }
+    } catch (error) { console.error("[DRIVE IMPORT] ZIP error:", error); /* not a ZIP, try as standalone HTML */ }
 
     // Try as standalone HTML (not zipped)
       try {
@@ -176,7 +176,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "File contains no recognizable GPay transaction data" }, { status: 400 })
   } catch (error) {
     console.error("Drive import error:", error)
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 

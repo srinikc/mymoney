@@ -37,6 +37,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid action" }, { status: 400 })
   } catch (error) {
     console.error("Archive action error:", error)
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

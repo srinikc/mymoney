@@ -3,7 +3,7 @@ export const maxDuration = 300
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import * as XLSX from "xlsx"
-import { shouldAutoMap, getExistingMappingKeys, resetMappingCache } from "@/shared/merchant-mapping"
+import { shouldAutoMap, getExistingMappingKeys } from "@/shared/merchant-mapping"
 
 const PERSON_MAP: Record<string, string> = {
   family: "Family", Family: "Family", "fam'": "Family",
@@ -117,9 +117,9 @@ interface ParsedExpense {
 export async function POST(req: Request) {
   try {
     const formData = await req.formData()
-    const file = (formData as any).get("file") as File
-    const confirm = (formData as any).get("confirm") === "true"
-    const createMappings = (formData as any).get("createMappings") === "true"
+    const file = formData.get("file") as File
+    const confirm = formData.get("confirm") === "true"
+    const createMappings = formData.get("createMappings") === "true"
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
@@ -415,6 +415,6 @@ export async function POST(req: Request) {
     })
   } catch (error) {
     console.error("KCExpenses import error:", error)
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

@@ -17,7 +17,7 @@ test.describe("GPay Refresh", () => {
 
   test("Refresh GPay button exists on expenses page", async ({ page }) => {
     await page.goto("/expenses", { waitUntil: "load", timeout: 20000 })
-    const refreshBtn = page.getByRole("button", { name: /Refresh GPay/i })
+    const refreshBtn = page.getByRole("button", { name: /refresh gpay/i })
     await expect(refreshBtn).toBeVisible()
   })
 
@@ -31,7 +31,7 @@ test.describe("GPay Refresh", () => {
 
     await page.reload({ waitUntil: "load", timeout: 20000 })
 
-    const refreshBtn = page.getByRole("button", { name: /Refresh GPay/i })
+    const refreshBtn = page.getByRole("button", { name: /refresh gpay/i })
     await expect(refreshBtn).toBeVisible()
     await refreshBtn.click()
 
@@ -40,14 +40,14 @@ test.describe("GPay Refresh", () => {
     await expect(dialog).toBeVisible({ timeout: 5000 })
 
     // Check that "Already synced recently" text appears
-    await expect(dialog.getByText(/Already synced recently/i)).toBeVisible()
+    await expect(dialog.getByText(/already synced recently/i)).toBeVisible()
 
     // Check that the "Force New Export" and "Cancel" buttons exist
-    await expect(dialog.getByRole("button", { name: /Force New Export/i })).toBeVisible()
-    await expect(dialog.getByRole("button", { name: /Cancel/i })).toBeVisible()
+    await expect(dialog.getByRole("button", { name: /force new export/i })).toBeVisible()
+    await expect(dialog.getByRole("button", { name: /cancel/i })).toBeVisible()
 
     // Click Cancel to close dialog
-    await dialog.getByRole("button", { name: /Cancel/i }).click()
+    await dialog.getByRole("button", { name: /cancel/i }).click()
     await expect(dialog).not.toBeVisible()
   })
 
@@ -60,7 +60,7 @@ test.describe("GPay Refresh", () => {
 
     await page.reload({ waitUntil: "load", timeout: 20000 })
 
-    const refreshBtn = page.getByRole("button", { name: /Refresh GPay/i })
+    const refreshBtn = page.getByRole("button", { name: /refresh gpay/i })
     await expect(refreshBtn).toBeVisible()
     await refreshBtn.click()
 
@@ -70,9 +70,9 @@ test.describe("GPay Refresh", () => {
 
     // After clicking, the dialog should show "Starting GPay export automatically..."
     // or transition to an error/other state
-    const hasStartingState = await dialog.getByText(/Starting GPay export automatically/i).isVisible().catch(() => false)
-    const hasErrorState = await dialog.getByText(/GPay export failed/i).isVisible().catch(() => false)
-    const hasExportingState = await dialog.getByText(/Waiting for Google/i).isVisible().catch(() => false)
+    const hasStartingState = await dialog.getByText(/starting gpay export automatically/i).isVisible().catch(() => false)
+    const hasErrorState = await dialog.getByText(/gpay export failed/i).isVisible().catch(() => false)
+    const hasExportingState = await dialog.getByText(/waiting for google/i).isVisible().catch(() => false)
 
     // At least one state should render (dialog is not empty)
     expect(hasStartingState || hasErrorState || hasExportingState).toBe(true)
@@ -89,18 +89,18 @@ test.describe("GPay Refresh", () => {
     await page.reload({ waitUntil: "load", timeout: 20000 })
 
     // First click
-    await page.getByRole("button", { name: /Refresh GPay/i }).click()
+    await page.getByRole("button", { name: /refresh gpay/i }).click()
     const dialog = page.getByRole("dialog")
     await expect(dialog).toBeVisible({ timeout: 5000 })
-    await expect(dialog.getByText(/Already synced recently/i)).toBeVisible()
+    await expect(dialog.getByText(/already synced recently/i)).toBeVisible()
 
     // Close dialog
-    await dialog.getByRole("button", { name: /Cancel/i }).click()
+    await dialog.getByRole("button", { name: /cancel/i }).click()
     await expect(dialog).not.toBeVisible()
 
     // Click again — should still show the same confirmation
-    await page.getByRole("button", { name: /Refresh GPay/i }).click()
+    await page.getByRole("button", { name: /refresh gpay/i }).click()
     await expect(dialog).toBeVisible({ timeout: 5000 })
-    await expect(dialog.getByText(/Already synced recently/i)).toBeVisible()
+    await expect(dialog.getByText(/already synced recently/i)).toBeVisible()
   })
 })

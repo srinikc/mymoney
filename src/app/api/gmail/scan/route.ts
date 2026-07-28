@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
+import type { ParserKeywords } from "@/lib/gmail-parser"
 
 export async function POST() {
   try {
@@ -9,7 +10,6 @@ export async function POST() {
     const { getAccessToken, listMessages, getMessage, parseMessage } = await import("@/lib/gmail")
     const { parseEmail, DEFAULT_KEYWORDS } = await import("@/lib/gmail-parser")
     const { prisma } = await import("@/lib/prisma")
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
     const accessToken = await getAccessToken(Number(session.user.id))
 
     // Load custom keywords if configured
@@ -17,7 +17,7 @@ export async function POST() {
       where: { userId_key: { userId: Number(session.user.id), key: "gmail_parser_keywords" } },
       select: { value: true },
     })
-    const kw = (setting?.value || DEFAULT_KEYWORDS) as any
+    const kw = (setting?.value || DEFAULT_KEYWORDS) as ParserKeywords
 
     const queries = [
       `(${kw.upi?.join(" OR ") || "UPI OR payment OR paid"}) after:2024-01-01`,
@@ -32,7 +32,7 @@ export async function POST() {
       `(${kw.silver?.join(" OR ") || "silver"}) after:2024-01-01`,
     ]
 
-    const allMessages = new Map<string, any>()
+    const allMessages = new Map<string, unknown>()
     for (const query of queries) {
       const msgs = await listMessages(accessToken, query, 10)
       for (const m of msgs) {
@@ -40,7 +40,7 @@ export async function POST() {
       }
     }
 
-    const transactions: any[] = []
+    const transactions: Record<string, unknown>[] = []
     const errors: string[] = []
 
     for (const [id] of allMessages) {
@@ -65,6 +65,7 @@ export async function POST() {
       errorDetails: errors.slice(0, 5),
     })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Gmail scan error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

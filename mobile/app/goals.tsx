@@ -9,11 +9,23 @@ import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
 
+interface GoalItem {
+  id?: string;
+  _id?: string;
+  name?: string;
+  title?: string;
+  targetAmount?: number;
+  target?: number;
+  savedAmount?: number;
+  saved?: number;
+  currentAmount?: number;
+}
+
 export default function GoalsScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
-  const [goals, setGoals] = useState<any[]>([]);
+  const [goals, setGoals] = useState<GoalItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +59,7 @@ export default function GoalsScreen() {
       });
       setShowForm(false);
       fetch();
-    } catch (err: any) { setFormError(err.response?.data?.message || 'Failed to save'); }
+    } catch (err: unknown) { setFormError((err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to save'); }
     finally { setFormLoading(false); }
   };
 

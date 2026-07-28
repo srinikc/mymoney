@@ -64,10 +64,6 @@ export default function TransactionConfirm({
   };
 
   const progress = countdown / delay;
-  const progressWidth = progressAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
 
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={() => onOpenChange(false)}>

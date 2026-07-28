@@ -3,10 +3,14 @@ import { prisma } from "@/lib/prisma"
 import { shouldAutoMap, getExistingMappingKeys } from "@/shared/merchant-mapping"
 import { parseGpayTakeoutEntry, parseGpayTakeoutJson, parseGpayTakeoutHtml } from "@/shared/gpay-parser"
 
+interface ZipFile {
+  getEntries: () => Array<{ entryName: string; getData: () => Buffer }>
+}
+
 export async function POST(req: Request) {
   try {
     const formData = await req.formData()
-    const file = (formData as any).get("file") as File
+    const file = formData.get("file") as File
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
     }
@@ -28,11 +32,11 @@ export async function POST(req: Request) {
     } else if (fileName.endsWith(".zip")) {
       source = "gpay-takeout-zip"
       const AdmZip = (await import("adm-zip")).default
-      let zip: any
-      try { zip = new AdmZip(buffer) } catch {
+      let zip: ZipFile
+      try { zip = new AdmZip(buffer) as unknown as ZipFile } catch {
         return NextResponse.json({ error: "Invalid ZIP file" }, { status: 400 })
       }
-      const entries = zip.getEntries() as Array<{ entryName: string; getData: () => Buffer }>
+      const entries = zip.getEntries()
       const htmlEntry = entries.find((e) =>
         e.entryName.replaceAll('\\', "/").toLowerCase().includes("my activity")
       )
@@ -114,6 +118,6 @@ export async function POST(req: Request) {
     })
   } catch (error) {
     console.error("GPay preview error:", error)
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

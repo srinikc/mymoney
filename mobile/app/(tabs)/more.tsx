@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, StyleSheet, useColorScheme, Alert, ActivityIndicator } from 'react-native';
+import { ScrollView, View, Text, TouchableOpacity, StyleSheet, useColorScheme, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/auth';
@@ -90,6 +90,7 @@ const MENU_SECTIONS: MenuSection[] = [
       { title: 'Bank Accounts', icon: 'business-outline', route: '/settings/bank-accounts' },
       { title: 'Session Link', icon: 'link-outline', route: '/settings/session-link' },
       { title: 'Privacy Policy', icon: 'shield-outline', route: '/privacy' },
+      { title: 'Help & Guide', icon: 'help-circle-outline', route: '/guide' },
     ],
   },
 ];
@@ -99,7 +100,7 @@ export default function MoreScreen() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  const [gpayLoading, setGpayLoading] = useState(false);
+  const [, setGpayLoading] = useState(false);
 
   const handleGpaySync = async () => {
     setGpayLoading(true);
@@ -163,7 +164,7 @@ export default function MoreScreen() {
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.textTertiary }]}>Admin</Text>
             <View style={[styles.sectionCard, { backgroundColor: theme.surface }]}>
-              <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/admin' as any)} activeOpacity={0.6}>
+              <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/admin' as never)} activeOpacity={0.6}>
                 <View style={[styles.menuIcon, { backgroundColor: '#FEF3C7' }]}>
                   <Ionicons name="shield-checkmark" size={18} color="#D97706" />
                 </View>
@@ -185,7 +186,7 @@ export default function MoreScreen() {
                     styles.menuItem,
                     iIdx < section.items.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.borderLight },
                   ]}
-                  onPress={() => item.route === 'gpay' ? handleGpaySync() : router.push(item.route as any)}
+                  onPress={() => item.route === 'gpay' ? handleGpaySync() : router.push(item.route as never)}
                   activeOpacity={0.6}
                 >
                   <View style={[styles.menuIcon, { backgroundColor: theme.primaryLight }]}>

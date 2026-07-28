@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
-import { requireRole } from "@/lib/roles"
+import { requireRole, type AuthUser } from "@/lib/roles"
 
 /**
  * GET /api/admin/audit-log — List audit logs with pagination (admin + manager)
@@ -17,7 +17,7 @@ import { requireRole } from "@/lib/roles"
  */
 export async function GET(req: Request) {
   const session = await auth()
-  const forbid = requireRole(session?.user as any, "admin", "manager")
+  const forbid = requireRole(session?.user as AuthUser, "admin", "manager")
   if (forbid) return forbid
 
   const url = new URL(req.url)
@@ -59,7 +59,7 @@ export async function GET(req: Request) {
 
   const [logs, total] = await Promise.all([
     prisma.auditLog.findMany({
-      where: where as any,
+      where: where as Record<string, unknown>,
       orderBy: { createdAt: "desc" },
       skip,
       take: limit,
@@ -80,7 +80,7 @@ export async function GET(req: Request) {
         },
       },
     }),
-    prisma.auditLog.count({ where: where as any }),
+    prisma.auditLog.count({ where: where as Record<string, unknown> }),
   ])
 
   return NextResponse.json({

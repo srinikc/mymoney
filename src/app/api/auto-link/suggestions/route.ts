@@ -112,6 +112,7 @@ export async function GET() {
 
     return NextResponse.json({ suggestions })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Auto-link suggestions error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

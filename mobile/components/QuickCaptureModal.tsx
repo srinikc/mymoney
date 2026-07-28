@@ -93,7 +93,7 @@ export default function QuickCaptureModal({ visible, onClose, onSaved }: Props) 
                   key={cat.value} onPress={() => setCategory(category === cat.value ? '' : cat.value)}
                   style={[styles.categoryBtn, { backgroundColor: category === cat.value ? theme.primary : theme.background }]}
                 >
-                  <Ionicons name={cat.icon as any} size={18} color={category === cat.value ? '#fff' : theme.primary} />
+                  <Ionicons name={cat.icon as keyof typeof Ionicons.glyphMap} size={18} color={category === cat.value ? '#fff' : theme.primary} />
                   <Text style={[styles.categoryLabel, { color: category === cat.value ? '#fff' : theme.text }]}>{cat.label}</Text>
                 </TouchableOpacity>
               ))}

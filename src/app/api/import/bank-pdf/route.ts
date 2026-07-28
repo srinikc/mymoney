@@ -7,7 +7,7 @@ const MAX_SIZE = 15 * 1024 * 1024 // 15MB
 export async function POST(req: Request) {
   try {
     const formData = await req.formData()
-    const file = (formData as any).get("file") as File
+    const file = formData.get("file") as File
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
@@ -31,8 +31,8 @@ export async function POST(req: Request) {
       }, { status: 400 })
     }
 
-    const confirm = (formData as any).get("confirm") === "true"
-    const bankAccount = String((formData as any).get("bankAccount") || "").trim()
+    const confirm = formData.get("confirm") === "true"
+    const bankAccount = String(formData.get("bankAccount") || "").trim()
 
     // Preview mode
     if (!confirm) {
@@ -144,7 +144,7 @@ export async function POST(req: Request) {
         error: "Could not parse this PDF. It may be password-protected or encrypted. Please use the CSV format instead.",
       }, { status: 400 })
     }
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 

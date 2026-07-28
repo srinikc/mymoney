@@ -13,8 +13,8 @@ export default function EnvironmentScreen() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
 
-  const [vars, setVars] = useState<Record<string, any>>({});
-  const [definitions, setDefinitions] = useState<any[]>([]);
+  const [vars, setVars] = useState<Record<string, unknown>>({});
+  const [definitions, setDefinitions] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [overrides, setOverrides] = useState<Record<string, string>>({});

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { formatCurrency, formatDate } from "@/lib/utils"
@@ -15,7 +15,7 @@ export default function ArchivePage() {
   const [autoPurged, setAutoPurged] = useState(0)
   const [confirmState, setConfirmState] = useState<{ open: boolean; ids: number[]; action: "purge" | "purge-all" }>({ open: false, ids: [], action: "purge" })
 
-  const loadArchived = async () => {
+  const loadArchived = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch("/api/expenses?archived=true&pageSize=200")
@@ -26,14 +26,9 @@ export default function ArchivePage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  useEffect(() => {
-    loadArchived()
-    autoPurgeExpired()
   }, [])
 
-  const autoPurgeExpired = async () => {
+  const autoPurgeExpired = useCallback(async () => {
     try {
       const res = await fetch("/api/expenses/archive", {
         method: "POST",
@@ -48,7 +43,12 @@ export default function ArchivePage() {
         }
       }
     } catch { /* auto-purge failed silently */ }
-  }
+  }, [loadArchived])
+
+  useEffect(() => {
+    loadArchived()
+    autoPurgeExpired()
+  }, [loadArchived, autoPurgeExpired])
 
   const restore = async (id: number) => {
     const res = await fetch("/api/expenses/archive", {

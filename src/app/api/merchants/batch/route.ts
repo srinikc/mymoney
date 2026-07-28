@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, created, updated, total: mappings.length })
   } catch (error) {
     console.error("Batch mapping error:", error)
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -87,6 +87,6 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ success: true, dismissed: toCreate.length, total: keys.length })
   } catch (error) {
     console.error("Batch dismiss error:", error)
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

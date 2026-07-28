@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import type { Prisma } from "@prisma/client"
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -18,7 +19,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     if (!account) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
     const nameFilter = account.name
-    const where: any = { bankAccount: nameFilter }
+    const where: Prisma.ExpenseWhereInput = { bankAccount: nameFilter }
 
     if (from || to) {
       where.date = {}
@@ -54,6 +55,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       pageSize,
     })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Bank account transactions error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

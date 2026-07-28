@@ -58,6 +58,25 @@ export function HelpDrawer({ section, path: _path, onClose }: HelpDrawerProps) {
               <p className="text-sm leading-relaxed">{section.details}</p>
             </div>
 
+            {section.controls && section.controls.length > 0 && (
+              <div>
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Buttons &amp; Controls</h3>
+                <div className="space-y-2">
+                  {section.controls.map((ctl, i) => (
+                    <div key={i} className="rounded-lg border p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold">{ctl.name}</code>
+                        {ctl.location && (
+                          <Badge variant="outline" className="shrink-0 text-[10px]">{ctl.location}</Badge>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">{ctl.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {section.workflow && (
               <div>
                 <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">How to Use</h3>
@@ -67,9 +86,14 @@ export function HelpDrawer({ section, path: _path, onClose }: HelpDrawerProps) {
                       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                         {i + 1}
                       </span>
-                      <div>
+                      <div className="flex-1">
                         <p className="text-sm font-medium">{step.step}</p>
                         <p className="text-sm text-muted-foreground">{step.description}</p>
+                        {step.example && (
+                          <p className="mt-1 text-xs italic text-muted-foreground/70 border-l-2 border-muted pl-2">
+                            Example: {step.example}
+                          </p>
+                        )}
                       </div>
                     </li>
                   ))}

@@ -9,7 +9,7 @@ import { NextResponse } from "next/server"
 
 export type UserRole = "admin" | "manager" | "viewer" | "user"
 
-interface AuthUser {
+export interface AuthUser {
   id: number
   role?: string
 }

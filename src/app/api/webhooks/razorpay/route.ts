@@ -1,6 +1,21 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import crypto from "crypto"
+import crypto from "node:crypto"
+
+interface RazorpayEvent {
+  event: string
+  payload: {
+    payment: {
+      entity: {
+        order_id: string
+        id: string
+        amount: number
+        status: string
+        error_description?: string
+      }
+    }
+  }
+}
 
 const WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || ""
 
@@ -22,9 +37,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 })
   }
 
-  let event: any
+  let event: RazorpayEvent
   try {
-    event = JSON.parse(text)
+    event = JSON.parse(text) as RazorpayEvent
   } catch {
     return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 })
   }

@@ -1,12 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
-import { Mail, RefreshCw, Check, AlertCircle, Loader2 } from "lucide-react"
+import { Mail, RefreshCw, Check, Loader2 } from "lucide-react"
 
 interface Transaction {
   type: string
@@ -139,7 +139,7 @@ export default function GmailImportPage() {
           <CardContent className="py-12 text-center text-muted-foreground">
             <Mail className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p className="text-lg font-medium">No transactions scanned yet</p>
-            <p className="text-sm mt-1">Click "Scan Gmail" to find financial transactions in your inbox.</p>
+            <p className="text-sm mt-1">Click &ldquo;Scan Gmail&rdquo; to find financial transactions in your inbox.</p>
             <p className="text-xs mt-2 opacity-60">Requires Gmail API access with read-only scope.</p>
           </CardContent>
         </Card>

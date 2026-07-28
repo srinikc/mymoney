@@ -65,7 +65,7 @@ test.describe("P5 — Tax Section", () => {
     await page.waitForTimeout(3000)
     await page.getByRole("button", { name: "Projections" }).click()
     await page.waitForTimeout(1000)
-    await expect(page.getByText(/Add income sources|projected annual/i).first()).toBeVisible()
+    await expect(page.getByText(/add income sources|projected annual/i).first()).toBeVisible()
   })
 
   test("SCENARIO: Delete an ITR record with confirmation", async ({ page }) => {

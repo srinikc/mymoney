@@ -4,11 +4,12 @@ import { useEffect, useState, useCallback, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DataTable } from "@/components/ui/data-table"
 import { formatDate } from "@/lib/utils"
 import { createColumnHelper } from "@tanstack/react-table"
-import { Shield, Plus, Trash2, Search, ToggleLeft, ToggleRight } from "lucide-react"
+import { Shield, Plus, Trash2, Search, ToggleLeft, ToggleRight, Users, ChevronDown, ChevronRight } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -27,13 +28,44 @@ interface FeatureFlag {
   updatedAt: string
 }
 
+interface UserFeature {
+  name: string
+  tier: string
+  globallyEnabled: boolean
+  tierAccess: boolean
+  overrideEnabled: boolean | null
+  effective: boolean
+}
+
+interface FeatureUser {
+  id: number
+  email: string
+  name: string | null
+  tier: string
+  role: string
+  createdAt: string
+  features: UserFeature[]
+}
+
+interface UsersResponse {
+  users: FeatureUser[]
+  features: FeatureFlag[]
+}
+
+const TIER_COLORS: Record<string, string> = {
+  free: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  pro: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  premium: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+}
+
 export default function AdminFeaturesPage() {
   const [features, setFeatures] = useState<FeatureFlag[]>([])
+  const [users, setUsers] = useState<FeatureUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [expandedUser, setExpandedUser] = useState<number | null>(null)
 
-  // Create dialog
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [newName, setNewName] = useState("")
   const [newTier, setNewTier] = useState("free")
@@ -42,27 +74,28 @@ export default function AdminFeaturesPage() {
   const fetchFeatures = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch("/api/admin/features")
-      if (res.ok) {
-        const data = await res.json()
-        setFeatures(data)
+      const [featRes, usersRes] = await Promise.all([
+        fetch("/api/admin/features"),
+        fetch("/api/admin/features/users"),
+      ])
+      if (featRes.ok && usersRes.ok) {
+        const featData = await featRes.json()
+        const usersData: UsersResponse = await usersRes.json()
+        setFeatures(featData)
+        setUsers(usersData.users)
         setError(null)
       } else {
-        if (res.status === 403) setError("Admin access required")
-        else setError("Failed to load features")
-        setFeatures([])
+        if (featRes.status === 403) setError("Admin access required")
+        else setError("Failed to load data")
       }
     } catch {
-      setError("Failed to load features")
-      setFeatures([])
+      setError("Failed to load data")
     } finally {
       setLoading(false)
     }
   }, [])
 
-  useEffect(() => {
-    fetchFeatures()
-  }, [fetchFeatures])
+  useEffect(() => { fetchFeatures() }, [fetchFeatures])
 
   const toggleFeature = async (featureId: number, currentEnabled: boolean) => {
     try {
@@ -72,9 +105,7 @@ export default function AdminFeaturesPage() {
         body: JSON.stringify({ enabled: !currentEnabled }),
       })
       if (res.ok) fetchFeatures()
-    } catch {
-      // silently fail
-    }
+    } catch { /* ignore */ }
   }
 
   const updateFeatureTier = async (featureId: number, tier: string) => {
@@ -85,9 +116,7 @@ export default function AdminFeaturesPage() {
         body: JSON.stringify({ tier }),
       })
       if (res.ok) fetchFeatures()
-    } catch {
-      // silently fail
-    }
+    } catch { /* ignore */ }
   }
 
   const deleteFeature = async (featureId: number) => {
@@ -95,9 +124,7 @@ export default function AdminFeaturesPage() {
     try {
       const res = await fetch(`/api/admin/features/${featureId}`, { method: "DELETE" })
       if (res.ok) fetchFeatures()
-    } catch {
-      // silently fail
-    }
+    } catch { /* ignore */ }
   }
 
   const createFeature = async () => {
@@ -140,6 +167,28 @@ export default function AdminFeaturesPage() {
     fetchFeatures()
   }
 
+  const setUserFeatureOverride = async (userId: number, featureName: string, enabled: boolean) => {
+    try {
+      await fetch("/api/admin/features/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, featureName, enabled }),
+      })
+      fetchFeatures()
+    } catch { /* ignore */ }
+  }
+
+  const clearUserFeatureOverride = async (userId: number, featureName: string) => {
+    try {
+      await fetch("/api/admin/features/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, featureName }),
+      })
+      fetchFeatures()
+    } catch { /* ignore */ }
+  }
+
   const filteredFeatures = useMemo(
     () =>
       features.filter(
@@ -170,11 +219,7 @@ export default function AdminFeaturesPage() {
               : "bg-muted text-muted-foreground"
           }`}
         >
-          {info.getValue() ? (
-            <ToggleRight className="h-3.5 w-3.5" />
-          ) : (
-            <ToggleLeft className="h-3.5 w-3.5" />
-          )}
+          {info.getValue() ? <ToggleRight className="h-3.5 w-3.5" /> : <ToggleLeft className="h-3.5 w-3.5" />}
           {info.getValue() ? "On" : "Off"}
         </button>
       ),
@@ -240,7 +285,7 @@ export default function AdminFeaturesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Admin — Feature Flags</h1>
-          <p className="text-muted-foreground">Manage feature flags and toggles</p>
+          <p className="text-muted-foreground">Manage features, tier access, and per-user overrides</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={fetchFeatures} disabled={loading}>
@@ -252,53 +297,152 @@ export default function AdminFeaturesPage() {
         </div>
       </div>
 
-      {/* Search & Bulk Actions */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search features..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <div className="flex gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs"
-            onClick={() => bulkToggle(true)}
-          >
-            Enable All
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs"
-            onClick={() => bulkToggle(false)}
-          >
-            Disable All
-          </Button>
-        </div>
-      </div>
-
+      {/* Feature Flags Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">
-            Feature Flags
-            {searchQuery && (
-              <span className="ml-2 text-sm font-normal text-muted-foreground">
-                ({filteredFeatures.length} of {features.length})
-              </span>
-            )}
-          </CardTitle>
+          <CardTitle className="text-lg">Feature Definitions</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 max-w-xs">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search features..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="flex gap-1">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => bulkToggle(true)}>
+                Enable All
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => bulkToggle(false)}>
+                Disable All
+              </Button>
+            </div>
+          </div>
           {loading ? (
             <div className="py-12 text-center text-muted-foreground">Loading features...</div>
           ) : (
             <DataTable columns={columns} data={filteredFeatures} pageSize={20} />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Users & Feature Access */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Users &amp; Feature Access ({users.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="py-12 text-center text-muted-foreground">Loading users...</div>
+          ) : users.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground">No users found</div>
+          ) : (
+            <div className="space-y-3">
+              {users.map((user) => (
+                <div key={user.id} className="rounded-lg border">
+                  <button
+                    onClick={() => setExpandedUser(expandedUser === user.id ? null : user.id)}
+                    className="flex w-full items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      {expandedUser === user.id ? (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      )}
+                      <div className="text-left">
+                        <p className="text-sm font-medium">{user.name || user.email}</p>
+                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className={TIER_COLORS[user.tier] || TIER_COLORS.free}>
+                        {user.tier}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {user.role}
+                      </Badge>
+                    </div>
+                  </button>
+
+                  {expandedUser === user.id && (
+                    <div className="border-t px-4 py-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                        {user.features.map((ft) => {
+                          const isOverridden = ft.overrideEnabled !== null
+                          const isEffective = ft.effective
+                          return (
+                            <div
+                              key={ft.name}
+                              className={`rounded-md border p-2 text-xs ${
+                                isEffective
+                                  ? "bg-emerald-500/5 border-emerald-200 dark:border-emerald-800"
+                                  : "bg-muted/30 border-muted"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="font-medium truncate">{ft.name}</span>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {isOverridden && (
+                                    <button
+                                      onClick={() => clearUserFeatureOverride(user.id, ft.name)}
+                                      className="text-muted-foreground hover:text-destructive"
+                                      title="Remove override"
+                                    >
+                                      &times;
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() =>
+                                      setUserFeatureOverride(user.id, ft.name, !isEffective)
+                                    }
+                                    className={`shrink-0 ${
+                                      isEffective ? "text-emerald-500" : "text-muted-foreground"
+                                    }`}
+                                    title={isOverridden ? "Toggle override" : "Override"}
+                                  >
+                                    {isEffective ? (
+                                      <ToggleRight className="h-3.5 w-3.5" />
+                                    ) : (
+                                      <ToggleLeft className="h-3.5 w-3.5" />
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 mt-1">
+                                <Badge
+                                  className={`px-1 py-0 text-[10px] ${
+                                    ft.tier === "free"
+                                      ? "bg-gray-100 text-gray-600 dark:bg-gray-800"
+                                      : ft.tier === "pro"
+                                      ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30"
+                                      : "bg-amber-100 text-amber-600 dark:bg-amber-900/30"
+                                  }`}
+                                >
+                                  {ft.tier}
+                                </Badge>
+                                {isOverridden && (
+                                  <Badge variant="outline" className="px-1 py-0 text-[10px] text-muted-foreground">
+                                    override
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -336,9 +480,7 @@ export default function AdminFeaturesPage() {
             {createError && <p className="text-xs text-destructive">{createError}</p>}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
             <Button onClick={createFeature}>Create</Button>
           </DialogFooter>
         </DialogContent>

@@ -1,17 +1,10 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { autoDetectAndParse } from "@/shared/bank-csv-parser"
-import { z } from "zod"
-
-const ImportRequestSchema = z.object({
-  confirm: z.boolean().optional().default(false),
-  bankAccount: z.string().optional().default(""),
-})
-
 export async function POST(req: Request) {
   try {
     const formData = await req.formData()
-    const file = (formData as any).get("file") as File
+    const file = formData.get("file") as File
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
@@ -32,8 +25,8 @@ export async function POST(req: Request) {
     }
 
     // Parse confirm and bankAccount from form
-    const confirm = (formData as any).get("confirm") === "true"
-    const bankAccount = String((formData as any).get("bankAccount") || "").trim()
+    const confirm = formData.get("confirm") === "true"
+    const bankAccount = String(formData.get("bankAccount") || "").trim()
 
     // If preview mode, return parsed rows without importing
     if (!confirm) {
@@ -140,7 +133,7 @@ export async function POST(req: Request) {
     })
   } catch (error) {
     console.error("Bank CSV import error:", error)
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 

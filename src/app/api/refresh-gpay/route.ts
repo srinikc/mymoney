@@ -42,7 +42,7 @@ function spawnGpayScript(scriptPath: string, jobId: string, args: string[] = [])
     })
   })
 
-  child.on("close", (code) => {
+  child.on("close", (_code) => {
     const resultMatch = output.match(/RESULT:(.*)/)
     let result: Record<string, unknown> = {}
 

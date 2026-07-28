@@ -122,7 +122,7 @@ export default function AdminAuditLogPage() {
       import: "default",
     }
     return (
-      <Badge variant={(variants[action] as any) || "outline"} className="text-[10px]">
+      <Badge variant={(variants[action] as "default" | "secondary" | "destructive" | "outline" | "success" | "warning") || "outline"} className="text-[10px]">
         {action}
       </Badge>
     )

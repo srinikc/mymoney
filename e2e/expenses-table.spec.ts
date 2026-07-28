@@ -37,7 +37,7 @@ test.describe("Expenses Table", () => {
       return
     }
 
-    const amountHeader = page.locator("table thead th, [role='columnheader']").filter({ hasText: /Amount/i })
+    const amountHeader = page.locator("table thead th, [role='columnheader']").filter({ hasText: /amount/i })
     if (!(await amountHeader.isVisible().catch(() => false))) {
       test.skip(true, "Amount header not found")
       return

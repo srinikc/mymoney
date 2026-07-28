@@ -65,6 +65,25 @@ export function HelpDrawer({ section, onClose }: HelpDrawerProps) {
           <Text style={[styles.sectionLabel, { color: theme.textTertiary }]}>Overview</Text>
           <Text style={[styles.details, { color: theme.text }]}>{section.details}</Text>
 
+          {section.controls && section.controls.length > 0 && (
+            <>
+              <Text style={[styles.sectionLabel, { color: theme.textTertiary }]}>Buttons &amp; Controls</Text>
+              {section.controls.map((ctl, i) => (
+                <View key={i} style={[styles.controlCard, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                  <View style={styles.controlHeader}>
+                    <Text style={[styles.controlName, { color: theme.text, fontFamily: 'monospace' }]}>{ctl.name}</Text>
+                    {ctl.location && (
+                      <View style={[styles.controlLocation, { backgroundColor: theme.primaryLight }]}>
+                        <Text style={[styles.controlLocationText, { color: theme.primary }]}>{ctl.location}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={[styles.controlDesc, { color: theme.textSecondary }]}>{ctl.description}</Text>
+                </View>
+              ))}
+            </>
+          )}
+
           {section.workflow && (
             <>
               <Text style={[styles.sectionLabel, { color: theme.textTertiary }]}>How to Use</Text>
@@ -78,6 +97,11 @@ export function HelpDrawer({ section, onClose }: HelpDrawerProps) {
                     <Text style={[styles.stepDesc, { color: theme.textSecondary }]}>
                       {step.description}
                     </Text>
+                    {step.example && (
+                      <Text style={[styles.stepExample, { color: theme.textTertiary }]}>
+                        Example: {step.example}
+                      </Text>
+                    )}
                   </View>
                 </View>
               ))}
@@ -230,5 +254,42 @@ const styles = StyleSheet.create({
   relatedDesc: {
     fontSize: 12,
     lineHeight: 16,
+  },
+  controlCard: {
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 8,
+  },
+  controlHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  controlName: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  controlLocation: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  controlLocationText: {
+    fontSize: 9,
+    fontWeight: '600',
+  },
+  controlDesc: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  stepExample: {
+    fontSize: 11,
+    fontStyle: 'italic',
+    marginTop: 4,
+    borderLeftWidth: 2,
+    borderLeftColor: '#d1d5db',
+    paddingLeft: 8,
   },
 });

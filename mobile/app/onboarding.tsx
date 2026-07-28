@@ -76,7 +76,7 @@ export default function OnboardingScreen() {
       .catch(() => {
         setLoading(false);
       });
-  }, []);
+  }, [router]);
 
   const toggleCategory = (cat: string) => {
     setSelectedCategories((prev) =>
@@ -90,7 +90,7 @@ export default function OnboardingScreen() {
       if (currentStep === 0) {
         await api.post('/api/onboarding/complete', {
           name,
-          currency: currency.replace(/[^A-Z]/g, '') || 'INR',
+          currency: currency.replaceAll(/[^A-Z]/g, '') || 'INR',
           profileName: name || 'Default',
         });
       }
@@ -103,7 +103,7 @@ export default function OnboardingScreen() {
           const catsRes = await api.get('/api/categories');
           const cats = catsRes.data;
           for (const [catName, amount] of budgetEntries) {
-            const cat = cats.find((c: any) => c.name === catName);
+            const cat = cats.find((c: { id: number; name: string }) => c.name === catName);
             if (cat) {
               await api.post('/api/budgets', {
                 categoryId: cat.id,
@@ -448,7 +448,7 @@ export default function OnboardingScreen() {
               <View style={[styles.doneIcon, { backgroundColor: theme.primaryLight }]}>
                 <Ionicons name="checkmark-circle" size={48} color={theme.primary} />
               </View>
-              <Text style={[styles.doneTitle, { color: theme.text }]}>You're All Set!</Text>
+              <Text style={[styles.doneTitle, { color: theme.text }]}>You&apos;re All Set!</Text>
               <Text style={[styles.doneText, { color: theme.textSecondary }]}>
                 Your MyMoney account is ready. Head to your dashboard to start managing your
                 finances!

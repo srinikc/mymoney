@@ -19,6 +19,11 @@ interface UIState {
   toggleAssetsExpanded: () => void
   toggleProtectionExpanded: () => void
   toggleAnalysisExpanded: () => void
+  setIncomeExpanded: (v: boolean) => void
+  setPlanningExpanded: (v: boolean) => void
+  setAssetsExpanded: (v: boolean) => void
+  setProtectionExpanded: (v: boolean) => void
+  setAnalysisExpanded: (v: boolean) => void
   // ── Profile state ──────────────────────────────────────────────
   activeProfileId: number | null
   activeProfileName: string | null
@@ -30,12 +35,12 @@ export const useUIStore = create<UIState>()(
     (set) => ({
       sidebarOpen: true,
       mobileSidebarOpen: false,
-      expensesExpanded: true,
-      incomeExpanded: true,
-      planningExpanded: true,
-      assetsExpanded: true,
-      protectionExpanded: true,
-      analysisExpanded: true,
+      expensesExpanded: false,
+      incomeExpanded: false,
+      planningExpanded: false,
+      assetsExpanded: false,
+      protectionExpanded: false,
+      analysisExpanded: false,
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       setMobileSidebarOpen: (open) => set({ mobileSidebarOpen: open }),
@@ -45,6 +50,11 @@ export const useUIStore = create<UIState>()(
       toggleAssetsExpanded: () => set((s) => ({ assetsExpanded: !s.assetsExpanded })),
       toggleProtectionExpanded: () => set((s) => ({ protectionExpanded: !s.protectionExpanded })),
       toggleAnalysisExpanded: () => set((s) => ({ analysisExpanded: !s.analysisExpanded })),
+      setIncomeExpanded: (v) => set({ incomeExpanded: v }),
+      setPlanningExpanded: (v) => set({ planningExpanded: v }),
+      setAssetsExpanded: (v) => set({ assetsExpanded: v }),
+      setProtectionExpanded: (v) => set({ protectionExpanded: v }),
+      setAnalysisExpanded: (v) => set({ analysisExpanded: v }),
       // ── Profile state ──────────────────────────────────────────
       activeProfileId: null,
       activeProfileName: null,

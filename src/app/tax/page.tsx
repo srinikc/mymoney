@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { useEffect, useState, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -31,7 +32,6 @@ import {
   Trash2,
   Plus,
   Pencil,
-  Download,
   ExternalLink,
   AlertTriangle,
   CheckCircle2,
@@ -53,7 +53,7 @@ const DOC_TYPES = [
 const ITR_FORMS = ["ITR-1 (Sahaj)", "ITR-2", "ITR-3", "ITR-4 (Sugam)"]
 const ITR_STATUSES = ["not_filed", "in_progress", "filed", "verified", "refund_received"]
 
-const ITR_STATUS_CONFIG: Record<string, { label: string; icon: any; color: string }> = {
+const ITR_STATUS_CONFIG: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
   not_filed: { label: "Not Filed", icon: XCircle, color: "text-gray-500" },
   in_progress: { label: "In Progress", icon: Clock, color: "text-blue-500" },
   filed: { label: "Filed", icon: CheckCircle2, color: "text-emerald-500" },
@@ -80,7 +80,7 @@ interface TaxDocument {
   filePath: string
   mimeType: string
   fileSize: number
-  metadata: any
+  metadata: Record<string, unknown>
   notes: string | null
   createdAt: string
 }
@@ -255,7 +255,7 @@ function DocumentsTab({ fy }: { fy: string }) {
     try {
       const res = await fetch(`/api/tax/documents?fy=${fy}`)
       if (res.ok) setDocuments(await res.json())
-    } catch {} finally {
+    } catch { /* ignore */ } finally {
       setLoading(false)
     }
   }, [fy])
@@ -271,7 +271,7 @@ function DocumentsTab({ fy }: { fy: string }) {
       body.append("type", uploadType)
       body.append("fy", fy)
       if (uploadLabel) body.append("label", uploadLabel)
-      Object.entries(formData).forEach(([k, v]) => { if (v) body.append(k, v) })
+      for (const [k, v] of Object.entries(formData)) { if (v) body.append(k, v) }
 
       const res = await fetch("/api/tax/documents", { method: "POST", body })
       const data = await res.json()
@@ -296,8 +296,8 @@ function DocumentsTab({ fy }: { fy: string }) {
       setUploadLabel("")
       setFormData({})
       loadDocs()
-    } catch (err: any) {
-      toast.error(err.message || "Upload failed")
+    } catch (err: unknown) {
+      toast.error((err as Error).message || "Upload failed")
     } finally {
       setUploading(false)
     }
@@ -430,7 +430,7 @@ function DocumentsTab({ fy }: { fy: string }) {
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Delete Document</AlertDialogTitle>
-                          <AlertDialogDescription>Are you sure you want to delete "{doc.label || docTypeLabel(doc.type)}"?</AlertDialogDescription>
+                          <AlertDialogDescription>Are you sure you want to delete &ldquo;{doc.label || docTypeLabel(doc.type)}&rdquo;?</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -461,7 +461,7 @@ function ITRTab({ fy }: { fy: string }) {
     try {
       const res = await fetch("/api/tax/itr")
       if (res.ok) setRecords(await res.json())
-    } catch {} finally {
+    } catch { /* ignore */ } finally {
       setLoading(false)
     }
   }, [])
@@ -471,12 +471,12 @@ function ITRTab({ fy }: { fy: string }) {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const body: any = { ...form }
-      if (body.filedDate) body.filedDate = body.filedDate ? new Date(body.filedDate).toISOString() : null
-      body.taxableIncome = body.taxableIncome ? Number(body.taxableIncome) : null
-      body.taxLiability = body.taxLiability ? Number(body.taxLiability) : null
-      body.tdsClaimed = body.tdsClaimed ? Number(body.tdsClaimed) : null
-      body.refundAmount = body.refundAmount ? Number(body.refundAmount) : null
+      const body: Record<string, unknown> = { ...form }
+      if (body.filedDate) body.filedDate = body.filedDate ? new Date(body.filedDate as string).toISOString() : null
+      body.taxableIncome = body.taxableIncome ? Number(body.taxableIncome as string) : null
+      body.taxLiability = body.taxLiability ? Number(body.taxLiability as string) : null
+      body.tdsClaimed = body.tdsClaimed ? Number(body.tdsClaimed as string) : null
+      body.refundAmount = body.refundAmount ? Number(body.refundAmount as string) : null
 
       const url = editing ? `/api/tax/itr/${editing.id}` : "/api/tax/itr"
       const method = editing ? "PUT" : "POST"
@@ -489,8 +489,8 @@ function ITRTab({ fy }: { fy: string }) {
       setEditing(null)
       resetForm()
       loadITRs()
-    } catch (err: any) {
-      toast.error(err.message)
+    } catch (err: unknown) {
+      toast.error((err as Error).message)
     } finally {
       setSaving(false)
     }
@@ -657,7 +657,7 @@ function ProjectionsTab({ fy }: { fy: string }) {
       try {
         const res = await fetch(`/api/tax/summary?fy=${fy}`)
         if (res.ok) setSummary(await res.json())
-      } catch {} finally {
+      } catch { /* ignore */ } finally {
         setLoading(false)
       }
     }
@@ -812,7 +812,7 @@ export default function TaxPage() {
       try {
         const res = await fetch(`/api/tax/summary?fy=${fy}`)
         if (res.ok) setSummary(await res.json())
-      } catch {} finally {
+      } catch { /* ignore */ } finally {
         setSummaryLoading(false)
       }
     }

@@ -5,7 +5,7 @@ import * as XLSX from "xlsx"
 export async function POST(req: Request) {
   try {
     const formData = await req.formData()
-    const file = (formData as any).get("file") as File
+    const file = formData.get("file") as File
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
     }
@@ -76,6 +76,6 @@ export async function POST(req: Request) {
     })
   } catch (error) {
     console.error("Mappings import error:", error)
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

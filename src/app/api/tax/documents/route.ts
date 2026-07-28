@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
-import { isViewer } from "@/lib/roles"
-import { writeFile, mkdir, unlink } from "fs/promises"
-import path from "path"
+import { isViewer, type AuthUser } from "@/lib/roles"
+import { writeFile, mkdir, unlink } from "node:fs/promises"
+import path from "node:path"
+import type { Prisma } from "@prisma/client"
 
-const ALLOWED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/jpg"]
+const ALLOWED_TYPES = new Set(["application/pdf", "image/png", "image/jpeg", "image/jpg"])
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 const DOC_TYPES = ["form16", "form26as", "form10e", "capital_gains", "home_loan_cert", "rent_receipts", "donation_receipt", "other"] as const
 
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     const fy = searchParams.get("fy")
 
-    const where: any = profileId ? { profileId } : {}
+    const where: Record<string, unknown> = profileId ? { profileId } : {}
     if (fy) where.fy = fy
 
     const documents = await prisma.taxDocument.findMany({
@@ -38,29 +39,29 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-    if (isViewer(session?.user as any)) {
+    if (isViewer(session?.user as AuthUser)) {
       return NextResponse.json({ error: "Viewers cannot modify data" }, { status: 403 })
     }
     const profileId = (session.user as unknown as { profileId?: number }).profileId
 
     const formData = await req.formData()
-    const file = (formData as any).get("file") as File | null
-    const type = (formData as any).get("type") as string
-    const fy = (formData as any).get("fy") as string
-    const label = (formData as any).get("label") as string | null
-    const notes = (formData as any).get("notes") as string | null
-    const replace = (formData as any).get("replace") === "true"
+    const file = formData.get("file") as File | null
+    const type = formData.get("type") as string
+    const fy = formData.get("fy") as string
+    const label = formData.get("label") as string | null
+    const notes = formData.get("notes") as string | null
+    const replace = formData.get("replace") === "true"
 
     if (!file) {
       return NextResponse.json({ error: "File is required" }, { status: 400 })
     }
-    if (!type || !DOC_TYPES.includes(type as any)) {
+    if (!type || !DOC_TYPES.includes(type as (typeof DOC_TYPES)[number])) {
       return NextResponse.json({ error: "Document type is required" }, { status: 400 })
     }
     if (!fy || !/^\d{4}-\d{2}$/.test(fy)) {
       return NextResponse.json({ error: "Financial year is required (e.g., 2024-25)" }, { status: 400 })
     }
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    if (!ALLOWED_TYPES.has(file.type)) {
       return NextResponse.json({ error: "Unsupported file type. Allowed: PDF, PNG, JPG, JPEG" }, { status: 400 })
     }
     if (file.size > MAX_FILE_SIZE) {
@@ -82,7 +83,7 @@ export async function POST(req: Request) {
     const uploadDir = path.join(process.cwd(), "public", "uploads", "tax")
     await mkdir(uploadDir, { recursive: true })
 
-    const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
+    const safeName = `${Date.now()}-${file.name.replaceAll(/[^\w.-]/g, "_")}`
     const filePath = path.join(uploadDir, safeName)
     const buffer = Buffer.from(await file.arrayBuffer())
     await writeFile(filePath, buffer)
@@ -91,15 +92,15 @@ export async function POST(req: Request) {
       try {
         const oldPath = path.join(process.cwd(), "public", existing.filePath)
         await unlink(oldPath)
-      } catch {}
+      } catch { /* ignore old file cleanup */ }
     }
 
-    const metadata: Record<string, any> = {}
-    const grossSalary = (formData as any).get("grossSalary")
-    const employerName = (formData as any).get("employerName")
-    const tan = (formData as any).get("tan")
-    const pan = (formData as any).get("pan")
-    const tds = (formData as any).get("tds")
+    const metadata: Record<string, unknown> = {}
+    const grossSalary = formData.get("grossSalary")
+    const employerName = formData.get("employerName")
+    const tan = formData.get("tan")
+    const pan = formData.get("pan")
+    const tds = formData.get("tds")
 
     if (type === "form16") {
       if (grossSalary) metadata.grossSalary = Number(grossSalary)
@@ -121,7 +122,7 @@ export async function POST(req: Request) {
             filePath: `/uploads/tax/${safeName}`,
             mimeType: file.type,
             fileSize: file.size,
-            metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+            metadata: Object.keys(metadata).length > 0 ? (metadata as Prisma.InputJsonValue) : undefined,
             notes: notes ?? undefined,
           },
         })
@@ -135,7 +136,7 @@ export async function POST(req: Request) {
             filePath: `/uploads/tax/${safeName}`,
             mimeType: file.type,
             fileSize: file.size,
-            metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+            metadata: Object.keys(metadata).length > 0 ? (metadata as Prisma.InputJsonValue) : undefined,
             notes,
           },
         })

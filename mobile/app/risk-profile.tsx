@@ -1,32 +1,45 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme,
-  ActivityIndicator, Alert
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import api from '../api/client';
 
-const CFG: Record<string, { label: string; color: string; icon: string }> = {
+const CFG: Record<string, { label: string; color: string; icon: keyof typeof Ionicons.glyphMap }> = {
   conservative: { label: 'Conservative', color: '#3B82F6', icon: 'shield-checkmark' },
   moderate: { label: 'Moderate', color: '#F59E0B', icon: 'bar-chart' },
   aggressive: { label: 'Aggressive', color: '#10B981', icon: 'trending-up' },
 };
 const AC: Record<string, string> = { equity: '#6366f1', debt: '#f59e0b', gold: '#f97316', cash: '#22c55e' };
 
+interface Question {
+  question: string;
+  options: { score: number; label: string }[];
+}
+
+interface RiskResult {
+  profile: string;
+  totalScore: number;
+  maxScore: number;
+  summary: string;
+  allocation: Record<string, number> & { description?: string };
+}
+
 export default function RiskProfileScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
 
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<RiskResult | null>(null);
   const [error, setError] = useState('');
 
   const fetchQ = useCallback(async () => {
@@ -96,7 +109,7 @@ export default function RiskProfileScreen() {
           <View style={[styles.resultCard, { backgroundColor: theme.surface, borderColor: c.color + '40', borderWidth: 2 }]}>
             <View style={styles.resultHeader}>
               <View style={[styles.resultIcon, { backgroundColor: c.color + '20' }]}>
-                <Ionicons name={c.icon as any} size={36} color={c.color} />
+                <Ionicons name={c.icon} size={36} color={c.color} />
               </View>
               <View>
                 <View style={[styles.profileBadge, { backgroundColor: c.color + '20' }]}>
@@ -180,7 +193,7 @@ export default function RiskProfileScreen() {
 
         <Text style={[styles.question, { color: theme.text }]}>{q.question}</Text>
         <View style={styles.options}>
-          {q.options.map((o: any, i: number) => (
+          {q.options.map((o: { score: number; label: string }, i: number) => (
             <TouchableOpacity
               key={i}
               style={[

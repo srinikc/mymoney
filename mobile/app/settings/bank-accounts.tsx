@@ -19,12 +19,21 @@ const TYPE_COLORS: Record<string, string> = {
   loan: '#EF4444',
 };
 
+interface BankAccount {
+  id: number;
+  bankName: string;
+  name: string;
+  accountNumber: string;
+  type: string;
+  balance: number;
+}
+
 export default function BankAccountsSettingsScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
 
-  const [accounts, setAccounts] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);

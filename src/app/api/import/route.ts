@@ -35,8 +35,6 @@ async function getMappingsLookup(): Promise<Map<string, { person: string | null;
   return mappingsCache
 }
 
-function resetMappingsCache() { mappingsCache = null }
-
 // Helper: insert expense, flag if duplicate
 async function upsertExpense(date: Date, amount: number, vendor: string, categoryId: number, importSessionId?: number, extra?: { person?: string; subCategory?: string; bankAccount?: string }): Promise<{ flagged: boolean }> {
   let flagged = false
@@ -65,7 +63,7 @@ async function upsertExpense(date: Date, amount: number, vendor: string, categor
 export async function POST(req: Request) {
   try {
     const formData = await req.formData()
-    const file = (formData as any).get("file") as File
+    const file = formData.get("file") as File
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
@@ -157,15 +155,9 @@ export async function POST(req: Request) {
 
       const entries = zip.getEntries() as Array<{ entryName: string; getData: () => Buffer }>
 
-      // Debug: list ZIP contents
-      console.log("[ZIP IMPORT] File:", file.name)
-      console.log("[ZIP IMPORT] Entries:", entries.map((e) => e.entryName).slice(0, 20))
-
-      // First pass: find and parse My Activity.html from GPay Takeout structure
       const htmlEntry = entries.find((e) =>
         e.entryName.replaceAll('\\', "/").toLowerCase().includes("my activity")
       )
-      console.log("[ZIP IMPORT] Found HTML entry:", htmlEntry?.entryName || "NONE")
 
       let totalParsed = 0
       const zipVendors: string[] = []
@@ -173,17 +165,12 @@ export async function POST(req: Request) {
 
       if (htmlEntry) {
         const content = htmlEntry.getData().toString("utf-8")
-        console.log("[ZIP IMPORT] HTML content length:", content.length)
-        console.log("[ZIP IMPORT] HTML first 800 chars:", content.slice(0, 800))
         let htmlTxns = parseGpayTakeoutHtml(content)
         // Filter to only transactions after last DB entry
         const maxDate = await getMaxExpenseDate()
         if (maxDate) {
-          const before = htmlTxns.length
           htmlTxns = htmlTxns.filter((t) => t.date >= maxDate)
-          console.log("[ZIP IMPORT] Date filter: max DB date:", maxDate, "kept", htmlTxns.length, "of", before)
         }
-        console.log("[ZIP IMPORT] Parsed transactions from HTML:", htmlTxns.length)
         for (const txn of htmlTxns) {
           totalParsed++
           if (txn.vendor) zipVendors.push(txn.vendor)
@@ -212,7 +199,6 @@ export async function POST(req: Request) {
 
       // Second pass: fall back to JSON files for any remaining transactions
       if (totalParsed === 0) {
-        console.log("[ZIP IMPORT] No HTML transactions, trying JSON files...")
         const jsonEntries = entries.filter((e) =>
           e.entryName.endsWith(".json") && !e.entryName.startsWith("__")
         )
@@ -250,10 +236,7 @@ export async function POST(req: Request) {
         }
       }
 
-      console.log("[ZIP IMPORT] Total parsed:", totalParsed, "Imported:", imported)
-
       if (totalParsed === 0) {
-        console.log("[ZIP IMPORT] No transactions found, returning error")
         await prisma.importSession.update({
           where: { id: session.id },
           data: { totalRows: 0, autoMapped: 0, status: "failed" },
@@ -276,7 +259,6 @@ export async function POST(req: Request) {
         }
       }
 
-      console.log("[ZIP IMPORT] Success - imported:", imported, "total:", totalParsed)
       await prisma.importSession.update({
         where: { id: session.id },
         data: { totalRows: totalParsed, autoMapped: imported, skipped, newMerchants: zipMappingsCount, status: "completed" },
@@ -299,7 +281,7 @@ export async function POST(req: Request) {
       if (maxDate) {
         const before = htmlTxns.length
         htmlTxns = htmlTxns.filter((t) => t.date >= maxDate)
-        console.log("[HTML IMPORT] Date filter: max DB date:", maxDate, "kept", htmlTxns.length, "of", before)
+        console.warn("[HTML IMPORT] Date filter: max DB date:", maxDate, "kept", htmlTxns.length, "of", before)
       }
 
       if (htmlTxns.length === 0) {
@@ -428,7 +410,7 @@ export async function POST(req: Request) {
     })
   } catch (error) {
     console.error("Import error:", error)
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 

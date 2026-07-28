@@ -44,14 +44,14 @@ export default function IntegrationsScreen() {
       ]);
       if (zRes.data) setZerodha(zRes.data);
       if (sRes.data) setSharekhan(sRes.data);
-    } catch {} finally {
+    } catch { /* ignore */ } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     loadStatus();
-    Linking.addEventListener('url', (event) => {
+    const handler = (event: { url: string }) => {
       const url = event.url;
       const zMatch = url.match(/zerodha=(success|error)(?:&message=([^&]*))?/);
       const sMatch = url.match(/sharekhan=(success|error)(?:&message=([^&]*))?/);
@@ -65,8 +65,10 @@ export default function IntegrationsScreen() {
         else showMessage(`Sharekhan connection failed: ${sMatch[2] || 'Unknown error'}`, 'error');
         loadStatus();
       }
-    });
-  }, []);
+    };
+    const subscription = Linking.addEventListener('url', handler);
+    return () => subscription.remove();
+  }, [loadStatus]);
 
   const loginZerodha = async () => {
     try {
@@ -110,7 +112,7 @@ export default function IntegrationsScreen() {
 
   const renderBrokerCard = (
     name: string,
-    icon: string,
+    icon: keyof typeof Ionicons.glyphMap,
     iconColor: string,
     status: BrokerStatus | null,
     onLogin: () => void,
@@ -120,7 +122,7 @@ export default function IntegrationsScreen() {
     <View style={[styles.card, { backgroundColor: theme.surface }]}>
       <View style={styles.cardHeader}>
         <View style={[styles.brokerIcon, { backgroundColor: iconColor + '20' }]}>
-          <Ionicons name={icon as any} size={20} color={iconColor} />
+          <Ionicons name={icon} size={20} color={iconColor} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.brokerName, { color: theme.text }]}>{name}</Text>

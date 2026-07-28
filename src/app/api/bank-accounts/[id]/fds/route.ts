@@ -14,7 +14,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     })
     return NextResponse.json({ fixedDeposits: fds })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("FDs GET error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -47,6 +48,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     return NextResponse.json(fd, { status: 201 })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("FDs POST error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

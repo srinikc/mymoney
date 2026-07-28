@@ -9,12 +9,24 @@ import { Colors } from '../constants/Colors';
 import { formatDate } from '../utils/format';
 import api from '../api/client';
 
+interface Deal {
+  id: number;
+  merchant: string;
+  title: string;
+  description?: string;
+  discount?: string;
+  couponCode?: string;
+  url?: string;
+  validUntil?: string;
+  category?: string;
+}
+
 export default function DealsScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
 
-  const [deals, setDeals] = useState<any[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);

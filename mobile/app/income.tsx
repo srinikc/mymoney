@@ -3,8 +3,25 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme, Ref
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
-import { formatCurrency, formatDate } from '../utils/format';
+import { formatCurrency } from '../utils/format';
 import api from '../api/client';
+
+interface SourceItem {
+  id: number;
+  name: string;
+  type: string;
+  amount: number;
+  sourceCategory?: string;
+  category?: string;
+  paymentMode?: string;
+  startDate?: string;
+}
+
+interface SummaryData {
+  totalMonthly?: number;
+  totalYearly?: number;
+  currentMonth?: number;
+}
 
 const SOURCE_TYPES = ['monthly', 'yearly', 'onetime', 'variable'];
 const PAYMENT_MODES = ['Bank Transfer', 'UPI', 'Cash', 'Cheque', 'Other'];
@@ -13,13 +30,13 @@ export default function IncomeScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
-  const [sources, setSources] = useState<any[]>([]);
-  const [summary, setSummary] = useState<any>(null);
+  const [sources, setSources] = useState<SourceItem[]>([]);
+  const [summary, setSummary] = useState<SummaryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [editItem, setEditItem] = useState<any>(null);
+  const [editItem, setEditItem] = useState<SourceItem | null>(null);
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
@@ -50,7 +67,7 @@ export default function IncomeScreen() {
     setFormStartDate(new Date().toISOString().split('T')[0]); setFormError(null); setShowForm(true);
   };
 
-  const openEdit = (item: any) => {
+  const openEdit = (item: SourceItem) => {
     setEditItem(item);
     setFormName(item.name || '');
     setFormType(item.type || 'monthly');
@@ -74,11 +91,11 @@ export default function IncomeScreen() {
         await api.post('/api/income/sources', payload);
       }
       setShowForm(false); fetch();
-    } catch (err: any) { setFormError(err?.response?.data?.error || 'Failed to save'); }
+    } catch (err: unknown) { setFormError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to save'); }
     finally { setFormLoading(false); }
   };
 
-  const handleDelete = (item: any) => {
+  const handleDelete = (item: SourceItem) => {
     Alert.alert('Delete Source', `Delete "${item.name}"?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {

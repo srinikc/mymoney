@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, useColorScheme, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuthStore } from '../store/auth';
 import { Colors } from '../constants/Colors';
@@ -25,7 +24,6 @@ const PLANS: Plan[] = [
 export default function PlansScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
-  const router = useRouter();
   const { user, setUser } = useAuthStore();
   const currentTier = user?.tier || 'free';
   const [loading, setLoading] = useState<string | null>(null);
@@ -49,12 +47,13 @@ export default function PlansScreen() {
       if (result.type === 'opened') {
         showToast(`Upgraded to ${PLANS.find(p => p.id === planId)?.name}!`);
         const meRes = await api.get('/api/auth/me');
-        if (meRes.data?.tier) {
-          setUser({ ...user, tier: meRes.data.tier } as any);
+        if (meRes.data?.tier && user) {
+          setUser({ ...user, tier: meRes.data.tier });
         }
       }
-    } catch (err: any) {
-      showToast(err.response?.data?.error || err.message || 'Payment failed', 'error');
+    } catch (err) {
+      const apiErr = err as { response?: { data?: { error?: string } }; message?: string };
+      showToast(apiErr.response?.data?.error || apiErr.message || 'Payment failed', 'error');
     } finally {
       setLoading(null);
     }

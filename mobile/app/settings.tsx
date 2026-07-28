@@ -8,7 +8,7 @@ import api from '../api/client';
 
 interface SettingsItem {
   title: string;
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
   color?: string;
   subtitle?: string;
   type: 'toggle' | 'action';
@@ -105,11 +105,11 @@ export default function SettingsScreen() {
               {section.items.map((item, iIdx) => (
                 <View key={iIdx} style={[styles.settingRow, iIdx < section.items.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.borderLight }]}>
                   <View style={[styles.settingIcon, { backgroundColor: theme.primaryLight }]}>
-                    <Ionicons name={item.icon as any} size={18} color={item.color || theme.primary} />
+                    <Ionicons name={item.icon} size={18} color={item.color || theme.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.settingLabel, { color: item.color || theme.text }]}>{item.title}</Text>
-                    {(item as any).subtitle ? <Text style={{ fontSize: 12, color: theme.textTertiary }}>{(item as any).subtitle}</Text> : null}
+                    {item.subtitle ? <Text style={{ fontSize: 12, color: theme.textTertiary }}>{item.subtitle}</Text> : null}
                   </View>
                   {item.type === 'toggle' ? (
                     <Switch value={item.value} onValueChange={item.onToggle} trackColor={{ false: theme.border, true: theme.primaryLight }} thumbColor={item.value ? theme.primary : theme.textTertiary} />

@@ -9,12 +9,28 @@ import { Colors } from '../constants/Colors';
 import { formatCurrency, formatDate } from '../utils/format';
 import api from '../api/client';
 
+interface ExpenseItem {
+  id: number;
+  vendor?: string;
+  amount: number;
+  date: string;
+  category?: { id?: number; name: string; color?: string };
+  paymentMode?: string;
+  notes?: string;
+}
+
+interface CatItem {
+  id?: number;
+  name: string;
+  color?: string;
+}
+
 export default function ExpensesScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
 
-  const [expenses, setExpenses] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,15 +39,15 @@ export default function ExpensesScreen() {
   const [totalPages, setTotalPages] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [, setCategories] = useState<CatItem[]>([]);
   const [form, setForm] = useState({ date: new Date().toISOString().split('T')[0], amount: '', categoryId: '', vendor: '', description: '', paymentMode: 'UPI', notes: '' });
   const [formLoading, setFormLoading] = useState(false);
-  const [filterDateFrom, setFilterDateFrom] = useState('');
-  const [filterDateTo, setFilterDateTo] = useState('');
+  const [filterDateFrom] = useState('');
+  const [filterDateTo] = useState('');
 
   const fetchExpenses = useCallback(async (targetPage = 1, append = false) => {
     try {
-      const params: any = { page: String(targetPage), pageSize: '50', sortField: 'date', sortDir: 'desc' };
+      const params: Record<string, string | undefined> = { page: String(targetPage), pageSize: '50', sortField: 'date', sortDir: 'desc' };
       if (search) params.search = search;
       if (filterDateFrom) params.dateFrom = filterDateFrom;
       if (filterDateTo) params.dateTo = filterDateTo;
@@ -99,7 +115,7 @@ export default function ExpensesScreen() {
     ]);
   };
 
-  const getCategoryColor = (cat: any) => cat?.color || theme.primary;
+  const getCategoryColor = (cat: { color?: string } | undefined) => cat?.color || theme.primary;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>

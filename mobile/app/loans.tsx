@@ -6,18 +6,33 @@ import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
 
+interface LoanItem {
+  id: number;
+  name: string;
+  type: string;
+  principal?: number;
+  amount?: number;
+  outstanding?: number;
+  remaining?: number;
+  balance?: number;
+  interestRate?: number;
+  tenureMonths?: number;
+  lender?: string;
+  startDate?: string;
+}
+
 const LOAN_TYPES = ['Home', 'Car', 'Vehicle', 'Electronics', 'Equipment', 'Other'];
 
 export default function LoansScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<LoanItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [editItem, setEditItem] = useState<any>(null);
+  const [editItem, setEditItem] = useState<LoanItem | null>(null);
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
@@ -45,7 +60,7 @@ export default function LoansScreen() {
     setFormError(null); setShowForm(true);
   };
 
-  const openEdit = (item: any) => {
+  const openEdit = (item: LoanItem) => {
     setEditItem(item); setFormName(item.name || ''); setFormType(item.type || 'Other'); setFormPrincipal(String(item.principal || ''));
     setFormInterest(String(item.interestRate || '')); setFormTenure(String(item.tenureMonths || '')); setFormLender(item.lender || '');
     setFormStartDate(item.startDate?.split('T')[0] || new Date().toISOString().split('T')[0]); setFormError(null); setShowForm(true);
@@ -59,18 +74,18 @@ export default function LoansScreen() {
       if (editItem) { await api.put(`/api/loans/${editItem.id}`, payload); }
       else { await api.post('/api/loans', payload); }
       setShowForm(false); fetch();
-    } catch (err: any) { setFormError(err?.response?.data?.error || 'Failed to save'); }
+    } catch (err) { const apiErr = err as { response?: { data?: { error?: string } }; message?: string }; setFormError(apiErr?.response?.data?.error || 'Failed to save'); }
     finally { setFormLoading(false); }
   };
 
-  const handleDelete = (item: any) => {
+  const handleDelete = (item: LoanItem) => {
     Alert.alert('Delete', `Delete "${item.name}"?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => { try { await api.delete(`/api/loans/${item.id}`); fetch(); } catch { Alert.alert('Error', 'Failed to delete'); } } },
     ]);
   };
 
-  const totalOutstanding = data.reduce((s: number, i: any) => s + (i.outstanding || i.remaining || i.balance || 0), 0);
+  const totalOutstanding = data.reduce((s: number, i: LoanItem) => s + (i.outstanding || i.remaining || i.balance || 0), 0);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -84,7 +99,7 @@ export default function LoansScreen() {
       {loading ? <View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View>
       : error ? <View style={styles.center}><Ionicons name="alert-circle" size={40} color={theme.expense} /><Text style={{ color: theme.expense, fontSize: 14 }}>{error}</Text></View>
       : (
-        <FlatList data={data} keyExtractor={(i, idx) => i.id || String(idx)}
+        <FlatList data={data} keyExtractor={(i, idx) => String(i.id ?? idx)}
           ListHeaderComponent={totalOutstanding > 0 ? <View style={[styles.summaryCard, { backgroundColor: theme.expense }]}><Text style={{ color: '#fff', opacity: 0.7, fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 }}>Total Outstanding</Text><Text style={{ color: '#fff', fontSize: 28, fontWeight: '800', marginTop: 4 }}>{formatCurrency(totalOutstanding)}</Text></View> : null}
           renderItem={({ item }) => {
             const outstanding = item.outstanding || item.remaining || item.balance || 0;

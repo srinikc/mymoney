@@ -17,6 +17,23 @@ const SCENARIOS = [
   { id: 'aggressive-save', name: 'Aggressive Savings', description: 'Save 15% more + cut expenses 10%', icon: 'flash-outline' as const, params: { savingsRateChange: 15, expenseReduction: { all: 10 } } },
 ];
 
+interface ProjectionEntry {
+  month: number;
+  date: string;
+  overall: number;
+  totalSavings: number;
+}
+
+interface SimulationResult {
+  summary: {
+    initialOverall: number;
+    finalOverall: number;
+    improvement: number;
+    totalSavingsAccumulated: number;
+  };
+  projection: ProjectionEntry[];
+}
+
 export default function WhatIfScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
@@ -24,7 +41,7 @@ export default function WhatIfScreen() {
 
   const [tab, setTab] = useState<'scenarios' | 'custom' | 'results'>('scenarios');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<SimulationResult | null>(null);
   const [error, setError] = useState('');
   const [savingsRateChange, setSavingsRateChange] = useState('5');
   const [expenseReduction, setExpenseReduction] = useState('10');
@@ -32,10 +49,11 @@ export default function WhatIfScreen() {
   const [debtPayoff, setDebtPayoff] = useState('10000');
   const [months, setMonths] = useState('12');
 
-  const run = useCallback(async (params: Record<string, any>) => {
+  const run = useCallback(async (params: Record<string, unknown>) => {
     setLoading(true); setError('');
     try {
-      const res = await api.post('/api/what-if', { ...params, months: params.months || 12 });
+      const months = typeof params.months === 'number' ? params.months : 12;
+      const res = await api.post('/api/what-if', { ...params, months });
       setResult(res.data);
       setTab('results');
     } catch { setError('Simulation failed.'); }
@@ -169,7 +187,7 @@ export default function WhatIfScreen() {
                 <Text style={[styles.projectionTitle, { color: theme.text }]}>Score Projection</Text>
                 <Text style={[styles.projectionSub, { color: theme.textTertiary }]}>Over {result.projection.length} months</Text>
                 <View style={styles.barChart}>
-                  {result.projection.map((p: any, i: number) => (
+                  {result.projection.map((p: ProjectionEntry, i: number) => (
                     <View key={i} style={styles.barCol}>
                       <View style={[styles.bar, { height: `${p.overall}%`, backgroundColor: sb(p.overall), minHeight: 3 }]} />
                     </View>
@@ -182,7 +200,7 @@ export default function WhatIfScreen() {
                       <Text style={[styles.tableCell, styles.cellRight, { color: theme.textTertiary }]}>Score</Text>
                       <Text style={[styles.tableCell, styles.cellRight, { color: theme.textTertiary }]}>Saved</Text>
                     </View>
-                    {result.projection.filter((_: any, i: number) => i % Math.max(1, Math.floor(result.projection.length / 6)) === 0 || i === result.projection.length - 1).map((p: any) => (
+                    {result.projection.filter((_: unknown, i: number) => i % Math.max(1, Math.floor(result.projection.length / 6)) === 0 || i === result.projection.length - 1).map((p: ProjectionEntry) => (
                       <View key={p.month} style={[styles.tableRow, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border }]}>
                         <Text style={[styles.tableCell, styles.cellBold, { color: theme.text }]}>{p.date}</Text>
                         <Text style={[styles.tableCell, styles.cellRight, { color: sc(p.overall), fontWeight: '700' }]}>{p.overall}</Text>

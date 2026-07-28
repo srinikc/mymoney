@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2, Shield, CheckCircle } from "lucide-react"
 
 export default function SetupPage() {
@@ -14,6 +16,7 @@ export default function SetupPage() {
   const [email, setEmail] = useState("srinikc@gmail.com")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [consent, setConsent] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -45,6 +48,10 @@ export default function SetupPage() {
     }
     if (password !== confirmPassword) {
       setError("Passwords do not match")
+      return
+    }
+    if (!consent) {
+      setError("You must agree to the Privacy Policy")
       return
     }
 
@@ -144,6 +151,13 @@ export default function SetupPage() {
                 required
                 autoComplete="new-password"
               />
+            </div>
+
+            <div className="flex items-start gap-2">
+              <Checkbox checked={consent} onCheckedChange={(c) => setConsent(c)} />
+              <Label htmlFor="consent" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
+                I agree to the <Link href="/privacy" className="underline hover:text-foreground" target="_blank">Privacy Policy</Link> and consent to the processing of my personal data
+              </Label>
             </div>
 
             {error && (

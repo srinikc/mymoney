@@ -16,7 +16,7 @@ test.describe("P0 — Login Journey", () => {
     await expect(page.getByLabel("Email")).toBeVisible()
     await expect(page.getByLabel("Password")).toBeVisible()
     await expect(page.getByRole("button", { name: "Sign in with Email" })).toBeVisible()
-    await expect(page.getByRole("button", { name: /Continue with Google/i })).toBeVisible()
+    await expect(page.getByRole("button", { name: /continue with google/i })).toBeVisible()
   })
 
   test("login with valid credentials redirects to onboarding or dashboard", async ({ page }) => {

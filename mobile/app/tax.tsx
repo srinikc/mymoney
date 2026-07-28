@@ -8,11 +8,18 @@ import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
 
+interface TaxData {
+  incomeSources?: Record<string, number>;
+  deductions?: Record<string, number>;
+  estimatedTax?: number;
+  tax?: number;
+}
+
 export default function TaxScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<TaxData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
@@ -50,7 +57,7 @@ export default function TaxScreen() {
 
           <View style={[styles.card, { backgroundColor: theme.surface }]}>
             <Text style={{ color: theme.textSecondary, fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Income Breakdown</Text>
-            {data?.incomeSources ? Object.entries(data.incomeSources).map(([k, v]: [string, any]) => (
+            {data?.incomeSources ? Object.entries(data.incomeSources).map(([k, v]: [string, unknown]) => (
               <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
                 <Text style={{ color: theme.textSecondary, fontSize: 13, textTransform: 'capitalize' }}>{k}</Text>
                 <Text style={{ color: theme.text, fontSize: 13, fontWeight: '600' }}>{formatCurrency(Number(v) || 0)}</Text>
@@ -60,9 +67,9 @@ export default function TaxScreen() {
 
           <View style={[styles.card, { backgroundColor: theme.surface }]}>
             <Text style={{ color: theme.textSecondary, fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Deductions</Text>
-            {data?.deductions ? Object.entries(data.deductions).map(([k, v]: [string, any]) => (
+            {data?.deductions ? Object.entries(data.deductions).map(([k, v]: [string, unknown]) => (
               <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
-                <Text style={{ color: theme.textSecondary, fontSize: 13, textTransform: 'capitalize' }}>{k.replace(/([A-Z])/g, ' $1')}</Text>
+                <Text style={{ color: theme.textSecondary, fontSize: 13, textTransform: 'capitalize' }}>{k.replaceAll(/([A-Z])/g, ' $1')}</Text>
                 <Text style={{ color: theme.income, fontSize: 13, fontWeight: '600' }}>{formatCurrency(Number(v) || 0)}</Text>
               </View>
             )) : <Text style={{ color: theme.textTertiary, fontSize: 13 }}>No deductions recorded</Text>}

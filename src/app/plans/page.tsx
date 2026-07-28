@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation"
 
 declare global {
   interface Window {
-    Razorpay: any
+    Razorpay: new (options: Record<string, unknown>) => { on: (event: string, handler: (response: { error?: { description?: string } }) => void) => void; open: () => void }
   }
 }
 
@@ -22,16 +22,16 @@ function loadRazorpayScript(): Promise<void> {
     const script = document.createElement("script")
     script.src = "https://checkout.razorpay.com/v1/checkout.js"
     script.async = true
-    script.onload = () => resolve()
-    script.onerror = () => reject(new Error("Failed to load Razorpay SDK"))
-    document.body.appendChild(script)
+    script.addEventListener('load', () => resolve())
+    script.addEventListener('error', () => reject(new Error("Failed to load Razorpay SDK")))
+    document.body.append(script)
   })
 }
 
 export default function PlansPage() {
   const { data: session } = useSession()
   const router = useRouter()
-  const currentTier = ((session?.user as any)?.tier || "free") as PlanId
+  const currentTier = ((session?.user as { tier?: string })?.tier || "free") as PlanId
   const [loading, setLoading] = useState<PlanId | null>(null)
 
   const handleUpgrade = async (plan: PlanId) => {
@@ -61,7 +61,7 @@ export default function PlansPage() {
         name: "MyMoney",
         description: `${PLANS[plan].name} Plan`,
         order_id: orderId,
-        handler: async function (response: any) {
+        handler: async function (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) {
           try {
             const verifyRes = await fetch("/api/payments/verify", {
               method: "POST",
@@ -81,8 +81,8 @@ export default function PlansPage() {
 
             toast.success(`Upgraded to ${PLANS[plan].name}!`)
             router.refresh()
-          } catch (err: any) {
-            toast.error(err.message || "Payment verification failed")
+          } catch (err: unknown) {
+            toast.error((err as Error).message || "Payment verification failed")
           }
         },
         modal: {
@@ -98,13 +98,13 @@ export default function PlansPage() {
       }
 
       const rzp = new window.Razorpay(options)
-      rzp.on("payment.failed", function (response: any) {
+      rzp.on("payment.failed", function (response: { error?: { description?: string } }) {
         toast.error(response.error?.description || "Payment failed")
         setLoading(null)
       })
       rzp.open()
-    } catch (err: any) {
-      toast.error(err.message || "Something went wrong")
+    } catch (err: unknown) {
+      toast.error((err as Error).message || "Something went wrong")
       setLoading(null)
     }
   }

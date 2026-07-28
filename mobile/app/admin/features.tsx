@@ -18,7 +18,27 @@ interface FeatureFlag {
   updatedAt: string;
 }
 
+interface UserFeature {
+  name: string;
+  tier: string;
+  globallyEnabled: boolean;
+  tierAccess: boolean;
+  overrideEnabled: boolean | null;
+  effective: boolean;
+}
+
+interface FeatureUser {
+  id: number;
+  email: string;
+  name: string | null;
+  tier: string;
+  role: string;
+  createdAt: string;
+  features: UserFeature[];
+}
+
 const TIERS = ['free', 'pro', 'premium'];
+const TIER_COLORS: Record<string, string> = { free: '#6b7280', pro: '#3b82f6', premium: '#f59e0b' };
 
 export default function AdminFeaturesScreen() {
   const colorScheme = useColorScheme();
@@ -26,10 +46,13 @@ export default function AdminFeaturesScreen() {
   const router = useRouter();
 
   const [features, setFeatures] = useState<FeatureFlag[]>([]);
+  const [users, setUsers] = useState<FeatureUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeSection, setActiveSection] = useState<'features' | 'users'>('features');
+  const [expandedUser, setExpandedUser] = useState<number | null>(null);
 
   // Create dialog
   const [showCreate, setShowCreate] = useState(false);
@@ -40,12 +63,15 @@ export default function AdminFeaturesScreen() {
   const fetch = useCallback(async () => {
     setError(null);
     try {
-      const res = await api.get('/api/admin/features');
-      const data = res.data;
-      setFeatures(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      if (err.response?.status === 403) setError('Admin access required');
-      else setError('Failed to load features');
+      const [featRes, usersRes] = await Promise.all([
+        api.get('/api/admin/features'),
+        api.get('/api/admin/features/users'),
+      ]);
+      setFeatures(Array.isArray(featRes.data) ? featRes.data : []);
+      setUsers(usersRes.data?.users || []);
+    } catch (err: unknown) {
+      if ((err as { response?: { status?: number } }).response?.status === 403) setError('Admin access required');
+      else setError('Failed to load data');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -82,13 +108,13 @@ export default function AdminFeaturesScreen() {
     setCreateError(null);
     if (!newName.trim()) { setCreateError('Feature name is required'); return; }
     try {
-      const res = await api.post('/api/admin/features', { name: newName.trim(), tier: newTier });
+      await api.post('/api/admin/features', { name: newName.trim(), tier: newTier });
       setShowCreate(false);
       setNewName('');
       setNewTier('free');
       fetch();
-    } catch (err: any) {
-      setCreateError(err.response?.data?.error || 'Failed to create feature');
+    } catch (err: unknown) {
+      setCreateError((err as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to create feature');
     }
   };
 
@@ -98,6 +124,20 @@ export default function AdminFeaturesScreen() {
       .map((f) => api.put(`/api/admin/features/${f.id}`, { enabled: enable }));
     await Promise.all(promises);
     fetch();
+  };
+
+  const setUserFeatureOverride = async (userId: number, featureName: string, enabled: boolean) => {
+    try {
+      await api.put('/api/admin/features/users', { userId, featureName, enabled });
+      fetch();
+    } catch { /* ignore */ }
+  };
+
+  const clearUserFeatureOverride = async (userId: number, featureName: string) => {
+    try {
+      await api.delete('/api/admin/features/users', { data: { userId, featureName } });
+      fetch();
+    } catch { /* ignore */ }
   };
 
   const filteredFeatures = useMemo(
@@ -145,10 +185,77 @@ export default function AdminFeaturesScreen() {
           </TouchableOpacity>
         ))}
       </View>
-
       <Text style={[styles.dateText, { color: theme.textTertiary }]}>Updated {formatDate(item.updatedAt)}</Text>
     </View>
   );
+
+  const renderUserItem = ({ item }: { item: FeatureUser }) => {
+    const isExpanded = expandedUser === item.id;
+    return (
+      <View style={[styles.card, { backgroundColor: theme.surface }]}>
+        <TouchableOpacity
+          onPress={() => setExpandedUser(isExpanded ? null : item.id)}
+          style={styles.userHeader}
+        >
+          <View style={styles.userInfo}>
+            <Ionicons name="person-circle" size={28} color={theme.primary} />
+            <View style={{ marginLeft: 8 }}>
+              <Text style={[styles.cardTitle, { color: theme.text }]}>{item.name || item.email}</Text>
+              <Text style={[styles.cardSubtext, { color: theme.textTertiary }]}>{item.email}</Text>
+            </View>
+          </View>
+          <View style={styles.userBadges}>
+            <View style={[styles.badge, { backgroundColor: item.tier === 'premium' ? '#fef3c7' : item.tier === 'pro' ? '#dbeafe' : '#f3f4f6', marginRight: 6 }]}>
+              <Text style={[styles.badgeText, { color: TIER_COLORS[item.tier] || '#6b7280' }]}>{item.tier}</Text>
+            </View>
+            <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={theme.textTertiary} />
+          </View>
+        </TouchableOpacity>
+
+        {isExpanded && (
+          <View style={styles.featureGrid}>
+            {item.features.map((ft) => (
+              <TouchableOpacity
+                key={ft.name}
+                onPress={() => {
+                  Alert.alert(
+                    ft.name,
+                    `Tier: ${ft.tier}\nGlobal: ${ft.globallyEnabled ? 'On' : 'Off'}\nTier access: ${ft.tierAccess ? 'Yes' : 'No'}\nEffective: ${ft.effective ? 'Enabled' : 'Disabled'}\nOverride: ${ft.overrideEnabled !== null ? (ft.overrideEnabled ? 'Enabled' : 'Disabled') : 'None'}`,
+                    [
+                      ft.overrideEnabled !== null
+                        ? { text: 'Clear override', onPress: () => clearUserFeatureOverride(item.id, ft.name) }
+                        : { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: ft.effective ? 'Disable' : 'Enable',
+                        onPress: () => setUserFeatureOverride(item.id, ft.name, !ft.effective),
+                      },
+                    ]
+                  );
+                }}
+                style={[
+                  styles.featureChip,
+                  {
+                    backgroundColor: ft.effective ? theme.incomeLight : theme.surfaceSecondary,
+                    borderColor: ft.effective ? theme.income : theme.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.featureChipText, { color: ft.effective ? theme.income : theme.textTertiary }]}>
+                  {ft.name}
+                </Text>
+                <View style={[styles.miniBadge, { backgroundColor: ft.tier === 'premium' ? '#fef3c7' : ft.tier === 'pro' ? '#dbeafe' : '#f3f4f6' }]}>
+                  <Text style={[styles.miniBadgeText, { color: TIER_COLORS[ft.tier] }]}>{ft.tier}</Text>
+                </View>
+                {ft.overrideEnabled !== null && (
+                  <Ionicons name="create" size={10} color={theme.textTertiary} style={{ marginLeft: 2 }} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -159,34 +266,54 @@ export default function AdminFeaturesScreen() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={[styles.headerTitle, { color: theme.text }]}>Admin — Features</Text>
-          <Text style={[styles.headerSub, { color: theme.textSecondary }]}>Manage feature flags and toggles</Text>
+          <Text style={[styles.headerSub, { color: theme.textSecondary }]}>Manage features and user access</Text>
         </View>
         <TouchableOpacity onPress={() => { setNewName(''); setNewTier('free'); setCreateError(null); setShowCreate(true); }} style={[styles.addBtn, { backgroundColor: theme.primaryLight }]}>
           <Ionicons name="add" size={22} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
-      {/* Search & Bulk Actions */}
-      <View style={[styles.searchRow, { backgroundColor: theme.surface }]}>
-        <View style={[styles.searchInput, { borderColor: theme.border }]}>
-          <Ionicons name="search" size={16} color={theme.textTertiary} />
-          <TextInput
-            style={[styles.searchText, { color: theme.text }]}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search features..."
-            placeholderTextColor={theme.textTertiary}
-          />
-        </View>
-        <View style={styles.bulkRow}>
-          <TouchableOpacity onPress={() => bulkToggle(true)} style={[styles.bulkBtn, { backgroundColor: theme.incomeLight }]}>
-            <Text style={[styles.bulkBtnText, { color: theme.income }]}>Enable All</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => bulkToggle(false)} style={[styles.bulkBtn, { backgroundColor: theme.expenseLight }]}>
-            <Text style={[styles.bulkBtnText, { color: theme.expense }]}>Disable All</Text>
-          </TouchableOpacity>
-        </View>
+      {/* Tab bar */}
+      <View style={[styles.tabRow, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+        <TouchableOpacity
+          style={[styles.tab, activeSection === 'features' && { borderBottomColor: theme.primary, borderBottomWidth: 2 }]}
+          onPress={() => setActiveSection('features')}
+        >
+          <Ionicons name="flag" size={16} color={activeSection === 'features' ? theme.primary : theme.textTertiary} />
+          <Text style={[styles.tabText, { color: activeSection === 'features' ? theme.primary : theme.textTertiary }]}>Features</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeSection === 'users' && { borderBottomColor: theme.primary, borderBottomWidth: 2 }]}
+          onPress={() => setActiveSection('users')}
+        >
+          <Ionicons name="people" size={16} color={activeSection === 'users' ? theme.primary : theme.textTertiary} />
+          <Text style={[styles.tabText, { color: activeSection === 'users' ? theme.primary : theme.textTertiary }]}>Users ({users.length})</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Search & Bulk Actions (features tab only) */}
+      {activeSection === 'features' && (
+        <View style={[styles.searchRow, { backgroundColor: theme.surface }]}>
+          <View style={[styles.searchInput, { borderColor: theme.border }]}>
+            <Ionicons name="search" size={16} color={theme.textTertiary} />
+            <TextInput
+              style={[styles.searchText, { color: theme.text }]}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search features..."
+              placeholderTextColor={theme.textTertiary}
+            />
+          </View>
+          <View style={styles.bulkRow}>
+            <TouchableOpacity onPress={() => bulkToggle(true)} style={[styles.bulkBtn, { backgroundColor: theme.incomeLight }]}>
+              <Text style={[styles.bulkBtnText, { color: theme.income }]}>Enable All</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => bulkToggle(false)} style={[styles.bulkBtn, { backgroundColor: theme.expenseLight }]}>
+              <Text style={[styles.bulkBtnText, { color: theme.expense }]}>Disable All</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View>
@@ -198,7 +325,7 @@ export default function AdminFeaturesScreen() {
             <Text style={styles.retryBtnText}>Retry</Text>
           </TouchableOpacity>
         </View>
-      ) : (
+      ) : activeSection === 'features' ? (
         <FlatList
           data={filteredFeatures}
           keyExtractor={(item) => String(item.id)}
@@ -211,6 +338,20 @@ export default function AdminFeaturesScreen() {
               <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
                 {searchQuery ? 'No features match your search' : 'No features yet'}
               </Text>
+            </View>
+          }
+        />
+      ) : (
+        <FlatList
+          data={users}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={renderUserItem}
+          contentContainerStyle={styles.listContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetch(); }} tintColor={theme.primary} />}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Ionicons name="people-outline" size={48} color={theme.textTertiary} />
+              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No users found</Text>
             </View>
           }
         />
@@ -270,6 +411,9 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 14, fontWeight: '500' },
   retryBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
   retryBtnText: { color: '#FFFFFF', fontWeight: '600' },
+  tabRow: { flexDirection: 'row', borderBottomWidth: 1, paddingHorizontal: 20 },
+  tab: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, paddingHorizontal: 16, marginRight: 4 },
+  tabText: { fontSize: 13, fontWeight: '600' },
   searchRow: { paddingHorizontal: 20, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
   searchInput: { flex: 1, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, height: 36, gap: 6 },
   searchText: { flex: 1, fontSize: 13, paddingVertical: 0 },
@@ -281,6 +425,7 @@ const styles = StyleSheet.create({
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cardIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   cardTitle: { fontSize: 15, fontWeight: '600', fontFamily: 'monospace' },
+  cardSubtext: { fontSize: 11, marginTop: 1 },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
   badgeText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
   cardActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -292,6 +437,14 @@ const styles = StyleSheet.create({
   tierChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },
   tierChipText: { fontSize: 11, fontWeight: '600', textTransform: 'capitalize' },
   dateText: { fontSize: 11, marginTop: 8 },
+  userHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  userInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  userBadges: { flexDirection: 'row', alignItems: 'center' },
+  featureGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12, borderTopWidth: 1, borderTopColor: '#e5e7eb', paddingTop: 12 },
+  featureChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
+  featureChipText: { fontSize: 10, fontWeight: '600', fontFamily: 'monospace' },
+  miniBadge: { paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 },
+  miniBadgeText: { fontSize: 8, fontWeight: '700' },
   empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 15, fontWeight: '500' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },

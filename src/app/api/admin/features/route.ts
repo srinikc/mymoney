@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
-import { requireRole } from "@/lib/roles"
+import { requireRole, type AuthUser } from "@/lib/roles"
 import { validateBody } from "@/shared/validate"
 import { FeatureFlagCreateSchema } from "@/shared/validation"
 
 /**
  * GET /api/admin/features — List all feature flags (admin-only)
  */
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
   const session = await auth()
-  const forbid = requireRole(session?.user as any, "admin")
+  const forbid = requireRole(session?.user as AuthUser, "admin")
   if (forbid) return forbid
 
   const features = await prisma.featureFlag.findMany({
@@ -25,7 +25,7 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
   const session = await auth()
-  const forbid = requireRole(session?.user as any, "admin")
+  const forbid = requireRole(session?.user as AuthUser, "admin")
   if (forbid) return forbid
 
   const { data: body, error } = await validateBody(req, FeatureFlagCreateSchema)

@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { AlertCircle, CheckCircle2, Link2, RefreshCw, LogOut, Building2, Wallet, Loader2, Upload, FileSpreadsheet, FileText } from "lucide-react"
+import { AlertCircle, CheckCircle2, Link2, RefreshCw, LogOut, Building2, Loader2, Upload, FileSpreadsheet, FileText } from "lucide-react"
 
 type BrokerStatus = {
   configured: boolean
@@ -45,11 +45,10 @@ export default function IntegrationsPage() {
       setMessage(`Sharekhan connection failed: ${errMsg || "Unknown error"}`)
     }
 
-    const clearParams = new URLSearchParams()
     router.replace("/settings/integrations")
 
     loadStatus()
-  }, [])
+  }, [router, searchParams])
 
   const loadStatus = async () => {
     try {

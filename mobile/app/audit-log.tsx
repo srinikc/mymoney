@@ -78,7 +78,7 @@ export default function AuditLogScreen() {
   const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
+  const [, setTotal] = useState(0);
 
   const [showFilters, setShowFilters] = useState(false);
   const [showActionPicker, setShowActionPicker] = useState(false);
@@ -102,9 +102,10 @@ export default function AuditLogScreen() {
       setLogs(data.entries || data.logs || []);
       setTotalPages(data.pagination?.totalPages || data.totalPages || 1);
       setTotal(data.pagination?.total || data.total || 0);
-    } catch (err: any) {
-      if (err.response?.status === 403) setError('Access denied. Admin or manager role required.');
-      else if (err.response?.status === 429) setError('Rate limit exceeded. Please wait a moment.');
+    } catch (err) {
+      const error = err as { response?: { status?: number }; message?: string };
+      if (error.response?.status === 403) setError('Access denied. Admin or manager role required.');
+      else if (error.response?.status === 429) setError('Rate limit exceeded. Please wait a moment.');
       else setError('Failed to load audit log');
       setLogs([]);
     } finally {
@@ -164,7 +165,7 @@ export default function AuditLogScreen() {
 
     let metaDisplay = item.metadata || null;
     if (metaDisplay) {
-      try { const parsed = JSON.parse(metaDisplay); metaDisplay = JSON.stringify(parsed); } catch {}
+      try { const parsed = JSON.parse(metaDisplay); metaDisplay = JSON.stringify(parsed); } catch { /* ignore */ }
     }
 
     return (

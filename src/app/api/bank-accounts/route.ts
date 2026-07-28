@@ -27,7 +27,8 @@ export async function GET() {
 
     return NextResponse.json({ accounts: enriched, totals })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Bank accounts GET error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(account, { status: 201 })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Bank accounts POST error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

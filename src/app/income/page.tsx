@@ -111,6 +111,7 @@ function IncomeFormDialog({
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<IncomeFormValues>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(incomeFormSchema) as any,
     defaultValues: defaultFormValues,
   })
@@ -119,7 +120,7 @@ function IncomeFormDialog({
   const revenue = watch("revenue")
   const businessExpenses = watch("businessExpenses")
   const otherExpensesAmount = watch("otherExpensesAmount")
-  const profit = watch("profit")
+  watch("profit")
 
   const autoCalculatedProfit = (revenue || 0) - (businessExpenses || 0) - (otherExpensesAmount || 0)
 
@@ -374,7 +375,7 @@ export default function IncomePage() {
 
   const handleSave = async (formData: IncomeFormValues) => {
     try {
-      const { sourceCategory, revenue, otherExpensesDescription, otherExpensesAmount, investment: invest, profit, ...rest } = formData
+      const { sourceCategory, revenue, otherExpensesDescription, otherExpensesAmount, investment: invest, ...rest } = formData
       const categoryMap: Record<string, string> = {
         Salary: "Salary",
         Rental: "Rental",

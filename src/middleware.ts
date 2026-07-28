@@ -1,9 +1,9 @@
 ﻿import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { jwtVerify } from "jose"
-import { getTierLimit, TIER_LIMITS } from "@/shared/middleware/rate-limit"
+import { getTierLimit } from "@/shared/middleware/rate-limit"
 
-const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET || "my-money-secret-change-in-production-abc123xyz")
+const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET || "")
 
 // ── Rate Limiter ───────────────────────────────────────────────────────────
 // Per-tier in-memory rate limiter using a sliding window.
@@ -44,7 +44,7 @@ function getTierFromRequest(req: NextRequest): string {
     try {
       const parsed = JSON.parse(mobileUser)
       if (parsed.tier) return parsed.tier
-    } catch {}
+    } catch { /* ignore parse errors */ }
   }
   // Check session cookie for web users
   const cookie = req.cookies.get("authjs.session-token")?.value
@@ -81,12 +81,6 @@ function checkRateLimit(
   return { allowed: true, retryAfter: 0, limit: config.limit, remaining }
 }
 
-// ── Admin / Manager route patterns ─────────────────────────────────────────
-const ADMIN_PREFIX = "/admin"
-const MANAGER_PREFIX = "/manager"
-const API_PREFIX = "/api"
-const AUTH_PREFIX = "/api/auth"
-const AUDIT_LOG_PREFIX = "/audit-log"
 
 // ── Middleware ─────────────────────────────────────────────────────────────
 export default async function middleware(req: NextRequest) {

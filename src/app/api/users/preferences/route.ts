@@ -19,7 +19,8 @@ export async function GET() {
       compactMode: false,
     })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Preferences GET error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -38,7 +39,7 @@ export async function PUT(req: Request) {
     if (existing) {
       await prisma.userSetting.update({
         where: { id: existing.id },
-        data: { value: { ...(existing.value as any), ...body } },
+        data: { value: { ...(existing.value as Record<string, unknown>), ...body } },
       })
     } else {
       await prisma.userSetting.create({
@@ -48,6 +49,7 @@ export async function PUT(req: Request) {
 
     return NextResponse.json({ ok: true })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Preferences PUT error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

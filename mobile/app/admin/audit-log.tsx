@@ -6,7 +6,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
-import { formatFullDate } from '../../utils/format';
 import api from '../../api/client';
 
 interface AuditEntry {
@@ -55,7 +54,7 @@ export default function AdminAuditLogScreen() {
   const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
+  const [, setTotal] = useState(0);
 
   // Filter picker state
   const [showActionPicker, setShowActionPicker] = useState(false);
@@ -79,8 +78,8 @@ export default function AdminAuditLogScreen() {
       setLogs(data.logs || []);
       setTotalPages(data.pagination?.totalPages || 1);
       setTotal(data.pagination?.total || 0);
-    } catch (err: any) {
-      if (err.response?.status === 403) setError('Admin access required');
+    } catch (err: unknown) {
+      if ((err as { response?: { status?: number } }).response?.status === 403) setError('Admin access required');
       else setError('Failed to load audit log');
       setLogs([]);
     } finally {
@@ -109,7 +108,7 @@ export default function AdminAuditLogScreen() {
 
     let metaDisplay = item.metadata || null;
     if (metaDisplay) {
-      try { const parsed = JSON.parse(metaDisplay); metaDisplay = JSON.stringify(parsed); } catch {}
+      try { const parsed = JSON.parse(metaDisplay); metaDisplay = JSON.stringify(parsed); } catch { /* ignore */ }
     }
 
     return (

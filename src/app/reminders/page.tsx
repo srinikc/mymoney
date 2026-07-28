@@ -64,8 +64,8 @@ export default function RemindersPage() {
       setOpen(false)
       setForm({ title: "", description: "", type: "custom", priority: "normal", dueDate: "", amount: "", categoryId: "", recurring: "none" })
       load()
-    } catch (err: any) {
-      toast.error(err.message || "Failed to create reminder")
+    } catch (err: unknown) {
+      toast.error((err as Error).message || "Failed to create reminder")
     }
   }
 
@@ -101,8 +101,8 @@ export default function RemindersPage() {
       if (!res.ok) throw new Error((await res.json()).error || "Auto-detect failed")
       toast.success("Reminders auto-detected")
       load()
-    } catch (err: any) {
-      toast.error(err.message || "Auto-detect failed")
+    } catch (err: unknown) {
+      toast.error((err as Error).message || "Auto-detect failed")
     }
   }
 

@@ -44,8 +44,9 @@ export default function AdminProfilesScreen() {
       const res = await api.get('/api/admin/profiles');
       const data = res.data;
       setProfiles(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      if (err.response?.status === 403) setError('Admin access required');
+    } catch (err) {
+      const error = err as { response?: { status?: number }; message?: string };
+      if (error.response?.status === 403) setError('Admin access required');
       else setError('Failed to load profiles');
     } finally {
       setLoading(false);
@@ -76,8 +77,9 @@ export default function AdminProfilesScreen() {
       setNewName('');
       setNewUserId('');
       fetch();
-    } catch (err: any) {
-      setCreateError(err.response?.data?.error || 'Failed to create profile');
+    } catch (err) {
+      const error = err as { response?: { data?: { error?: string } }; message?: string };
+      setCreateError(error.response?.data?.error || 'Failed to create profile');
     }
   };
 

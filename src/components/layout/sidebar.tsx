@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
+import type { AuthUser } from "@/lib/roles"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
@@ -31,12 +32,14 @@ import {
   UserCircle,
   ToggleLeft,
   ScrollText,
+  BookOpen,
   Archive,
   IndianRupee,
   Landmark,
   ShieldCheck,
   Percent,
   Plus,
+  HelpCircle,
   Link2,
   Mail,
 } from "lucide-react"
@@ -74,6 +77,7 @@ const otherItems = [
   { href: "/family", label: "Family Sharing", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/what-if", label: "What-If", icon: Plus },
+  { href: "/guide", label: "Help & Guide", icon: HelpCircle },
 ]
 
 const adminItems = [
@@ -81,6 +85,7 @@ const adminItems = [
   { href: "/admin/profiles", label: "Profiles", icon: UserCircle },
   { href: "/admin/features", label: "Feature Flags", icon: ToggleLeft },
   { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText },
+  { href: "/setup-guide", label: "Setup Guide", icon: BookOpen },
 ]
 
 export function Sidebar() {
@@ -101,6 +106,11 @@ export function Sidebar() {
     toggleProtectionExpanded,
     analysisExpanded,
     toggleAnalysisExpanded,
+    setIncomeExpanded,
+    setPlanningExpanded,
+    setAssetsExpanded,
+    setProtectionExpanded,
+    setAnalysisExpanded,
   } = useUIStore()
 
   const isActive = (href: string) => {
@@ -187,6 +197,16 @@ export function Sidebar() {
   useEffect(() => {
     setMobileSidebarOpen(false)
   }, [pathname, setMobileSidebarOpen])
+
+  // Auto-expand the section containing the current page
+  useEffect(() => {
+    if (isInIncome || isInExpenses) setIncomeExpanded(true)
+    if (isInPlanning(planningItems)) setPlanningExpanded(true)
+    if (isInAssets(assetsItems)) setAssetsExpanded(true)
+    if (isInProtection(protectionItems)) setProtectionExpanded(true)
+    if (isInAnalysis(analysisItems)) setAnalysisExpanded(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname])
 
   return (
     <>
@@ -335,7 +355,7 @@ export function Sidebar() {
         })}
 
         {/* Admin Section — only visible to admin users */}
-        {(session?.user as any)?.role === "admin" && (
+        {(session?.user as AuthUser)?.role === "admin" && (
           <>
           {sidebarOpen && (
             <div className="pt-4">

@@ -959,7 +959,7 @@ P5: Auto backups (pg_dump to S3)
 | **Error Monitoring** | No Sentry/Glitchtip — all errors are console.log only | ⚠️ | Add error tracking service |
 | **Rate Limit Per-Tier** | In-memory global rate limit only, no per-tier enforcement | ⚠️ | Add tier-based rate limits in middleware |
 | **Performance** | No pagination optimization for large expense datasets; no full-text search index | ⚠️ | Add pagination, indexed search at scale |
-| **Security Headers** | No CSP headers configured | ⚠️ | Add Content-Security-Policy headers |
+| **Security Headers** | CSP + HSTS + Permissions-Policy added in next.config.ts | ✅ | Implemented 2026-07-26 |
 | **UX: Dark Mode** | CSS variables defined but ThemeProvider never instantiated — dark mode inaccessible | 🔴 | Add `<ThemeProvider>` in `layout.tsx`, create dark/light toggle button |
 | **UX: Responsive Web** | Sidebar fixed on ALL screens, no mobile drawer, no hamburger menu | 🔴 | Add mobile off-canvas drawer with hamburger toggle, `lg:block` breakpoint on sidebar |
 | **UX: Toast Notifications** | No toast/notification system — save/edit/delete operations give zero feedback | 🔴 | Add `sonner` toast library, show success toast on every create/update/delete |
@@ -1013,7 +1013,65 @@ Razorpay/Stripe → POST /api/webhooks/* → verify signature → find profile �
 | Redis | Session cache, rate limiting counters | Multi-user | >10 users |
 | None | Expenses (always need fresh data) | User expects real-time | Never |
 
-### 24.12 Open Items / Decisions
+### 24.12 Security Posture
+
+Current security posture as of 2026-07-26. Based on production security standards for financial applications.
+
+| Category | Issue | Status | Notes |
+|---|---|---|---|
+| **Headers** | Content-Security-Policy | ✅ | Configured in next.config.ts with script/style/img/connect-src allowlists |
+| **Headers** | Strict-Transport-Security (HSTS) | ✅ | `max-age=63072000; includeSubDomains; preload` |
+| **Headers** | Permissions-Policy | ✅ | Camera/microphone/geolocation disabled |
+| **Headers** | X-Content-Type-Options | ✅ | `nosniff` |
+| **Headers** | X-Frame-Options | ✅ | `DENY` |
+| **Headers** | Referrer-Policy | ✅ | `strict-origin-when-cross-origin` |
+| **Auth** | JWT maxAge (24h) | ✅ | Session expires 24h after login |
+| **Auth** | Idle timeout (2h) | ✅ | Auto-logout after 2h inactivity via JWT lastActivity check |
+| **Auth** | allowDangerousEmailAccountLinking | ✅ | Disabled |
+| **Auth** | JWT secret hardcoded fallback | ✅ | Removed (must be set via AUTH_SECRET env var) |
+| **Auth** | Brute force protection | ⚠️ | Rate limiting active but not differentiated for auth routes |
+| **Auth** | Account lockout | 🔴 | No account lockout after failed attempts |
+| **Auth** | Password complexity | 🔴 | Only min 8 chars — no upper/lower/digit/special requirement |
+| **Auth** | Login/logout audit logging | 🔴 | Auth events not tracked in audit log |
+| **API** | Rate limiting (per-tier) | ✅ | Free=100/min, Pro=500/min, Premium=2000/min with sliding window |
+| **API** | Error message leakage | ✅ | All 40+ API routes now return generic `"Internal server error"`, errors logged server-side |
+| **API** | Role-based access (requireRole) | ✅ | Admin/manager/viewer enforcement on all admin routes |
+| **API** | CORS configuration | 🔴 | No CORS headers — blocks cross-origin API access if needed |
+| **Data** | Password hashing | ✅ | bcrypt with salt rounds 12 |
+| **Data** | Input validation (Zod) | ✅ | Zod schemas on all API inputs |
+| **Data** | API keys encryption at rest | 🔴 | OpenAI/Zerodha/etc keys stored as plaintext in UserSetting table |
+| **Data** | SQL injection prevention | ✅ | Prisma ORM with parameterized queries |
+| **Uploads** | File type whitelist | ✅ | PDF/PNG/JPEG/JPG only |
+| **Uploads** | File size limit (10MB) | ✅ | Enforced server-side |
+| **Uploads** | Filename sanitization | ✅ | Non-alphanumeric chars stripped |
+| **Uploads** | File content verification (magic bytes) | 🔴 | Relies on browser MIME type only |
+| **Uploads** | Files in public directory | 🔴 | Tax docs stored in `/public/uploads/` — world-readable if path guessed |
+| **Monitoring** | Audit logging | ✅ | Create/Update/Delete/View/Export/Import actions logged |
+| **Monitoring** | Error logging | ⚠️ | `console.error` only — no Sentry/error tracking service |
+| **Infra** | Rate limiting production-ready | ⚠️ | In-memory only — resets on restart, doesn't work across instances |
+| **Infra** | Dependency scanning | ⚠️ | No automated `npm audit` in CI |
+| **Infra** | TLS enforcement | ⚠️ | Relies on reverse proxy (Caddy/Docker) — no app-level enforcement |
+
+**Legend:** ✅ Done | ⚠️ Partial/Needs improvement | 🔴 Not done
+
+### 24.13 Compliance & Data Rights (DPDP Act / GDPR)
+
+| Requirement | Status | Notes |
+|---|---|---|
+| **Privacy policy accessible** from login/setup | ✅ | Link added to login and setup pages |
+| **Consent checkbox** on account creation | ✅ | Added to /setup page with link to privacy policy |
+| **Data portability (Download My Data)** | ✅ | Single-click JSON export from Settings page |
+| **Right to deletion (Delete My Account)** | ✅ | Self-service with double confirmation from Settings |
+| **Audit trail — login/logout events** | ✅ | Logged to audit log with timestamp and profileId |
+| **Audit trail — failed login attempts** | ✅ | Logged with email and reason (wrong password / no password set) |
+| **Audit trail — IP address capture** | ✅ | Real IP from x-forwarded-for header stored in audit metadata |
+| **Audit trail — user-facing view** | ✅ | /audit-log shows own profile entries with CSV export |
+| **Data retention / auto-purge** | 🔴 | No automatic purging of old data |
+| **Breach notification procedure** | 🔴 | Not documented |
+| **Cookie / tracking consent** | ⚠️ | No analytics used currently — not needed |
+| **Security headers (CSP, HSTS, etc.)** | ✅ | Configured in next.config.ts |
+
+### 24.14 Open Items / Decisions
 
 | Question | Status | Notes |
 |---|---|---|

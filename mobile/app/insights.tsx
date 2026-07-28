@@ -9,6 +9,42 @@ import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
 
+interface MonthlyTrend {
+  month: string;
+  amount: number;
+}
+
+interface CategoryBreakdown {
+  name: string;
+  amount: number;
+  count: number;
+  subCategories: { name: string; amount: number }[];
+}
+
+interface PersonWise {
+  name: string;
+  amount: number;
+}
+
+interface TopMerchant {
+  name: string;
+  amount: number;
+}
+
+interface Optimization {
+  category: string;
+  percentage: number;
+  potentialSavings: number;
+}
+
+interface InsightsData {
+  monthlyTrend?: MonthlyTrend[];
+  categoryBreakdown?: CategoryBreakdown[];
+  personWise?: PersonWise[];
+  topMerchants?: TopMerchant[];
+  optimization?: Optimization[];
+}
+
 const COLORS = ['#6366f1', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#ec4899', '#8b5cf6', '#06b6d4', '#84cc16'];
 
 type PeriodType = 'all' | 'year' | 'quarter' | 'month';
@@ -18,7 +54,7 @@ export default function InsightsScreen() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
 
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<InsightsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [period, setPeriod] = useState<PeriodType>('all');
@@ -75,8 +111,8 @@ export default function InsightsScreen() {
             <View style={[styles.card, { backgroundColor: theme.surface }]}>
               <Text style={[styles.cardTitle, { color: theme.text }]}>Monthly Trend</Text>
               <View style={styles.barChart}>
-                {data.monthlyTrend.map((m: any, i: number) => {
-                  const max = Math.max(...data.monthlyTrend.map((x: any) => x.amount));
+                {data.monthlyTrend.map((m: MonthlyTrend, i: number) => {
+                  const max = Math.max(...data.monthlyTrend.map((x: MonthlyTrend) => x.amount));
                   const pct = max > 0 ? (m.amount / max) * 100 : 0;
                   return (
                     <View key={i} style={styles.barCol}>
@@ -93,7 +129,7 @@ export default function InsightsScreen() {
           {data.categoryBreakdown && data.categoryBreakdown.length > 0 && (
             <View style={[styles.card, { backgroundColor: theme.surface }]}>
               <Text style={[styles.cardTitle, { color: theme.text }]}>Category Breakdown</Text>
-              {data.categoryBreakdown.map((c: any, i: number) => {
+              {data.categoryBreakdown.map((c: CategoryBreakdown, i: number) => {
                 const isSelected = selectedCategory === c.name;
                 const subs = c.subCategories || [];
                 return (
@@ -106,7 +142,7 @@ export default function InsightsScreen() {
                     </View>
                     {isSelected && subs.length > 0 && (
                       <View style={[styles.subList, { borderLeftColor: COLORS[i % COLORS.length], borderLeftWidth: 2 }]}>
-                        {subs.map((s: any) => (
+                        {subs.map((s: { name: string; amount: number }) => (
                           <View key={s.name} style={styles.subRow}>
                             <Text style={[styles.subName, { color: theme.textSecondary }]}>{s.name}</Text>
                             <Text style={[styles.subAmount, { color: theme.text }]}>{formatCurrency(s.amount)}</Text>
@@ -123,7 +159,7 @@ export default function InsightsScreen() {
           {data.personWise && data.personWise.length > 0 && (
             <View style={[styles.card, { backgroundColor: theme.surface }]}>
               <Text style={[styles.cardTitle, { color: theme.text }]}>Person-wise</Text>
-              {data.personWise.map((p: any) => (
+              {data.personWise.map((p: PersonWise) => (
                 <View key={p.name} style={styles.personRow}>
                   <View style={[styles.personDot, { backgroundColor: theme.primary }]} />
                   <Text style={[styles.personName, { color: theme.text }]}>{p.name}</Text>
@@ -136,7 +172,7 @@ export default function InsightsScreen() {
           {data.topMerchants && data.topMerchants.length > 0 && (
             <View style={[styles.card, { backgroundColor: theme.surface }]}>
               <Text style={[styles.cardTitle, { color: theme.text }]}>Top Merchants</Text>
-              {data.topMerchants.map((m: any) => (
+              {data.topMerchants.map((m: TopMerchant) => (
                 <View key={m.name} style={styles.merchantRow}>
                   <Ionicons name="storefront-outline" size={16} color={theme.textTertiary} />
                   <Text style={[styles.merchantName, { color: theme.text }]}>{m.name}</Text>
@@ -149,7 +185,7 @@ export default function InsightsScreen() {
           {data.optimization && data.optimization.length > 0 && (
             <View style={[styles.card, { backgroundColor: theme.surface }]}>
               <Text style={[styles.cardTitle, { color: theme.text }]}>Optimization Suggestions</Text>
-              {data.optimization.map((o: any) => (
+              {data.optimization.map((o: Optimization) => (
                 <View key={o.category} style={styles.optRow}>
                   <View style={styles.optHeader}>
                     <Text style={[styles.optCategory, { color: theme.text }]}>{o.category}</Text>

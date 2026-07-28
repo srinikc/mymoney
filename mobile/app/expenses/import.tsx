@@ -1,10 +1,31 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, ActivityIndicator, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
-import { formatCurrency, formatDate } from '../../utils/format';
+import { formatCurrency } from '../../utils/format';
 import api from '../../api/client';
+
+interface PreviewData {
+  sheetName?: string;
+  totalRows?: number;
+  dateRange?: string;
+  totalAmount?: number;
+  willImport?: number;
+  willSkip?: number;
+  sampleRows?: Array<{
+    date?: string;
+    vendor?: string;
+    description?: string;
+    amount?: number;
+  }>;
+}
+
+interface ImportResult {
+  imported?: number;
+  skipped?: number;
+  newMappings?: number;
+}
 
 type Tab = 'kc' | 'gpay';
 
@@ -16,8 +37,8 @@ export default function ImportScreen() {
   const [tab, setTab] = useState<Tab>('kc');
   const [uploading, setUploading] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [preview, setPreview] = useState<any>(null);
-  const [result, setResult] = useState<any>(null);
+  const [preview, setPreview] = useState<PreviewData | null>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [autoMapping, setAutoMapping] = useState(true);
 
@@ -29,8 +50,8 @@ export default function ImportScreen() {
       const payload = tab === 'kc' ? { source: 'kc' } : { source: 'gpay' };
       const res = await api.post('/api/expenses/import/preview', payload);
       setPreview(res.data);
-    } catch (err: any) {
-      setError(err?.response?.data?.error || 'Upload failed');
+    } catch (err: unknown) {
+      setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Upload failed');
     } finally {
       setUploading(false);
     }
@@ -40,13 +61,13 @@ export default function ImportScreen() {
     setImporting(true);
     setError(null);
     try {
-      const payload: any = { source: tab === 'kc' ? 'kc' : 'gpay', autoMapping };
+      const payload: Record<string, unknown> = { source: tab === 'kc' ? 'kc' : 'gpay', autoMapping };
       if (tab === 'kc' && preview?.sheetName) payload.sheetName = preview.sheetName;
       const res = await api.post('/api/expenses/import', payload);
       setResult(res.data);
       setPreview(null);
-    } catch (err: any) {
-      setError(err?.response?.data?.error || 'Import failed');
+    } catch (err: unknown) {
+      setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Import failed');
     } finally {
       setImporting(false);
     }
@@ -156,7 +177,7 @@ export default function ImportScreen() {
             {preview.sampleRows && preview.sampleRows.length > 0 && (
               <>
                 <Text style={[styles.sampleTitle, { color: theme.textSecondary }]}>Sample Rows</Text>
-                {preview.sampleRows.slice(0, 5).map((row: any, idx: number) => (
+                {preview.sampleRows.slice(0, 5).map((row, idx) => (
                   <View key={idx} style={[styles.sampleRow, { backgroundColor: theme.background }]}>
                     <Text style={[styles.sampleCell, { color: theme.textTertiary }]}>{row.date || ''}</Text>
                     <Text style={[styles.sampleCell, { color: theme.text, flex: 1 }]}>{row.vendor || row.description || ''}</Text>

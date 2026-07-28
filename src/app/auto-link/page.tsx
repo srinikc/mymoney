@@ -1,12 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
-import { Link2, Check, X, Loader2 } from "lucide-react"
+import { Link2, Check, Loader2 } from "lucide-react"
 
 interface Suggestion {
   expenseId: number
@@ -50,8 +50,8 @@ export default function AutoLinkPage() {
       } else {
         throw new Error((await res.json()).error || "Failed to accept link")
       }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to accept link")
+    } catch (err: unknown) {
+      toast.error((err as Error).message || "Failed to accept link")
     }
   }
 

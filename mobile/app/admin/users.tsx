@@ -57,8 +57,9 @@ export default function AdminUsersScreen() {
       const res = await api.get('/api/admin/users');
       const data = res.data;
       setUsers(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      if (err.response?.status === 403) setError('Admin access required');
+    } catch (err) {
+      const error = err as { response?: { status?: number }; message?: string };
+      if (error.response?.status === 403) setError('Admin access required');
       else setError('Failed to load users');
     } finally {
       setLoading(false);
@@ -122,8 +123,9 @@ export default function AdminUsersScreen() {
       });
       setCreateSuccess(`User ${formName} created!`);
       setTimeout(() => { setShowCreate(false); setCreateSuccess(null); resetForm(); fetch(); }, 1500);
-    } catch (err: any) {
-      setFormErrors({ general: err.response?.data?.error || 'Failed to create user' });
+    } catch (err) {
+      const error = err as { response?: { data?: { error?: string } }; message?: string };
+      setFormErrors({ general: error.response?.data?.error || 'Failed to create user' });
     } finally { setCreating(false); }
   };
 

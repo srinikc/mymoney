@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
-import { isViewer } from "@/lib/roles"
-import { unlink } from "fs/promises"
-import path from "path"
+import { isViewer, type AuthUser } from "@/lib/roles"
+import { unlink } from "node:fs/promises"
+import path from "node:path"
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -32,7 +32,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-    if (isViewer(session?.user as any)) {
+    if (isViewer(session?.user as AuthUser)) {
       return NextResponse.json({ error: "Viewers cannot modify data" }, { status: 403 })
     }
     const profileId = (session.user as unknown as { profileId?: number }).profileId
@@ -48,7 +48,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     try {
       const fullPath = path.join(process.cwd(), "public", doc.filePath)
       await unlink(fullPath)
-    } catch {}
+    } catch { /* ignore file cleanup errors */ }
 
     await prisma.taxDocument.delete({ where: { id: doc.id } })
     return NextResponse.json({ message: "Document deleted" })

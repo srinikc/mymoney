@@ -8,7 +8,6 @@ import {
   RefreshControl,
   TouchableOpacity,
   Animated,
-  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -18,7 +17,17 @@ import { formatCurrency, formatDate, EXPENSE_CATEGORIES } from '../../utils/form
 import api from '../../api/client';
 import QuickCaptureModal from '../../components/QuickCaptureModal';
 
-const { width } = Dimensions.get('window');
+interface RecentExpense {
+  id?: string;
+  _id?: string;
+  type?: 'income' | 'expense';
+  category: string;
+  name?: string;
+  description?: string;
+  amount: number;
+  date?: string;
+  createdAt?: string;
+}
 
 interface QuickStat {
   label: string;
@@ -38,7 +47,7 @@ export default function HomeScreen() {
   const [balance, setBalance] = useState(0);
   const [totalIncome, setTotalIncome] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
-  const [recentExpenses, setRecentExpenses] = useState<any[]>([]);
+  const [recentExpenses, setRecentExpenses] = useState<RecentExpense[]>([]);
   const [healthScore, setHealthScore] = useState<number | null>(null);
   const [quickStats, setQuickStats] = useState<QuickStat[]>([]);
   const balanceScaleAnim = useRef(new Animated.Value(0)).current;
@@ -63,9 +72,7 @@ export default function HomeScreen() {
           { label: 'Saved', amount: (d.totalIncome || d.income || 0) - (d.totalExpenses || d.expenses || 0), type: 'saved' },
         ]);
       }
-      if (insightsRes.status === 'rejected') {
-        if (!error) setError('Failed to load dashboard data');
-      }
+      if (insightsRes.status === 'rejected' && !error) setError('Failed to load dashboard data');
 
       if (healthRes.status === 'fulfilled') {
         const h = healthRes.value.data;
@@ -83,7 +90,7 @@ export default function HomeScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [error]);
 
   useEffect(() => {
     fetchData();
@@ -96,7 +103,7 @@ export default function HomeScreen() {
       tension: 40,
       useNativeDriver: true,
     }).start();
-  }, [balance]);
+  }, [balance, balanceScaleAnim]);
 
   const onRefresh = () => {
     setRefreshing(true);

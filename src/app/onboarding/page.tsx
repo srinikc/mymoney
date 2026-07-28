@@ -112,7 +112,7 @@ export default function OnboardingPage() {
         try {
           const cats = await fetch("/api/categories").then((r) => r.json())
           for (const [catName, amount] of budgetEntries) {
-            const cat = cats.find((c: any) => c.name === catName)
+            const cat = cats.find((c: { name: string; id: number }) => c.name === catName)
             if (cat) {
               await fetch("/api/budgets", {
                 method: "POST",

@@ -8,6 +8,7 @@ export async function GET() {
 
     return NextResponse.json({ url: authUrl })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Mobile Google auth error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

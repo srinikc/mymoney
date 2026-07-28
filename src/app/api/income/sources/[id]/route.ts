@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
-import { isViewer } from "@/lib/roles"
+import { isViewer, type AuthUser } from "@/lib/roles"
 import { validateBody } from "@/shared/validate"
 import { IncomeSourceUpdateSchema } from "@/shared/income-validation"
 
@@ -36,7 +36,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    if (isViewer(session?.user as any)) {
+    if (isViewer(session?.user as AuthUser)) {
       return NextResponse.json({ error: "Viewers cannot modify data" }, { status: 403 })
     }
 
@@ -94,7 +94,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    if (isViewer(session?.user as any)) {
+    if (isViewer(session?.user as AuthUser)) {
       return NextResponse.json({ error: "Viewers cannot modify data" }, { status: 403 })
     }
 

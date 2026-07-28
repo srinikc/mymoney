@@ -71,7 +71,7 @@ export default function PrivacyScreen() {
   );
 }
 
-function Section({ theme, title, children }: { theme: any; title: string; children: React.ReactNode }) {
+function Section({ theme, title, children }: { theme: typeof Colors.light; title: string; children: React.ReactNode }) {
   return (
     <View style={styles.section}>
       <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
@@ -80,7 +80,7 @@ function Section({ theme, title, children }: { theme: any; title: string; childr
   );
 }
 
-function Bullet({ theme, children }: { theme: any; children: React.ReactNode }) {
+function Bullet({ theme, children }: { theme: typeof Colors.light; children: React.ReactNode }) {
   return (
     <View style={styles.bullet}>
       <Text style={[styles.bulletDot, { color: theme.primary }]}>•</Text>

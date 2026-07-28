@@ -207,7 +207,7 @@ export default function InsightsPage() {
                   <PieChart>
                     <Pie data={data.categoryBreakdown.slice(0, 8)} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
                       dataKey="amount" nameKey="name"
-                      label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                      label={({ name: _name, percent }) => `${(percent * 100).toFixed(0)}%`}
                       labelLine={false}
                       isAnimationActive={true} animationDuration={800} animationEasing="ease-out" animationBegin={200}>
                       {data.categoryBreakdown.slice(0, 8).map((_, i) => (

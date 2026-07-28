@@ -47,10 +47,10 @@ export default function BankAccountsPage() {
       setSyncMessage(data.message || `Updated ${data.updated} account(s)`)
       toast.success("Balances synced successfully")
       fetchAccounts()
-    } catch (err: any) {
+    } catch (err: unknown) {
       const msg = "Sync failed. Ensure Gmail is connected."
       setSyncMessage(msg)
-      toast.error(err.message || msg)
+      toast.error((err as Error).message || msg)
     } finally {
       setSyncing(false)
     }

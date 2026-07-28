@@ -1,0 +1,263 @@
+import { useState, useEffect, useCallback } from 'react';
+import {
+  View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme,
+  RefreshControl, ActivityIndicator, TextInput, Modal, Alert
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Stack, useRouter } from 'expo-router';
+import { Colors } from '../constants/Colors';
+import { formatCurrency, formatDate } from '../utils/format';
+import api from '../api/client';
+
+interface ExpenseItem {
+  id: number;
+  vendor?: string;
+  amount: number;
+  date: string;
+  category?: { id?: number; name: string; color?: string };
+  paymentMode?: string;
+  notes?: string;
+}
+
+interface CatItem {
+  id?: number;
+  name: string;
+  color?: string;
+}
+
+export default function ExpensesScreen() {
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const router = useRouter();
+
+  const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [, setCategories] = useState<CatItem[]>([]);
+  const [form, setForm] = useState({ date: new Date().toISOString().split('T')[0], amount: '', categoryId: '', vendor: '', description: '', paymentMode: 'UPI', notes: '' });
+  const [formLoading, setFormLoading] = useState(false);
+  const [filterDateFrom] = useState('');
+  const [filterDateTo] = useState('');
+
+  const fetchExpenses = useCallback(async (targetPage = 1, append = false) => {
+    try {
+      const params: Record<string, string | undefined> = { page: String(targetPage), pageSize: '50', sortField: 'date', sortDir: 'desc' };
+      if (search) params.search = search;
+      if (filterDateFrom) params.dateFrom = filterDateFrom;
+      if (filterDateTo) params.dateTo = filterDateTo;
+      const res = await api.get('/api/expenses', { params });
+      const d = res.data;
+      if (append) {
+        setExpenses((prev) => [...prev, ...(d.data || [])]);
+      } else {
+        setExpenses(d.data || []);
+      }
+      setTotalPages(d.totalPages || 1);
+      setPage(targetPage);
+    } catch {
+      setError('Failed to load expenses');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
+    }
+  }, [search, filterDateFrom, filterDateTo]);
+
+  useEffect(() => { fetchExpenses(); }, [fetchExpenses]);
+
+  useEffect(() => {
+    api.get('/api/categories').then((r) => setCategories(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+  }, []);
+
+  const loadMore = () => {
+    if (page < totalPages && !loadingMore) {
+      setLoadingMore(true);
+      fetchExpenses(page + 1, true);
+    }
+  };
+
+  const handleAdd = async () => {
+    if (!form.amount || !form.date) {
+      Alert.alert('Validation', 'Amount and date are required');
+      return;
+    }
+    setFormLoading(true);
+    try {
+      await api.post('/api/expenses', form);
+      setShowForm(false);
+      setForm({ date: new Date().toISOString().split('T')[0], amount: '', categoryId: '', vendor: '', description: '', paymentMode: 'UPI', notes: '' });
+      fetchExpenses(1);
+    } catch {
+      Alert.alert('Error', 'Failed to add expense');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleDelete = (id: number) => {
+    Alert.alert('Archive Expense', 'This expense will be archived. It can be restored later.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Archive', style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.delete(`/api/expenses?id=${id}`);
+            setExpenses((prev) => prev.filter((e) => e.id !== id));
+          } catch { Alert.alert('Error', 'Failed to archive'); }
+        },
+      },
+    ]);
+  };
+
+  const getCategoryColor = (cat: { color?: string } | undefined) => cat?.color || theme.primary;
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={[styles.header, { backgroundColor: theme.surface }]}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Expenses</Text>
+        <TouchableOpacity onPress={() => setShowForm(true)} style={[styles.addBtn, { backgroundColor: theme.primaryLight }]}>
+          <Ionicons name="add" size={22} color={theme.primary} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={[styles.searchRow, { backgroundColor: theme.surface }]}>
+        <Ionicons name="search" size={18} color={theme.textTertiary} style={{ marginRight: 8 }} />
+        <TextInput
+          style={[styles.searchInput, { color: theme.text }]}
+          value={search}
+          onChangeText={(v) => { setSearch(v); setPage(1); }}
+          placeholder="Search expenses..."
+          placeholderTextColor={theme.textTertiary}
+        />
+      </View>
+
+      {loading ? (
+        <View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View>
+      ) : error ? (
+        <View style={styles.center}>
+          <Ionicons name="alert-circle" size={40} color={theme.expense} />
+          <Text style={[styles.errorText, { color: theme.expense }]}>{error}</Text>
+          <TouchableOpacity onPress={() => fetchExpenses()} style={[styles.retryBtn, { backgroundColor: theme.primary }]}>
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={expenses}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[styles.card, { backgroundColor: theme.surface }]}
+              onLongPress={() => handleDelete(item.id)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.cardRow}>
+                <View style={[styles.cardDot, { backgroundColor: getCategoryColor(item.category) }]} />
+                <View style={{ flex: 1 }}>
+                  <View style={styles.cardTop}>
+                    <Text style={[styles.cardVendor, { color: theme.text }]} numberOfLines={1}>{item.vendor || '—'}</Text>
+                    <Text style={[styles.cardAmount, { color: theme.expense }]}>-{formatCurrency(item.amount)}</Text>
+                  </View>
+                  <View style={styles.cardBottom}>
+                    {item.category && (
+                      <View style={[styles.catBadge, { backgroundColor: getCategoryColor(item.category) + '20' }]}>
+                        <Text style={[styles.catBadgeText, { color: getCategoryColor(item.category) }]}>{item.category.name}</Text>
+                      </View>
+                    )}
+                    <Text style={[styles.cardDate, { color: theme.textTertiary }]}>{formatDate(item.date)}</Text>
+                    {item.paymentMode && <Text style={[styles.cardMode, { color: theme.textTertiary }]}>{item.paymentMode}</Text>}
+                  </View>
+                  {item.notes ? <Text style={[styles.cardNotes, { color: theme.textTertiary }]} numberOfLines={1}>{item.notes}</Text> : null}
+                </View>
+              </View>
+            </TouchableOpacity>
+          )}
+          contentContainerStyle={styles.listContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchExpenses(1); }} tintColor={theme.primary} />}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={loadingMore ? <ActivityIndicator style={{ padding: 16 }} color={theme.primary} /> : null}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Ionicons name="receipt-outline" size={48} color={theme.textTertiary} />
+              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No expenses found</Text>
+              <TouchableOpacity onPress={() => setShowForm(true)} style={[styles.emptyBtn, { backgroundColor: theme.primary }]}>
+                <Text style={styles.emptyBtnText}>Add Expense</Text>
+              </TouchableOpacity>
+            </View>
+          }
+        />
+      )}
+
+      <Modal visible={showForm} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: theme.surface }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Add Expense</Text>
+              <TouchableOpacity onPress={() => setShowForm(false)}>
+                <Ionicons name="close" size={24} color={theme.textTertiary} />
+              </TouchableOpacity>
+            </View>
+            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={form.date} onChangeText={(v) => setForm({ ...form, date: v })} placeholder="Date (YYYY-MM-DD)" placeholderTextColor={theme.textTertiary} />
+            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={form.amount} onChangeText={(v) => setForm({ ...form, amount: v })} placeholder="Amount" placeholderTextColor={theme.textTertiary} keyboardType="decimal-pad" />
+            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={form.vendor} onChangeText={(v) => setForm({ ...form, vendor: v })} placeholder="Vendor" placeholderTextColor={theme.textTertiary} />
+            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} placeholder="Description" placeholderTextColor={theme.textTertiary} />
+            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={form.paymentMode} onChangeText={(v) => setForm({ ...form, paymentMode: v })} placeholder="Payment Mode (UPI/Cash/Card)" placeholderTextColor={theme.textTertiary} />
+            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={form.notes} onChangeText={(v) => setForm({ ...form, notes: v })} placeholder="Notes" placeholderTextColor={theme.textTertiary} />
+            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.primary }]} onPress={handleAdd} disabled={formLoading}>
+              {formLoading ? <ActivityIndicator color="white" /> : <Text style={styles.saveBtnText}>Add Expense</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  header: { paddingTop: 56, paddingBottom: 16, paddingHorizontal: 20, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, flexDirection: 'row', alignItems: 'center' },
+  backBtn: { marginRight: 12, padding: 4 },
+  headerTitle: { fontSize: 22, fontWeight: '700', flex: 1 },
+  addBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  searchRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginTop: 12, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 2 },
+  searchInput: { flex: 1, fontSize: 14, paddingVertical: 8 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  errorText: { fontSize: 14, fontWeight: '500' },
+  retryBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
+  retryBtnText: { color: '#FFFFFF', fontWeight: '600' },
+  listContent: { padding: 20, paddingBottom: 40 },
+  card: { borderRadius: 14, padding: 14, marginBottom: 8 },
+  cardRow: { flexDirection: 'row', gap: 10 },
+  cardDot: { width: 4, borderRadius: 2, marginRight: 4 },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardVendor: { fontSize: 14, fontWeight: '600', flex: 1 },
+  cardAmount: { fontSize: 14, fontWeight: '700' },
+  cardBottom: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  catBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  catBadgeText: { fontSize: 10, fontWeight: '600' },
+  cardDate: { fontSize: 11, fontWeight: '500' },
+  cardMode: { fontSize: 11, fontWeight: '500' },
+  cardNotes: { fontSize: 11, marginTop: 4 },
+  empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
+  emptyText: { fontSize: 15, fontWeight: '500' },
+  emptyBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
+  emptyBtnText: { color: '#FFFFFF', fontWeight: '600' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalCard: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '80%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 18, fontWeight: '700' },
+  input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12 },
+  saveBtn: { height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+});

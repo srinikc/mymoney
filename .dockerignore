@@ -1,0 +1,11 @@
+node_modules/
+.git/
+.next/
+*.log
+.env.local
+.env
+*.md
+.gitignore
+.editorconfig
+.swm/
+.prettierrc

@@ -6,21 +6,52 @@ import { Colors } from '../constants/Colors';
 import { formatCurrency, formatDate } from '../utils/format';
 import api from '../api/client';
 
+interface FixedDeposit {
+  id: number;
+  fdNumber?: string;
+  principal: number;
+  interestRate: number;
+  startDate?: string;
+  maturityDate?: string;
+  maturityAmount?: number;
+  status?: string;
+}
+
+interface BankAccount {
+  id: number;
+  bankName: string;
+  name: string;
+  accountNumber?: string;
+  type: string;
+  ifscCode?: string;
+  balance: number;
+  fixedDeposits: FixedDeposit[];
+}
+
+interface Transaction {
+  id: number;
+  vendor?: string;
+  description?: string;
+  date: string;
+  category?: string;
+  amount: number;
+}
+
 const BANK_TYPES = ['savings', 'current', 'salary', 'credit_card', 'loan'];
 
 export default function BankAccountsScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
-  const [accounts, setAccounts] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [totals, setTotals] = useState({ balance: 0, fdValue: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState<any>(null);
+  const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
   const [detailTab, setDetailTab] = useState<'fds' | 'transactions'>('fds');
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [search, setSearch] = useState('');
   const [showFdForm, setShowFdForm] = useState(false);
 
@@ -53,7 +84,7 @@ export default function BankAccountsScreen() {
   useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
 
   const fetchTransactions = async (accountId: number, q?: string) => {
-    const params: any = { pageSize: 50 };
+    const params: Record<string, number | string | undefined> = { pageSize: 50 };
     if (q) params.search = q;
     const res = await api.get(`/api/bank-accounts/${accountId}/transactions`, { params });
     setTransactions(res.data?.transactions || []);
@@ -109,7 +140,7 @@ export default function BankAccountsScreen() {
 
           <View style={styles.tabRow}>
             {['fds', 'transactions'].map((t) => (
-              <TouchableOpacity key={t} onPress={() => { setDetailTab(t as any); if (t === 'transactions' && selectedAccount) fetchTransactions(selectedAccount.id); }}
+              <TouchableOpacity key={t} onPress={() => { setDetailTab(t as 'fds' | 'transactions'); if (t === 'transactions' && selectedAccount) fetchTransactions(selectedAccount.id); }}
                 style={[styles.tab, { backgroundColor: detailTab === t ? theme.primary : theme.surface }]}>
                 <Text style={{ color: detailTab === t ? '#fff' : theme.text, fontSize: 13, fontWeight: '600' }}>
                   {t === 'fds' ? `FDs (${selectedAccount.fixedDeposits?.length || 0})` : 'Transactions'}
@@ -140,7 +171,7 @@ export default function BankAccountsScreen() {
               {(!selectedAccount.fixedDeposits || selectedAccount.fixedDeposits.length === 0) ? (
                 <View style={styles.empty}><Ionicons name="pricetag-outline" size={36} color={theme.textTertiary} /><Text style={{ color: theme.textSecondary }}>No FDs</Text></View>
               ) : (
-                selectedAccount.fixedDeposits.map((fd: any) => (
+                selectedAccount.fixedDeposits.map((fd: FixedDeposit) => (
                   <View key={fd.id} style={[styles.card, { backgroundColor: theme.surface }]}>
                     <Text style={[styles.cardTitle, { color: theme.text }]}>{fd.fdNumber || `FD #${fd.id}`}</Text>
                     <Text style={[styles.cardSubtext, { color: theme.textTertiary }]}>
@@ -160,7 +191,7 @@ export default function BankAccountsScreen() {
               {transactions.length === 0 ? (
                 <View style={styles.empty}><Ionicons name="document-text-outline" size={36} color={theme.textTertiary} /><Text style={{ color: theme.textSecondary }}>No transactions</Text></View>
               ) : (
-                transactions.map((txn: any) => (
+                transactions.map((txn: Transaction) => (
                   <View key={txn.id} style={[styles.card, { backgroundColor: theme.surface }]}>
                     <View style={styles.cardRow}>
                       <View style={{ flex: 1 }}>
@@ -196,8 +227,8 @@ export default function BankAccountsScreen() {
                 </View>
               }
               renderItem={({ item }) => {
-                const fdTotal = item.fixedDeposits.reduce((s: number, f: any) => s + f.principal, 0);
-                const activeFds = item.fixedDeposits.filter((f: any) => f.status === 'active').length;
+                const fdTotal = item.fixedDeposits.reduce((s: number, f: FixedDeposit) => s + f.principal, 0);
+                const activeFds = item.fixedDeposits.filter((f: FixedDeposit) => f.status === 'active').length;
                 return (
                   <TouchableOpacity onPress={() => { setSelectedAccount(item); if (item.id) fetchTransactions(item.id); }} style={[styles.card, { backgroundColor: theme.surface }]}>
                     <View style={styles.cardRow}>

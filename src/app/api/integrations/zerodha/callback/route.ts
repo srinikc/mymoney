@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     )
   } catch (error) {
     console.error("Zerodha callback error:", error)
-    const redirectUrl = new URL("/settings/integrations?zerodha=error&message=" + encodeURIComponent(String(error)), req.nextUrl.origin)
+    const redirectUrl = new URL("/settings/integrations?zerodha=error&message=Authentication+failed", req.nextUrl.origin)
     return NextResponse.redirect(redirectUrl)
   }
 }

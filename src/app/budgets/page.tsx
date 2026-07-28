@@ -82,8 +82,8 @@ export default function BudgetsPage() {
       setForm({ categoryId: "", amount: "" })
       setErrors({})
       loadData()
-    } catch (err: any) {
-      toast.error(err.message || "Failed to create budget")
+    } catch (err: unknown) {
+      toast.error((err as Error).message || "Failed to create budget")
     }
   }
 

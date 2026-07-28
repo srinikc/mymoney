@@ -8,11 +8,20 @@ import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
 
+interface Asset {
+  id?: string;
+  _id?: string;
+  name?: string;
+  title?: string;
+  value?: number;
+  amount?: number;
+}
+
 export default function AssetsScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +50,7 @@ export default function AssetsScreen() {
       await api.post('/api/assets', { name: formName.trim(), value: parseFloat(formValue) });
       setShowForm(false);
       fetch();
-    } catch (err: any) { setFormError(err.response?.data?.message || 'Failed to save'); }
+    } catch (err: unknown) { setFormError((err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to save'); }
     finally { setFormLoading(false); }
   };
 

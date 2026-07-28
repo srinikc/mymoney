@@ -37,8 +37,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
       if (!token) throw new Error('No token received')
       await SecureStore.setItemAsync(TOKEN_KEY, token)
       set({ isLoggedIn: true, user: user || null, error: null })
-    } catch (err: any) {
-      const message = err.response?.data?.error || err.message || 'Login failed'
+    } catch (err) {
+      const apiErr = err as { response?: { data?: { error?: string } }; message?: string }
+      const message = apiErr.response?.data?.error || apiErr.message || 'Login failed'
       set({ error: message })
       throw new Error(message)
     }

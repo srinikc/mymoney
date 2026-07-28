@@ -37,18 +37,18 @@ export interface ParsedTransaction {
   category?: string
   balance?: number          // extracted from "Available Balance" in bank alerts
   accountNumber?: string    // extracted from "A/c XX1234" in bank alerts
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 function extractAmount(text: string): number | null {
   const patterns = [
-    /(?:Rs|₹|INR)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
-    /([0-9,]+(?:\.[0-9]{1,2})?)\s*(?:Rs|₹|INR)/i,
-    /(?:amount|total|sum|value|paid|credited|debited)\s*(?:is|:)?\s*(?:Rs|₹|INR)?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
+    /(?:rs|₹|inr)\s*([\d,]+(?:\.\d{1,2})?)/i,
+    /([\d,]+(?:\.\d{1,2})?)\s*(?:rs|₹|inr)/i,
+    /(?:amount|total|sum|value|paid|credited|debited)\s*(?:is|:)?\s*(?:rs|₹|inr)?\s*([\d,]+(?:\.\d{1,2})?)/i,
   ]
   for (const p of patterns) {
     const m = text.match(p)
-    if (m) return Number.parseFloat(m[1].replace(/,/g, ""))
+    if (m) return Number.parseFloat(m[1].replaceAll(',', ""))
   }
   return null
 }
@@ -65,7 +65,7 @@ export function parseUPIPayment(email: ParsedEmail, kw?: ParserKeywords): Parsed
   const amount = extractAmount(text)
   if (!amount) return null
 
-  const vendorMatch = text.match(/paid\s+(?:Rs|₹|INR)?\s*[0-9,]+(?:\.[0-9]{1,2})?\s*(?:to|at|for)?\s*([A-Za-z0-9\s]+?)(?:\s+(?:using|via|on|from|.|$))/i)
+  const vendorMatch = text.match(/paid\s+(?:rs|₹|inr)?\s*[\d,]+(?:\.\d{1,2})?\s*(?:to|at|for)?\s*([\d\sa-z]+?)\s+(?:using|via|on|from|.|$)/i)
   const vendor = vendorMatch?.[1]?.trim() || email.from
 
   return { type: "expense", date: email.date, amount, description: email.subject || `UPI payment to ${vendor}`, vendor, category: "Other" }
@@ -73,20 +73,20 @@ export function parseUPIPayment(email: ParsedEmail, kw?: ParserKeywords): Parsed
 
 function extractBalance(text: string): number | null {
   const patterns = [
-    /(?:available|avl|closing)\s*(?:balance|bal)\s*(?:is|:)?\s*(?:rs|₹|inr)?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
-    /balance\s*(?:is|:)?\s*(?:rs|₹|inr)?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
+    /(?:available|avl|closing)\s*(?:balance|bal)\s*(?:is|:)?\s*(?:rs|₹|inr)?\s*([\d,]+(?:\.\d{1,2})?)/i,
+    /balance\s*(?:is|:)?\s*(?:rs|₹|inr)?\s*([\d,]+(?:\.\d{1,2})?)/i,
   ]
   for (const p of patterns) {
     const m = text.match(p)
-    if (m) return Number.parseFloat(m[1].replace(/,/g, ""))
+    if (m) return Number.parseFloat(m[1].replaceAll(',', ""))
   }
   return null
 }
 
 function extractAccountNumber(text: string): string | null {
   const patterns = [
-    /(?:a\/c|account|ac)\s*(?:no|#|:)?\s*(x?[0-9]{4,})/i,
-    /(?:x+)([0-9]{4})\b/i,
+    /(?:a\/c|account|ac)\s*(?:no|#|:)?\s*(x?\d{4,})/i,
+    /x+(\d{4})\b/i,
   ]
   for (const p of patterns) {
     const m = text.match(p)
@@ -103,7 +103,7 @@ export function parseBankTransaction(email: ParsedEmail, kw?: ParserKeywords): P
   if (!amount) return null
 
   const isCredit = contains(text, ["credited", "deposit", "cr"])
-  const vendorMatch = text.match(/(?:to|from|at|for)\s*([A-Za-z0-9\s\-]+?)(?:\s+(?:on|ref|by|via|.|$))/i)
+  const vendorMatch = text.match(/(?:to|from|at|for)\s*([\d\sa-z-]+?)\s+(?:on|ref|by|via|.|$)/i)
   const vendor = vendorMatch?.[1]?.trim() || email.from
 
   return {
@@ -158,7 +158,7 @@ export function parseSubscriptionEmail(email: ParsedEmail, kw?: ParserKeywords):
   const amount = extractAmount(text)
   if (!amount) return null
 
-  const vendorMatch = text.match(/(?:your|the)\s*([A-Za-z0-9\s]+?)\s*(?:subscription|renewal|plan|membership)/i)
+  const vendorMatch = text.match(/(?:your|the)\s*([\d\sa-z]+?)\s*(?:subscription|renewal|plan|membership)/i)
   const vendor = vendorMatch?.[1]?.trim() || email.from
 
   return { type: "subscription", date: email.date, amount, description: email.subject || "Subscription payment", vendor, category: "Subscriptions", metadata: { source: "email" } }
@@ -179,7 +179,7 @@ export function parseTradeEmail(email: ParsedEmail, kw?: ParserKeywords): Parsed
   if (!amount) return null
 
   const isBuy = contains(text, ["bought", "buy", "purchased"])
-  const symbolMatch = text.match(/(?:bought|sold|of)\s*([0-9]+)\s*(?:shares?|units?|qty)\s*(?:of|:)?\s*([A-Za-z0-9]+)/i)
+  const symbolMatch = text.match(/(?:bought|sold|of)\s*(\d+)\s*(?:shares?|units?|qty)\s*(?:of|:)?\s*([\da-z]+)/i)
 
   return { type: "investment", date: email.date, amount, description: email.subject || (isBuy ? "Stock purchase" : "Stock sale"), vendor: email.from, category: "Investment", metadata: { investmentType: "stocks", action: isBuy ? "buy" : "sell", symbol: symbolMatch?.[2] || null, quantity: symbolMatch ? Number.parseInt(symbolMatch[1]) : null } }
 }
@@ -191,7 +191,7 @@ export function parsePurchaseEmail(email: ParsedEmail, kw?: ParserKeywords): Par
   const amount = extractAmount(text)
   if (!amount) return null
 
-  const vendorMatch = text.match(/(?:from|at|by|store|seller)\s*([A-Za-z0-9\s&]+?)(?:\s*(?:for|on|using|via|order|invoice|.|$))/i)
+  const vendorMatch = text.match(/(?:from|at|by|store|seller)\s*([\d\s&a-z]+?)\s*(?:for|on|using|via|order|invoice|.|$)/i)
   const vendor = vendorMatch?.[1]?.trim() || email.from
 
   return { type: "expense", date: email.date, amount, description: email.subject || `Purchase at ${vendor}`, vendor, category: "Shopping", metadata: { source: "email", purchaseType: "goods" } }

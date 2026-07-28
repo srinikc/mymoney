@@ -31,6 +31,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
     return NextResponse.json(updated)
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 400 })
+    console.error("Merchant update error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 400 })
   }
 }

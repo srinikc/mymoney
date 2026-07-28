@@ -48,6 +48,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, email: user.email })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Setup admin error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

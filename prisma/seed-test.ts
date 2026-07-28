@@ -51,7 +51,7 @@ async function main() {
   const expense = await prisma.expense.create({
     data: {
       date: new Date(),
-      amount: 100.0,
+      amount: 100,
       categoryId: category.id,
       description: "Test expense",
       paymentMode: "UPI",
@@ -65,7 +65,7 @@ async function main() {
       categoryId: category.id,
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
-      amount: 5000.0,
+      amount: 5000,
       profileId: profile.id,
     },
   })

@@ -52,8 +52,8 @@ export default function InvestmentsPage() {
       setEditInv(null)
       setForm(defaultForm)
       loadData()
-    } catch (err: any) {
-      toast.error(err.message || "Failed to save investment")
+    } catch (err: unknown) {
+      toast.error((err as Error).message || "Failed to save investment")
     }
   }
 

@@ -6,6 +6,35 @@ import { Colors } from '../../constants/Colors';
 import { formatCurrency, formatDate } from '../../utils/format';
 import api from '../../api/client';
 
+interface UnmappedMerchant {
+  merchantKey: string;
+  count: number;
+  totalAmount: number;
+}
+
+interface MappingItem {
+  id: number;
+  merchantKey: string;
+  description?: string;
+  category?: { id?: number; name: string };
+  categoryId?: string;
+  subCategory?: string;
+  person?: string;
+  source?: string;
+  updatedAt?: string;
+}
+
+interface CatItem {
+  id?: number;
+  name: string;
+  color?: string;
+}
+
+interface DistinctValues {
+  subCategories: string[];
+  persons: string[];
+}
+
 type Tab = 'unmapped' | 'mappings';
 
 export default function MerchantsScreen() {
@@ -19,24 +48,24 @@ export default function MerchantsScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Unmapped
-  const [unmapped, setUnmapped] = useState<any[]>([]);
+  const [unmapped, setUnmapped] = useState<UnmappedMerchant[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
-  const [assignments, setAssignments] = useState<Record<string, any>>({});
-  const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(new Set());
+  const [assignments, setAssignments] = useState<Record<string, { categoryId?: string; subCategory?: string; person?: string }>>({});
+  const [dismissedKeys] = useState<Set<string>>(new Set());
 
   // Mappings
-  const [mappings, setMappings] = useState<any[]>([]);
+  const [mappings, setMappings] = useState<MappingItem[]>([]);
   const [mapPage, setMapPage] = useState(1);
   const [mapTotalPages, setMapTotalPages] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
 
   // Pickers
-  const [categories, setCategories] = useState<any[]>([]);
-  const [distinctValues, setDistinctValues] = useState<any>({ subCategories: [], persons: [] });
+  const [categories, setCategories] = useState<CatItem[]>([]);
+  const [distinctValues, setDistinctValues] = useState<DistinctValues>({ subCategories: [], persons: [] });
 
   // Edit modal
   const [editModal, setEditModal] = useState(false);
-  const [editMapping, setEditMapping] = useState<any>(null);
+  const [editMapping, setEditMapping] = useState<MappingItem | null>(null);
   const [editCategory, setEditCategory] = useState('');
   const [editSubCategory, setEditSubCategory] = useState('');
   const [editPerson, setEditPerson] = useState('');
@@ -57,7 +86,7 @@ export default function MerchantsScreen() {
 
   const fetchMappings = useCallback(async (targetPage = 1, append = false) => {
     try {
-      const params: any = { page: String(targetPage), pageSize: '50' };
+      const params: Record<string, string | undefined> = { page: String(targetPage), pageSize: '50' };
       if (search) params.search = search;
       const res = await api.get('/api/merchants/mappings', { params });
       const d = res.data;
@@ -126,7 +155,7 @@ export default function MerchantsScreen() {
   };
 
   const handleSaveAll = async () => {
-    const entries = Object.entries(assignments).filter(([_, v]: any) => v.category);
+    const entries = Object.entries(assignments).filter(([, v]) => v.categoryId);
     if (entries.length === 0) {
       Alert.alert('Info', 'No assignments to save');
       return;
@@ -134,7 +163,7 @@ export default function MerchantsScreen() {
     setSaveLoading(true);
     try {
       await api.post('/api/merchants/assign', {
-        assignments: entries.map(([key, val]: any) => ({ merchantKey: key, ...val })),
+        assignments: entries.map(([key, val]) => ({ merchantKey: key, ...val })),
       });
       setAssignments({});
       setExpandedKeys(new Set());
@@ -159,7 +188,7 @@ export default function MerchantsScreen() {
     }
   };
 
-  const openEditModal = (mapping: any) => {
+  const openEditModal = (mapping: MappingItem) => {
     setEditMapping(mapping);
     setEditCategory(mapping.category?.id || mapping.categoryId || '');
     setEditSubCategory(mapping.subCategory || '');
@@ -186,7 +215,7 @@ export default function MerchantsScreen() {
     }
   };
 
-  const handleDeleteMapping = (mapping: any) => {
+  const handleDeleteMapping = (mapping: MappingItem) => {
     Alert.alert('Delete Mapping', `Delete mapping for "${mapping.merchantKey}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -203,7 +232,7 @@ export default function MerchantsScreen() {
     ]);
   };
 
-  const renderUnmapped = ({ item }: { item: any }) => {
+  const renderUnmapped = ({ item }: { item: UnmappedMerchant }) => {
     const key = item.merchantKey;
     const expanded = expandedKeys.has(key);
     const assign = assignments[key] || {};
@@ -222,13 +251,13 @@ export default function MerchantsScreen() {
           <View style={styles.assignSection}>
             <Text style={[styles.assignLabel, { color: theme.textSecondary }]}>Category</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
-              {categories.map((cat: any) => (
+              {categories.map((cat) => (
                 <TouchableOpacity
                   key={cat.id || cat.name}
-                  onPress={() => handleAssignChange(key, 'categoryId', cat.id || cat.name)}
-                  style={[styles.pickerBtn, { backgroundColor: assign.categoryId === (cat.id || cat.name) ? theme.primary : theme.background }]}
+                  onPress={() => handleAssignChange(key, 'categoryId', String(cat.id || cat.name))}
+                  style={[styles.pickerBtn, { backgroundColor: assign.categoryId === String(cat.id || cat.name) ? theme.primary : theme.background }]}
                 >
-                  <Text style={{ color: assign.categoryId === (cat.id || cat.name) ? '#fff' : theme.text, fontSize: 12, fontWeight: '500' }}>
+                  <Text style={{ color: assign.categoryId === String(cat.id || cat.name) ? '#fff' : theme.text, fontSize: 12, fontWeight: '500' }}>
                     {cat.name}
                   </Text>
                 </TouchableOpacity>
@@ -270,7 +299,7 @@ export default function MerchantsScreen() {
     );
   };
 
-  const renderMapping = ({ item }: { item: any }) => (
+  const renderMapping = ({ item }: { item: MappingItem }) => (
     <TouchableOpacity onPress={() => openEditModal(item)} onLongPress={() => handleDeleteMapping(item)} activeOpacity={0.7}>
       <View style={[styles.card, { backgroundColor: theme.surface }]}>
         <View style={styles.mappingRow}>
@@ -399,13 +428,13 @@ export default function MerchantsScreen() {
             )}
             <Text style={[styles.assignLabel, { color: theme.textSecondary }]}>Category</Text>
             <View style={styles.pickerGrid}>
-              {categories.map((cat: any) => (
+              {categories.map((cat) => (
                 <TouchableOpacity
                   key={cat.id || cat.name}
-                  onPress={() => setEditCategory(cat.id || cat.name)}
-                  style={[styles.gridBtn, { backgroundColor: editCategory === (cat.id || cat.name) ? theme.primary : theme.background }]}
+                  onPress={() => setEditCategory(String(cat.id || cat.name))}
+                  style={[styles.gridBtn, { backgroundColor: editCategory === String(cat.id || cat.name) ? theme.primary : theme.background }]}
                 >
-                  <Text style={{ color: editCategory === (cat.id || cat.name) ? '#fff' : theme.text, fontSize: 12, fontWeight: '500' }}>{cat.name}</Text>
+                  <Text style={{ color: editCategory === String(cat.id || cat.name) ? '#fff' : theme.text, fontSize: 12, fontWeight: '500' }}>{cat.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>

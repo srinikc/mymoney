@@ -17,7 +17,8 @@ export async function GET() {
 
     return NextResponse.json({ keywords: (setting?.value as ParserKeywords) || DEFAULT_KEYWORDS })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Gmail parser GET error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -43,7 +44,7 @@ export async function PUT(req: Request) {
     if (existing) {
       await prisma.userSetting.update({
         where: { id: existing.id },
-        data: { value: { ...(existing.value as any), ...keywords } },
+        data: { value: { ...(existing.value as Record<string, unknown>), ...keywords } },
       })
     } else {
       await prisma.userSetting.create({
@@ -57,6 +58,7 @@ export async function PUT(req: Request) {
 
     return NextResponse.json({ ok: true })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Gmail parser PUT error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
-import { requireRole } from "@/lib/roles"
+import { requireRole, type AuthUser } from "@/lib/roles"
 import { validateBody } from "@/shared/validate"
 import { UserUpdateSchema } from "@/shared/validation"
 
@@ -13,7 +13,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
-  const forbid = requireRole(session?.user as any, "admin")
+  const forbid = requireRole(session?.user as AuthUser, "admin")
   if (forbid) return forbid
 
   const { id } = await params
@@ -64,7 +64,7 @@ export async function PATCH(
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
-  const forbid = requireRole(session.user as any, "admin")
+  const forbid = requireRole(session.user as AuthUser, "admin")
   if (forbid) return forbid
 
   const { id } = await params
@@ -137,7 +137,7 @@ export async function DELETE(
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
-  const forbid = requireRole(session.user as any, "admin")
+  const forbid = requireRole(session.user as AuthUser, "admin")
   if (forbid) return forbid
 
   const { id } = await params

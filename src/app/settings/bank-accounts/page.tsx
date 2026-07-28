@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,8 +13,18 @@ import Link from "next/link"
 
 const BANK_TYPES = ["savings", "current", "salary", "credit_card", "loan"]
 
+interface BankAccountItem {
+  id: number
+  bankName: string
+  name: string
+  accountNumber?: string
+  ifscCode?: string
+  balance: number
+  type: string
+}
+
 export default function BankAccountsSettingsPage() {
-  const [accounts, setAccounts] = useState<any[]>([])
+  const [accounts, setAccounts] = useState<BankAccountItem[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ bankName: "", name: "", accountNumber: "", type: "savings", ifscCode: "", balance: "" })
@@ -40,8 +50,8 @@ export default function BankAccountsSettingsPage() {
       setShowForm(false)
       setForm({ bankName: "", name: "", accountNumber: "", type: "savings", ifscCode: "", balance: "" })
       fetchAccounts()
-    } catch (err: any) {
-      toast.error(err.message || "Failed to save account")
+    } catch (err: unknown) {
+      toast.error((err as Error).message || "Failed to save account")
     }
   }
 
@@ -113,7 +123,7 @@ export default function BankAccountsSettingsPage() {
         <Card><CardContent className="py-8 text-center text-muted-foreground"><p>No bank accounts added yet.</p></CardContent></Card>
       ) : (
         <div className="space-y-3">
-          {accounts.map((acc) => (
+          {accounts.map((acc: BankAccountItem) => (
             <Card key={acc.id}>
               <CardContent className="flex items-center justify-between py-4">
                 <div>

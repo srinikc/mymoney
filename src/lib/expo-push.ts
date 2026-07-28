@@ -25,8 +25,7 @@ export async function sendPushToUser(userId: number, payload: PushPayload): Prom
           priority: "high",
         }),
       })
-    } catch {
-    }
+    } catch { /* ignore push errors */ }
   }
 }
 
@@ -53,7 +52,6 @@ export async function sendPushToAllUsers(payload: PushPayload): Promise<void> {
           }))
         ),
       })
-    } catch {
-    }
+    } catch { /* ignore push errors */ }
   }
 }

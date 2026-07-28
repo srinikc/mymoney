@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
-import { requireRole } from "@/lib/roles"
+import { requireRole, type AuthUser } from "@/lib/roles"
 
 /**
  * DELETE /api/admin/profiles/:id — Delete profile (admin-only)
@@ -11,7 +11,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
-  const forbid = requireRole(session?.user as any, "admin")
+  const forbid = requireRole(session?.user as AuthUser, "admin")
   if (forbid) return forbid
 
   const { id } = await params

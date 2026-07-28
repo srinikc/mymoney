@@ -6,12 +6,21 @@ import { Colors } from '../../constants/Colors';
 import { formatCurrency, formatDate } from '../../utils/format';
 import api from '../../api/client';
 
+interface FlaggedExpense {
+  id: number;
+  vendor?: string;
+  amount: number;
+  date: string;
+  category?: { id?: number; name: string };
+  description?: string;
+}
+
 export default function ReviewDuplicatesScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
 
-  const [flagged, setFlagged] = useState<any[]>([]);
+  const [flagged, setFlagged] = useState<FlaggedExpense[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
@@ -24,7 +33,7 @@ export default function ReviewDuplicatesScreen() {
 
   const fetchFlagged = useCallback(async (targetPage = 1, append = false) => {
     try {
-      const params: any = { page: String(targetPage), pageSize: '50' };
+      const params: Record<string, string | undefined> = { page: String(targetPage), pageSize: '50' };
       if (search) params.search = search;
       const res = await api.get('/api/expenses/flagged', { params });
       const d = res.data;
@@ -84,7 +93,7 @@ export default function ReviewDuplicatesScreen() {
         onPress: async () => {
           setActionLoading(true);
           try {
-            await api.post('/api/expenses/flagged/merge', { ids: Array.from(selectedIds) });
+            await api.post('/api/expenses/flagged/merge', { ids: [...selectedIds] });
             setSelectedIds(new Set());
             fetchFlagged(1);
             Alert.alert('Success', 'Expenses merged');
@@ -107,7 +116,7 @@ export default function ReviewDuplicatesScreen() {
         onPress: async () => {
           setActionLoading(true);
           try {
-            await Promise.all(Array.from(selectedIds).map((id) => api.delete(`/api/expenses/flagged?id=${id}`)));
+            await Promise.all([...selectedIds].map((id) => api.delete(`/api/expenses/flagged?id=${id}`)));
             setSelectedIds(new Set());
             fetchFlagged(1);
           } catch {
@@ -120,7 +129,7 @@ export default function ReviewDuplicatesScreen() {
     ]);
   };
 
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = ({ item }: { item: FlaggedExpense }) => {
     const selected = selectedIds.has(item.id);
     return (
       <TouchableOpacity activeOpacity={0.7} onPress={() => toggleSelect(item.id)}>

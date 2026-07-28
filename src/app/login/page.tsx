@@ -3,6 +3,7 @@
 import { signIn, useSession } from "next-auth/react"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -173,6 +174,9 @@ export default function LoginPage() {
 
           <p className="text-center text-xs text-muted-foreground">
             New here? Contact your admin for an account
+          </p>
+          <p className="text-center text-xs text-muted-foreground">
+            <Link href="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>
           </p>
         </CardContent>
       </Card>

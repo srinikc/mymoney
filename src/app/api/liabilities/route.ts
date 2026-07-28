@@ -21,6 +21,7 @@ export async function POST(req: Request) {
     })
     return NextResponse.json(liability, { status: 201 })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 400 })
+    console.error("Liability create error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 400 })
   }
 }

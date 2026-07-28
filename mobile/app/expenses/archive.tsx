@@ -6,12 +6,21 @@ import { Colors } from '../../constants/Colors';
 import { formatCurrency, formatDate } from '../../utils/format';
 import api from '../../api/client';
 
+interface ArchiveExpense {
+  id: number;
+  vendor?: string;
+  amount: number;
+  date: string;
+  category?: { name: string } | string;
+  archivedAt?: string;
+}
+
 export default function ArchiveScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
 
-  const [expenses, setExpenses] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<ArchiveExpense[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -102,7 +111,7 @@ export default function ArchiveScreen() {
     ]);
   };
 
-  const handleLongPress = (item: any) => {
+  const handleLongPress = (item: ArchiveExpense) => {
     Alert.alert('Restore Expense', `Restore "${item.vendor || 'this expense'}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -112,7 +121,7 @@ export default function ArchiveScreen() {
     ]);
   };
 
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = ({ item }: { item: ArchiveExpense }) => {
     const selected = selectedIds.has(item.id);
     return (
       <TouchableOpacity
@@ -134,7 +143,7 @@ export default function ArchiveScreen() {
                 <Text style={[styles.cardDate, { color: theme.textTertiary }]}>{formatDate(item.date)}</Text>
                 {item.category && (
                   <View style={[styles.catBadge, { backgroundColor: theme.primaryLight }]}>
-                    <Text style={[styles.catBadgeText, { color: theme.primary }]}>{item.category.name || item.category}</Text>
+                    <Text style={[styles.catBadgeText, { color: theme.primary }]}>{typeof item.category === 'string' ? item.category : item.category.name}</Text>
                   </View>
                 )}
                 {item.archivedAt && (
@@ -173,7 +182,7 @@ export default function ArchiveScreen() {
           <Text style={[styles.actionBarText, { color: theme.text }]}>{selectedIds.size} selected</Text>
           <View style={styles.actionBtns}>
             <TouchableOpacity
-              onPress={() => handleRestore(Array.from(selectedIds))}
+              onPress={() => handleRestore([...selectedIds])}
               disabled={actionLoading}
               style={[styles.actionBtn, { backgroundColor: theme.incomeLight }]}
             >
@@ -181,7 +190,7 @@ export default function ArchiveScreen() {
               <Text style={{ color: theme.income, fontWeight: '600', fontSize: 12 }}>Restore</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => handlePurge(Array.from(selectedIds))}
+              onPress={() => handlePurge([...selectedIds])}
               disabled={actionLoading}
               style={[styles.actionBtn, { backgroundColor: theme.expenseLight }]}
             >

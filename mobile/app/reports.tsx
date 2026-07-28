@@ -6,11 +6,31 @@ import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
 
+interface TrendItem {
+  month: string;
+  amount: number;
+}
+
+interface CategoryItem {
+  name: string;
+  percentage: number;
+}
+
+interface InsightsData {
+  totalIncome: number;
+  totalExpenses: number;
+  totalInvestments: number;
+  goalProgress: number;
+  monthlyTrend: TrendItem[];
+  incomeTrend: TrendItem[];
+  topCategories: CategoryItem[];
+}
+
 export default function ReportsScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
-  const [insights, setInsights] = useState<any>(null);
+  const [insights, setInsights] = useState<InsightsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState('overview');
@@ -25,8 +45,8 @@ export default function ReportsScreen() {
 
   useEffect(() => { fetch(); }, [fetch]);
 
-  const maxTrend = Math.max(1, ...(insights?.monthlyTrend || []).map((m: any) => m.amount));
-  const maxIncome = Math.max(1, ...(insights?.incomeTrend || []).map((m: any) => m.amount));
+  const maxTrend = Math.max(1, ...(insights?.monthlyTrend || []).map((m: TrendItem) => m.amount));
+  const maxIncome = Math.max(1, ...(insights?.incomeTrend || []).map((m: TrendItem) => m.amount));
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -70,7 +90,7 @@ export default function ReportsScreen() {
 
             <View style={[styles.sectionCard, { backgroundColor: theme.surface }]}>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>Monthly Expense Trend</Text>
-              {insights.monthlyTrend?.map((m: any, i: number) => (
+              {insights.monthlyTrend?.map((m: TrendItem, i: number) => (
                 <View key={i} style={styles.barRow}>
                   <Text style={[styles.barLabel, { color: theme.textSecondary }]}>{m.month}</Text>
                   <View style={styles.barBg}><View style={[styles.barFill, { width: `${(m.amount / maxTrend) * 100}%`, backgroundColor: theme.primary }]} /></View>
@@ -104,7 +124,7 @@ export default function ReportsScreen() {
 
             <View style={[styles.sectionCard, { backgroundColor: theme.surface }]}>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>Monthly Income Trend</Text>
-              {insights.incomeTrend?.map((m: any, i: number) => (
+              {insights.incomeTrend?.map((m: TrendItem, i: number) => (
                 <View key={i} style={styles.barRow}>
                   <Text style={[styles.barLabel, { color: theme.textSecondary }]}>{m.month}</Text>
                   <View style={styles.barBg}><View style={[styles.barFill, { width: `${(m.amount / maxIncome) * 100}%`, backgroundColor: theme.income }]} /></View>
@@ -115,7 +135,7 @@ export default function ReportsScreen() {
 
             <View style={[styles.sectionCard, { backgroundColor: theme.surface }]}>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>Income vs Expenses</Text>
-              {insights.incomeTrend?.map((m: any, i: number) => {
+              {insights.incomeTrend?.map((m: TrendItem, i: number) => {
                 const exp = insights.monthlyTrend?.[i]?.amount || 0;
                 return (
                   <View key={i} style={styles.compRow}>
@@ -136,7 +156,7 @@ export default function ReportsScreen() {
         ) : (
           <View style={[styles.sectionCard, { backgroundColor: theme.surface }]}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Expense Analysis</Text>
-            {insights.monthlyTrend?.map((m: any, i: number) => (
+            {insights.monthlyTrend?.map((m: TrendItem, i: number) => (
               <View key={i} style={styles.barRow}>
                 <Text style={[styles.barLabel, { color: theme.textSecondary }]}>{m.month}</Text>
                 <View style={styles.barBg}><View style={[styles.barFill, { width: `${(m.amount / maxTrend) * 100}%`, backgroundColor: theme.expense }]} /></View>
@@ -144,7 +164,7 @@ export default function ReportsScreen() {
               </View>
             ))}
             <Text style={[styles.sectionTitle, { color: theme.text, marginTop: 20 }]}>Top Categories</Text>
-            {insights.topCategories?.map((cat: any, i: number) => (
+            {insights.topCategories?.map((cat: CategoryItem, i: number) => (
               <View key={i} style={styles.barRow}>
                 <Text style={[styles.barLabel, { color: theme.textSecondary }]}>{cat.name}</Text>
                 <View style={styles.barBg}><View style={[styles.barFill, { width: `${Math.min(cat.percentage, 100)}%`, backgroundColor: `hsl(${i * 50}, 70%, 55%)` }]} /></View>

@@ -8,6 +8,36 @@ import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import api from '../api/client';
 
+interface HealthComponent {
+  score: number;
+  status: string;
+  value: number | string;
+  target: number | string;
+}
+
+interface HealthData {
+  overall: number;
+  components: Record<string, HealthComponent>;
+}
+
+interface GapItem {
+  category?: string;
+  title: string;
+  status: string;
+  currentValue: string;
+  targetValue: string;
+  gapAmount: number;
+  gap: string;
+}
+
+interface RecItem {
+  id: number;
+  priority: 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  estimatedSavings?: number;
+}
+
 function scColor(s: string): string {
   switch (s) {
     case 'good': return '#10B981';
@@ -26,9 +56,9 @@ export default function HealthScreen() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
 
-  const [healthScore, setHealthScore] = useState<any>(null);
-  const [gaps, setGaps] = useState<any[]>([]);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [healthScore, setHealthScore] = useState<HealthData | null>(null);
+  const [gaps, setGaps] = useState<GapItem[]>([]);
+  const [recommendations, setRecommendations] = useState<RecItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -95,8 +125,7 @@ export default function HealthScreen() {
           </View>
 
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Score Components</Text>
-          {Object.entries(components).map(([k, c]: [string, any]) => {
-            const pct = c.target > 0 ? Math.round((c.value / c.target) * 100) : 0;
+          {Object.entries(components).map(([k, c]) => {
             return (
               <View key={k} style={[styles.compCard, { backgroundColor: theme.surface, borderLeftColor: scColor(c.status), borderLeftWidth: 3 }]}>
                 <View style={styles.compRow}>
@@ -119,7 +148,7 @@ export default function HealthScreen() {
           {topRecs.length > 0 && (
             <>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>Recommendations</Text>
-              {topRecs.map((r: any) => (
+              {topRecs.map((r: RecItem) => (
                 <View key={r.id} style={[styles.recCard, { backgroundColor: theme.surface }]}>
                   <View style={styles.recHeader}>
                     <View style={[styles.priorityDot, { backgroundColor: r.priority === 'high' ? '#EF4444' : r.priority === 'medium' ? '#F59E0B' : '#3B82F6' }]} />
@@ -137,7 +166,7 @@ export default function HealthScreen() {
           {gaps.length > 0 && (
             <>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>Gap Analysis</Text>
-              {gaps.map((g: any, i: number) => (
+              {gaps.map((g: GapItem, i: number) => (
                 <View key={g.category || i} style={[styles.gapCard, { backgroundColor: theme.surface, borderLeftColor: scColor(g.status), borderLeftWidth: 3 }]}>
                   <View style={styles.gapHeader}>
                     <Text style={[styles.gapTitle, { color: theme.text }]}>{g.title}</Text>

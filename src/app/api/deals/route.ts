@@ -37,6 +37,7 @@ export async function DELETE(req: Request) {
     await prisma.deal.delete({ where: { id } })
     return NextResponse.json({ success: true })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 400 })
+    console.error("Deal delete error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 400 })
   }
 }

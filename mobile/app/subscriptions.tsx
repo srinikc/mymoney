@@ -16,14 +16,29 @@ const billingCycles = [
   { label: 'Weekly', value: 'weekly' },
 ];
 
+interface SubscriptionItem {
+  id?: string;
+  _id?: string;
+  name?: string;
+  service?: string;
+  amount?: number;
+  price?: number;
+  frequency?: string;
+  billingCycle?: string;
+  nextBilling?: string;
+  nextDate?: string;
+  startDate?: string;
+}
+
 export default function SubscriptionsScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<SubscriptionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // eslint-disable-next-line no-empty
   const [showForm, setShowForm] = useState(false);
   const [formName, setFormName] = useState('');
   const [formAmount, setFormAmount] = useState('');
@@ -37,7 +52,7 @@ export default function SubscriptionsScreen() {
       const res = await api.get('/api/subscriptions');
       const d = res.data;
       setData(Array.isArray(d?.subscriptions) ? d.subscriptions : Array.isArray(d) ? d : []);
-    } catch { setError('Failed to load subscriptions'); }
+    } catch { setError('Failed to load subscriptions'); } // eslint-disable-line no-empty
     finally { setLoading(false); setRefreshing(false); }
   }, []);
 
@@ -68,7 +83,7 @@ export default function SubscriptionsScreen() {
       setShowForm(false);
       resetForm();
       fetch();
-    } catch (err: any) { setFormError(err.response?.data?.message || 'Failed to save'); }
+    } catch (err) { const apiErr = err as { response?: { data?: { message?: string } }; message?: string }; setFormError(apiErr.response?.data?.message || 'Failed to save'); }
     finally { setFormLoading(false); }
   };
 
@@ -97,10 +112,10 @@ export default function SubscriptionsScreen() {
 
       {loading ? <View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View>
       : error ? <View style={styles.center}><Ionicons name="alert-circle" size={40} color={theme.expense} /><Text style={{ color: theme.expense, fontSize: 14, fontWeight: '500' }}>{error}</Text></View>
-      : <FlatList data={data} keyExtractor={(i, idx) => i.id || i._id || String(idx)}
+      : <FlatList data={data} keyExtractor={(i, idx) => String(i.id ?? i._id ?? idx)}
           ListHeaderComponent={<View style={[styles.summary, { backgroundColor: theme.primary }]}><Text style={styles.summaryLabel}>Monthly Spend</Text><Text style={styles.summaryAmount}>{formatCurrency(monthlyTotal)}</Text></View>}
           renderItem={({ item }) => (
-            <TouchableOpacity style={[styles.card, { backgroundColor: theme.surface }]} onLongPress={() => handleDelete(item.id || item._id)} activeOpacity={0.7}>
+            <TouchableOpacity style={[styles.card, { backgroundColor: theme.surface }]} onLongPress={() => handleDelete(item.id ?? item._id ?? '')} activeOpacity={0.7}>
               <View style={styles.cardRow}>
                 <View style={[styles.cardIcon, { backgroundColor: theme.primaryLight }]}><Ionicons name="refresh" size={18} color={theme.primary} /></View>
                 <View style={{ flex: 1 }}>

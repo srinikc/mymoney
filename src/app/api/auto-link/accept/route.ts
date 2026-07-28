@@ -32,6 +32,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ link }, { status: 201 })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Auto-link accept error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

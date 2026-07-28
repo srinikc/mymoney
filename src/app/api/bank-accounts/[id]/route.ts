@@ -16,7 +16,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     return NextResponse.json(account)
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Bank account GET error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -43,7 +44,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
     return NextResponse.json(account)
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Bank account PUT error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -56,6 +58,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     await prisma.bankAccount.delete({ where: { id: Number(id) } })
     return NextResponse.json({ ok: true })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Bank account DELETE error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

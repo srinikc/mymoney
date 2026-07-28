@@ -2,20 +2,49 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatCurrency } from "@/lib/utils"
 import { ArrowLeft, Building2, Plus, PiggyBank, Search, Loader2, Pencil, Trash2 } from "lucide-react"
-import Link from "next/link"
+
+interface BankAccountData {
+  id: number
+  name: string
+  bankName: string
+  accountNumber?: string
+  type: string
+  balance: number
+  fixedDeposits?: FixedDepositData[]
+}
+
+interface FixedDepositData {
+  id: number
+  fdNumber?: string
+  principal: number
+  interestRate: number
+  startDate?: string
+  maturityDate?: string
+  maturityAmount?: number
+  status: string
+}
+
+interface TransactionData {
+  id: number
+  vendor?: string
+  description?: string
+  date: string
+  category?: string
+  amount: number
+}
 
 export default function BankAccountDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const [account, setAccount] = useState<any>(null)
-  const [transactions, setTransactions] = useState<any[]>([])
+  const [account, setAccount] = useState<BankAccountData | null>(null)
+  const [transactions, setTransactions] = useState<TransactionData[]>([])
   const [transactionsTotal, setTransactionsTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [txnLoading, setTxnLoading] = useState(false)
@@ -121,7 +150,7 @@ export default function BankAccountDetailPage() {
             <Card><CardContent className="py-8 text-center text-muted-foreground"><PiggyBank className="h-8 w-8 mx-auto mb-2 opacity-50" /><p>No FDs added yet</p></CardContent></Card>
           ) : (
             <div className="space-y-3">
-              {account.fixedDeposits.map((fd: any) => (
+              {account.fixedDeposits.map((fd: FixedDepositData) => (
                 <Card key={fd.id}>
                   <CardContent className="flex items-center justify-between py-4">
                     <div className="space-y-1">
@@ -158,7 +187,7 @@ export default function BankAccountDetailPage() {
             <Card><CardContent className="py-8 text-center text-muted-foreground"><p>No transactions found. Tag expenses with &quot;{account.name}&quot; as the bank account to see them here.</p></CardContent></Card>
           ) : (
             <div className="space-y-2">
-              {transactions.map((txn: any) => (
+              {transactions.map((txn: TransactionData) => (
                 <Card key={txn.id}>
                   <CardContent className="flex items-center justify-between py-3">
                     <div>

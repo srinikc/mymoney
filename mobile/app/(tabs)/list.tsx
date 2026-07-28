@@ -9,7 +9,6 @@ import {
   RefreshControl,
   TextInput,
   ActivityIndicator,
-  Modal,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,13 +22,25 @@ import {
 import api from '../../api/client';
 import QuickCaptureModal from '../../components/QuickCaptureModal';
 
+interface Transaction {
+  id?: string;
+  _id?: string;
+  _type: 'expense' | 'income';
+  category: string;
+  name?: string;
+  description?: string;
+  amount: number;
+  date?: string;
+  createdAt?: string;
+}
+
 const PAGE_SIZE = 20;
 
 export default function ListScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filter, setFilter] = useState<'all' | 'expense' | 'income'>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -38,7 +49,7 @@ export default function ListScreen() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [search, setSearch] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [quickCaptureVisible, setQuickCaptureVisible] = useState(false);
 
@@ -47,7 +58,7 @@ export default function ListScreen() {
       if (pageNum === 1) setLoading(true);
       setError(null);
       try {
-        const params: any = {
+        const params: Record<string, string | number | undefined> = {
           page: pageNum,
           limit: PAGE_SIZE,
           search: search || undefined,
@@ -62,18 +73,18 @@ export default function ListScreen() {
           filter !== 'expense' ? api.get('/api/income/sources', { params }) : Promise.resolve({ data: { sources: [] } }),
         ]);
 
-        let combined: any[] = [];
+        let combined: Transaction[] = [];
 
         if (expRes.status === 'fulfilled') {
           const expData = expRes.value.data;
-          const exps = (Array.isArray(expData?.expenses) ? expData.expenses : Array.isArray(expData) ? expData : []).map((e: any) => ({ ...e, _type: 'expense' }));
-          combined = [...combined, ...exps];
+          const exps = (Array.isArray(expData?.expenses) ? expData.expenses : Array.isArray(expData) ? expData : []).map((e: Record<string, unknown>) => ({ ...e, _type: 'expense' as const }));
+          combined = [...combined, ...exps as Transaction[]];
         }
 
         if (incRes.status === 'fulfilled') {
           const incData = incRes.value.data;
-          const incs = (Array.isArray(incData?.sources) ? incData.sources : Array.isArray(incData?.income) ? incData.income : Array.isArray(incData) ? incData : []).map((i: any) => ({ ...i, _type: 'income' }));
-          combined = [...combined, ...incs];
+          const incs = (Array.isArray(incData?.sources) ? incData.sources : Array.isArray(incData?.income) ? incData.income : Array.isArray(incData) ? incData : []).map((i: Record<string, unknown>) => ({ ...i, _type: 'income' as const }));
+          combined = [...combined, ...incs as Transaction[]];
         }
 
         combined.sort((a, b) => new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime());
@@ -99,7 +110,7 @@ export default function ListScreen() {
     setPage(1);
     setTransactions([]);
     fetchTransactions(1);
-  }, [filter, selectedMonth]);
+  }, [filter, selectedMonth, fetchTransactions]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -108,7 +119,7 @@ export default function ListScreen() {
       fetchTransactions(1);
     }, 400);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, fetchTransactions]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -145,25 +156,25 @@ export default function ListScreen() {
     ]);
   };
 
-  const getCategoryIcon = (cat: string): any => {
+  const getCategoryIcon = (cat: string): string => {
     const allCats = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
     const found = allCats.find((c) => c.value === cat?.toLowerCase());
     return found?.icon || 'ellipsis-horizontal';
   };
 
-  const getAmountColor = (item: any) => {
+  const getAmountColor = (item: Transaction) => {
     if (item._type === 'income') return theme.income;
     const amt = item.amount || 0;
     return amt > 0 ? theme.income : theme.expense;
   };
 
-  const getAmountPrefix = (item: any) => {
+  const getAmountPrefix = (item: Transaction) => {
     if (item._type === 'income') return '+';
     const amt = item.amount || 0;
     return amt > 0 ? '+' : '';
   };
 
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = ({ item }: { item: Transaction }) => {
     const isDeleting = deleteId === (item.id || item._id);
     return (
       <View style={[styles.transactionRow, { backgroundColor: theme.surface }]}>

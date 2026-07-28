@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ColumnFilter } from "@/components/expenses/column-filter"
 import { DriveDialog } from "@/components/expenses/drive-dialog"
@@ -18,8 +18,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import DatePicker from "@/components/ui/date-picker"
 import TransactionConfirm from "@/components/ui/transaction-confirm"
 import {
-  Plus, Upload, Search, Download, FileSpreadsheet,
-  Loader2, Cloud, LogOut, Edit3, ArrowUpDown, ChevronLeft, ChevronRight, RefreshCw, AlertCircle, CheckCircle2, X,
+  Upload, Search, Download, FileSpreadsheet,
+  Loader2, Cloud, LogOut, Edit3, ChevronLeft, ChevronRight, RefreshCw, AlertCircle, CheckCircle2, X,
 } from "lucide-react"
 
 interface DriveFile {
@@ -91,7 +91,6 @@ export default function ExpensesPage() {
   const [totalAmount, setTotalAmount] = useState(0)
   const [amountMin, setAmountMin] = useState("")
   const [amountMax, setAmountMax] = useState("")
-  const [open, setOpen] = useState(false)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<string | null>(null)
   const [gdriveConnected, setGdriveConnected] = useState(false)
@@ -99,21 +98,10 @@ export default function ExpensesPage() {
   const [driveFiles, setDriveFiles] = useState<DriveFile[]>([])
   const [scanning, setScanning] = useState(false)
   const [driveDialogOpen, setDriveDialogOpen] = useState(false)
-  const [refreshKey, setRefreshKey] = useState(0)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<Record<number, { categoryId: string; subCategory: string; person: string; vendor: string }>>({})
   const [driveImporting, setDriveImporting] = useState(false)
 
-
-  const [form, setForm] = useState({
-    date: new Date().toISOString().split("T")[0],
-    amount: "",
-    categoryId: "",
-    vendor: "",
-    description: "",
-    paymentMode: "UPI",
-    notes: "",
-  })
 
   const [isAddingNew, setIsAddingNew] = useState(false)
   const newFormDefault = { date: new Date().toISOString().split("T")[0], amount: "", categoryId: "", vendor: "", description: "", paymentMode: "UPI", person: "", subCategory: "", bankAccount: "", notes: "" }
@@ -137,7 +125,7 @@ export default function ExpensesPage() {
         const data = await res.json()
         toast.error(data.error || "Failed to add expense")
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to add expense")
     }
   }
@@ -203,7 +191,7 @@ export default function ExpensesPage() {
     setTotalAmount(result.totalAmount || 0)
     setCategories(await catRes.json())
     setLoading(false)
-  }, [search, categoryFilter, sessionFilter, personFilter, recurrenceFilter, paymentModeFilter, vendorFilter, subCategoryFilter, bankFilter, notesFilter, otherTypeFilter, vendorFilterMode, subCategoryFilterMode, dateFrom, dateTo, amountMin, amountMax, sortField, sortDir, page, refreshKey])
+  }, [search, categoryFilter, sessionFilter, personFilter, recurrenceFilter, paymentModeFilter, vendorFilter, subCategoryFilter, bankFilter, notesFilter, otherTypeFilter, vendorFilterMode, subCategoryFilterMode, dateFrom, dateTo, amountMin, amountMax, sortField, sortDir, page])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -230,16 +218,6 @@ export default function ExpensesPage() {
     detectPendingGpayFile()
   }, [])
 
-  const handleSubmit = async () => {
-    const res = await fetch("/api/expenses", { method: "POST", body: JSON.stringify(form) })
-    if (res.ok) {
-      toast.success("Expense added via dialog")
-    }
-    setOpen(false)
-    setForm({ date: new Date().toISOString().split("T")[0], amount: "", categoryId: "", vendor: "", description: "", paymentMode: "UPI", notes: "" })
-    loadData()
-  }
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -250,7 +228,6 @@ export default function ExpensesPage() {
     try {
       const res = await fetch("/api/import", { method: "POST", body: formData })
       const result = await res.json()
-      console.log("[FILE IMPORT] Response:", result)
       if (res.ok) {
         setImportResult(result.message || "Imported successfully")
         toast.success(result.message || "File imported successfully")
@@ -274,7 +251,7 @@ export default function ExpensesPage() {
     URL.revokeObjectURL(url)
   }
 
-  const [gpayJobId, setGpayJobId] = useState<string | null>(null)
+  const [, setGpayJobId] = useState<string | null>(null)
   const [gpayDialogOpen, setGpayDialogOpen] = useState(false)
   const [gpayStep, setGpayStep] = useState<"idle" | "starting_export" | "export_in_progress" | "open_takeout" | "waiting_drive" | "importing" | "done" | "error">("idle")
   const [reauthStatus, setReauthStatus] = useState<"idle" | "reauth_started" | "reauth_complete" | "reauth_failed">("idle")
@@ -295,7 +272,7 @@ export default function ExpensesPage() {
   const [gpayConfirmForce, setGpayConfirmForce] = useState(false)
   const [gpayImportResult, setGpayImportResult] = useState<{ imported: number; skipped: number } | null>(null)
   const [gpayPendingFileId, setGpayPendingFileId] = useState<string | null>(null)
-  const [gpayPendingFileName, setGpayPendingFileName] = useState("")
+  const [, setGpayPendingFileName] = useState("")
   const [gpayPreviewPendingId, setGpayPreviewPendingId] = useState("")
   const [gpayReauthExportCreated, setGpayReauthExportCreated] = useState(true)
   const [gpayPreview, setGpayPreview] = useState<{
@@ -311,15 +288,6 @@ export default function ExpensesPage() {
     knownGpayFilesRef.current.add(id)
     localStorage.setItem("mymoney-gpay-known-files", JSON.stringify([...knownGpayFilesRef.current]))
   }, [])
-
-  // Persist pending GPay sync state across page navigations
-  const saveGpayPendingState = (step: string) => {
-    if (step === "waiting_drive" || step === "export_in_progress" || step === "importing") {
-      localStorage.setItem("mymoney-gpay-pending", JSON.stringify({ step, timestamp: Date.now() }))
-    } else {
-      localStorage.removeItem("mymoney-gpay-pending")
-    }
-  }
 
   // Resume pending sync on mount (MUST run before save effect below)
   // Check if a GPay file already arrived while we were away
@@ -474,6 +442,7 @@ export default function ExpensesPage() {
       }
     }
     pendingFileCheck()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Persist pending state across navigations (after resume effect, so it doesn't clear on mount)
@@ -750,7 +719,7 @@ export default function ExpensesPage() {
     finally { setScanning(false) }
   }
 
-  const handleDrivePreview = async (fileId: string, fileName: string) => {
+  const handleDrivePreview = async (fileId: string, _fileName: string) => {
     try {
       const res = await fetch("/api/drive/preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileId }) })
       const data = await res.json()
@@ -854,7 +823,7 @@ export default function ExpensesPage() {
       } else {
         toast.error("Failed to update expense")
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to update expense")
     }
   }
@@ -868,7 +837,7 @@ export default function ExpensesPage() {
         toast.success("Expense archived")
         loadData()
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to archive expense")
     }
   }
@@ -909,7 +878,7 @@ export default function ExpensesPage() {
         toast.success(`${ids.length} expense${ids.length > 1 ? "s" : ""} archived`)
         loadData()
       }
-    } catch (error) {
+    } catch {
       toast.error("Batch archive failed")
     }
   }
@@ -962,30 +931,6 @@ export default function ExpensesPage() {
     // No default
     }
   }
-
-  const handleClearFilters = () => {
-    setCategoryFilter([])
-    setVendorFilter([])
-    setPersonFilter([])
-    setPaymentModeFilter([])
-    setBankFilter([])
-    setSubCategoryFilter([])
-    setAmountMin("")
-    setAmountMax("")
-    setRecurrenceFilter([])
-    setVendorFilterMode("contains")
-    setSubCategoryFilterMode("contains")
-    setPage(1)
-  }
-
-  const SortHeader = ({ field, label, className }: { field: SortField; label: string; className?: string }) => (
-    <th className={`px-3 py-3 cursor-pointer select-none hover:text-foreground ${className}`} onClick={() => toggleSort(field)}>
-      <div className="flex items-center gap-1">
-        {label}
-        {sortField === field && <ArrowUpDown className={`h-3 w-3 ${sortDir === "desc" ? "rotate-180" : ""}`} />}
-      </div>
-    </th>
-  )
 
   return (
     <div className="space-y-2">
@@ -1045,7 +990,7 @@ export default function ExpensesPage() {
             <input type="file" accept=".xlsx,.xls,.csv,.json,.zip,.htm,.html" className="hidden" onChange={handleFileUpload} />
           </label>
 
-          <Button variant="outline" size="sm" onClick={() => setRefreshKey((k) => k + 1)}>
+          <Button variant="outline" size="sm" onClick={() => loadData()}>
             <RefreshCw className="mr-2 h-4 w-4" /> Refresh
           </Button>
 

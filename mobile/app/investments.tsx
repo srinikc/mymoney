@@ -6,19 +6,30 @@ import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
 
+interface InvestmentItem {
+  id: number;
+  name: string;
+  type: string;
+  symbol?: string;
+  amount: number;
+  value?: number;
+  currentValue?: number;
+  purchaseDate?: string;
+}
+
 const INVESTMENT_TYPES = ['stocks', 'mutual_funds', 'fd', 'ppf', 'nps', 'gold', 'real_estate', 'crypto', 'bonds', 'other'];
 
 export default function InvestmentsScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<InvestmentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalValue, setTotalValue] = useState(0);
   const [showForm, setShowForm] = useState(false);
-  const [editItem, setEditItem] = useState<any>(null);
+  const [editItem, setEditItem] = useState<InvestmentItem | null>(null);
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
@@ -34,7 +45,7 @@ export default function InvestmentsScreen() {
       const d = res.data;
       const list = Array.isArray(d?.investments) ? d.investments : Array.isArray(d) ? d : [];
       setData(list);
-      setTotalValue(list.reduce((sum: number, i: any) => sum + (i.currentValue || i.value || 0), 0));
+      setTotalValue(list.reduce((sum: number, i: InvestmentItem) => sum + (i.currentValue || i.value || 0), 0));
     } catch { setError('Failed to load investments'); }
     finally { setLoading(false); setRefreshing(false); }
   }, []);
@@ -46,7 +57,7 @@ export default function InvestmentsScreen() {
     setFormError(null); setShowForm(true);
   };
 
-  const openEdit = (item: any) => {
+  const openEdit = (item: InvestmentItem) => {
     setEditItem(item); setFormName(item.name || ''); setFormType(item.type || 'stocks'); setFormAmount(String(item.amount || ''));
     setFormCurrentValue(String(item.currentValue || item.value || '')); setFormPurchaseDate(item.purchaseDate?.split('T')[0] || new Date().toISOString().split('T')[0]);
     setFormError(null); setShowForm(true);
@@ -60,11 +71,11 @@ export default function InvestmentsScreen() {
       if (editItem) { await api.put(`/api/investments/${editItem.id}`, payload); }
       else { await api.post('/api/investments', payload); }
       setShowForm(false); fetch();
-    } catch (err: any) { setFormError(err?.response?.data?.error || 'Failed to save'); }
+    } catch (err) { const apiErr = err as { response?: { data?: { error?: string } }; message?: string }; setFormError(apiErr?.response?.data?.error || 'Failed to save'); }
     finally { setFormLoading(false); }
   };
 
-  const handleDelete = (item: any) => {
+  const handleDelete = (item: InvestmentItem) => {
     Alert.alert('Delete', `Delete "${item.name}"?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => { try { await api.delete(`/api/investments/${item.id}`); fetch(); } catch { Alert.alert('Error', 'Failed to delete'); } } },
@@ -83,7 +94,7 @@ export default function InvestmentsScreen() {
       {loading ? <View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View>
       : error ? <View style={styles.center}><Ionicons name="alert-circle" size={40} color={theme.expense} /><Text style={{ color: theme.expense, fontSize: 14 }}>{error}</Text></View>
       : (
-        <FlatList data={data} keyExtractor={(i, idx) => i.id || String(idx)}
+        <FlatList data={data} keyExtractor={(i, idx) => String(i.id ?? idx)}
           ListHeaderComponent={
             <View style={[styles.summaryCard, { backgroundColor: theme.primary }]}>
               <Text style={{ color: '#fff', opacity: 0.7, fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 }}>Portfolio Value</Text>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { getAllConfig, setConfig } from "@/lib/get-config"
+import { getAllConfig, setConfig, type ConfigKey } from "@/lib/get-config"
 
 const EDITABLE_API_KEYS = [
   "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "LLM_PROVIDER", "LLM_MODEL",
@@ -20,7 +20,8 @@ export async function GET() {
 
     return NextResponse.json({ keys })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("API keys GET error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -34,12 +35,13 @@ export async function PUT(req: Request) {
 
     for (const [key, value] of Object.entries(body.keys || {})) {
       if ((EDITABLE_API_KEYS as readonly string[]).includes(key) && typeof value === "string") {
-        await setConfig(userId, key as any, value)
+        await setConfig(userId, key as ConfigKey, value)
       }
     }
 
     return NextResponse.json({ ok: true })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("API keys PUT error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

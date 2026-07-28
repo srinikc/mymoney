@@ -25,7 +25,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
   try {
     await api.post('/api/users/push-token', { token, platform: Platform.OS });
-  } catch {}
+  } catch { /* ignore push token errors */ }
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
@@ -100,8 +100,9 @@ export async function checkBudgetAlerts() {
         );
       }
     }
-  } catch {}
+   } catch { /* ignore budget alert errors */ }
 }
+
 
 export function setupNotificationHandler() {
   Notifications.setNotificationHandler({

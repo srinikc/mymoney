@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
-import { requireRole } from "@/lib/roles"
+import { requireRole, type AuthUser } from "@/lib/roles"
 import bcrypt from "bcryptjs"
 
 /**
@@ -9,7 +9,7 @@ import bcrypt from "bcryptjs"
  */
 export async function GET() {
   const session = await auth()
-  const forbid = requireRole(session?.user as any, "admin")
+  const forbid = requireRole(session?.user as AuthUser, "admin")
   if (forbid) return forbid
 
   try {
@@ -52,7 +52,8 @@ export async function GET() {
 
   return NextResponse.json(result)
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Admin users GET error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -61,7 +62,7 @@ export async function GET() {
  */
 export async function POST(req: Request) {
   const session = await auth()
-  const forbid = requireRole(session?.user as any, "admin")
+  const forbid = requireRole(session?.user as AuthUser, "admin")
   if (forbid) return forbid
 
   try {

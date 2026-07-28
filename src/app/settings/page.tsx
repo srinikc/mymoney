@@ -1,11 +1,64 @@
 "use client"
 
+import { useState } from "react"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Bell, Shield, Plug, Mail, Key, Server, Smartphone, FileText, Building2, ArrowLeft } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Bell, Shield, Plug, Mail, Key, Server, Smartphone, FileText, Building2, Database, Download, Trash2, Loader2 } from "lucide-react"
 import Link from "next/link"
 
 export default function SettingsPage() {
+  const { data: session } = useSession()
+  const router = useRouter()
+  const isAdmin = (session?.user as Record<string, unknown> | undefined)?.role === "admin"
+  const [downloading, setDownloading] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDownload = async () => {
+    setDownloading(true)
+    try {
+      const res = await fetch("/api/export/my-data")
+      if (!res.ok) throw new Error("Export failed")
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `mymoney-export-${new Date().toISOString().split("T")[0]}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      alert("Failed to download data. Please try again.")
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      "ARE YOU SURE? This will permanently delete your account and ALL associated data (expenses, budgets, investments, etc.). This cannot be undone."
+    )
+    if (!confirmed) return
+    const doubleConfirm = window.confirm("This is your last chance. ALL data will be lost. Confirm deletion?")
+    if (!doubleConfirm) return
+
+    setDeleting(true)
+    try {
+      const res = await fetch("/api/account", { method: "DELETE" })
+      if (res.ok) {
+        router.push("/login")
+      } else {
+        const data = await res.json()
+        alert(data.error || "Failed to delete account")
+      }
+    } catch {
+      alert("Failed to delete account")
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -97,6 +150,57 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </Link>
+
+        {isAdmin && (
+          <Link href="/settings/database">
+            <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full border-amber-200 dark:border-amber-800">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <Database className="h-5 w-5 text-amber-500" />
+                  <CardTitle className="text-base">Database</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">Switch between production and test databases</p>
+                <Badge variant="outline" className="mt-2 text-xs border-amber-200 text-amber-700">Admin only</Badge>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
+
+        {/* Download My Data */}
+        <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <Download className="h-5 w-5 text-primary" />
+              <CardTitle className="text-base">Download My Data</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">Export all your data (expenses, budgets, investments, etc.) as a single JSON file</p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={handleDownload} disabled={downloading}>
+              {downloading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
+              {downloading ? "Exporting..." : "Download"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Delete Account */}
+        <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full border-red-200 dark:border-red-900">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              <CardTitle className="text-base">Delete Account</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">Permanently delete your account and all associated data</p>
+            <Button variant="destructive" size="sm" className="mt-3" onClick={handleDeleteAccount} disabled={deleting}>
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              {deleting ? "Deleting..." : "Delete Account"}
+            </Button>
+          </CardContent>
+        </Card>
 
         <Link href="/privacy">
           <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">

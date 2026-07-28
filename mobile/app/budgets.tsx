@@ -15,20 +15,30 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
-import { formatCurrency, formatDate } from '../utils/format';
+import { formatCurrency } from '../utils/format';
 import api from '../api/client';
+
+interface BudgetItem {
+  id?: string;
+  _id?: string;
+  name?: string;
+  category?: string;
+  amount?: number;
+  limit?: number;
+  spent?: number;
+}
 
 export default function BudgetsScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
 
-  const [budgets, setBudgets] = useState<any[]>([]);
+  const [budgets, setBudgets] = useState<BudgetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [editItem, setEditItem] = useState<any>(null);
+  const [editItem, setEditItem] = useState<BudgetItem | null>(null);
   const [formName, setFormName] = useState('');
   const [formAmount, setFormAmount] = useState('');
   const [formCategory, setFormCategory] = useState('');
@@ -60,15 +70,6 @@ export default function BudgetsScreen() {
     setShowForm(true);
   };
 
-  const openEdit = (item: any) => {
-    setEditItem(item);
-    setFormName(item.name || item.category || '');
-    setFormAmount(String(item.amount || item.limit || ''));
-    setFormCategory(item.category || '');
-    setFormError(null);
-    setShowForm(true);
-  };
-
   const handleSave = async () => {
     if (!formName.trim() || !formAmount || isNaN(parseFloat(formAmount))) {
       setFormError('Please fill all required fields');
@@ -89,8 +90,8 @@ export default function BudgetsScreen() {
       }
       setShowForm(false);
       fetch();
-    } catch (err: any) {
-      setFormError(err.response?.data?.message || 'Failed to save');
+    } catch (err: unknown) {
+      setFormError((err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to save');
     } finally {
       setFormLoading(false);
     }

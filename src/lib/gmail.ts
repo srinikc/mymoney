@@ -1,15 +1,19 @@
 const GMAIL_API = "https://gmail.googleapis.com/gmail/v1"
 
+export interface GmailMessagePart {
+  mimeType: string
+  body?: { data?: string; attachmentId?: string }
+  parts?: GmailMessagePart[]
+  filename?: string
+}
+
 export interface GmailMessage {
   id: string
   threadId: string
   snippet: string
   internalDate: string
-  payload: {
+  payload: GmailMessagePart & {
     headers: { name: string; value: string }[]
-    parts?: { mimeType: string; body: { data?: string; attachmentId?: string } }[]
-    body?: { data?: string }
-    mimeType: string
   }
 }
 
@@ -72,12 +76,11 @@ export function parseMessage(msg: GmailMessage): ParsedEmail {
     headers[h.name.toLowerCase()] = h.value
   }
 
-  const parts = msg.payload.parts || (msg.payload.body ? [msg.payload] : [])
   let bodyText = ""
   let bodyHtml = ""
   const attachments: ParsedEmail["attachments"] = []
 
-  function extractParts(parts: any[]) {
+  function extractParts(parts: GmailMessagePart[]) {
     for (const part of parts) {
       if (part.mimeType === "text/plain" && part.body?.data) {
         bodyText = Buffer.from(part.body.data, "base64").toString("utf-8")

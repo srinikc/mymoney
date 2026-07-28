@@ -6,11 +6,22 @@ import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
 
+interface Suggestion {
+  expenseId: string;
+  matchType: string;
+  targetId?: string;
+  targetName?: string;
+  expenseVendor: string;
+  expenseDate: string;
+  expenseAmount: number;
+  matchLabel?: string;
+}
+
 export default function AutoLinkScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [accepted, setAccepted] = useState<Set<string>>(new Set());
@@ -26,7 +37,7 @@ export default function AutoLinkScreen() {
 
   useEffect(() => { fetch(); }, [fetch]);
 
-  const handleAccept = async (s: any) => {
+  const handleAccept = async (s: Suggestion) => {
     const key = `${s.expenseId}-${s.matchType}-${s.targetId || s.targetName}`;
     try {
       await api.post('/api/auto-link/accept', { expenseId: s.expenseId, linkType: s.matchType, targetId: s.targetId || s.expenseId });

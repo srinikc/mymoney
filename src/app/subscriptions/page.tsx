@@ -67,8 +67,8 @@ export default function SubscriptionsPage() {
       setOpen(false)
       setForm({ name: "", provider: "", amount: "", billingCycle: "monthly", nextDueDate: "", category: "entertainment", notes: "" })
       loadData()
-    } catch (err: any) {
-      toast.error(err.message || "Failed to add subscription")
+    } catch (err: unknown) {
+      toast.error((err as Error).message || "Failed to add subscription")
     }
   }
 

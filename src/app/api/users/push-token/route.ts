@@ -19,6 +19,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Push token error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

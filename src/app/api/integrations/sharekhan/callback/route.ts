@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("Sharekhan callback error:", error)
     const redirectUrl = new URL(
-      "/settings/integrations?sharekhan=error&message=" + encodeURIComponent(String(error)),
+      "/settings/integrations?sharekhan=error&message=Authentication+failed",
       req.nextUrl.origin
     )
     return NextResponse.redirect(redirectUrl)

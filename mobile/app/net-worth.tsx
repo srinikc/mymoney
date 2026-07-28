@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme, RefreshControl, ActivityIndicator,
+  View, Text, TouchableOpacity, StyleSheet, useColorScheme, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
@@ -8,11 +8,19 @@ import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
 
+interface NetWorthData {
+  assets?: number;
+  totalAssets?: number;
+  liabilities?: number;
+  totalLiabilities?: number;
+  breakdown?: Record<string, number>;
+}
+
 export default function NetWorthScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<NetWorthData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,9 +70,9 @@ export default function NetWorthScreen() {
           {data?.breakdown && (
             <View style={[styles.detailCard, { backgroundColor: theme.surface }]}>
               <Text style={{ color: theme.text, fontSize: 15, fontWeight: '700', marginBottom: 12 }}>Breakdown</Text>
-              {Object.entries(data.breakdown).map(([key, value]: [string, any]) => (
+              {Object.entries(data.breakdown).map(([key, value]: [string, unknown]) => (
                 <View key={key} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
-                  <Text style={{ color: theme.textSecondary, fontSize: 13, textTransform: 'capitalize' }}>{key.replace(/([A-Z])/g, ' $1')}</Text>
+                  <Text style={{ color: theme.textSecondary, fontSize: 13, textTransform: 'capitalize' }}>{key.replaceAll(/([A-Z])/g, ' $1')}</Text>
                   <Text style={{ color: theme.text, fontSize: 13, fontWeight: '600' }}>{formatCurrency(Number(value) || 0)}</Text>
                 </View>
               ))}

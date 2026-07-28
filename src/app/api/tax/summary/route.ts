@@ -38,9 +38,9 @@ export async function GET(req: Request) {
       fy,
       grossTotalIncome,
       incomeSources: { monthly: totalMonthly, yearly: totalYearly, oneTime: totalOneTime, variable: totalVariable },
-      salaryIncome: form16?.metadata ? (form16.metadata as any).grossSalary || 0 : 0,
-      tdsFromForm16: form16?.metadata ? (form16.metadata as any).tds || 0 : 0,
-      tdsFrom26AS: form26as?.metadata ? (form26as.metadata as any).tdsDeducted || 0 : 0,
+      salaryIncome: form16?.metadata ? (form16.metadata as Record<string, unknown>).grossSalary || 0 : 0,
+      tdsFromForm16: form16?.metadata ? (form16.metadata as Record<string, unknown>).tds || 0 : 0,
+      tdsFrom26AS: form26as?.metadata ? (form26as.metadata as Record<string, unknown>).tdsDeducted || 0 : 0,
       documentsCount: documents.length,
     })
   } catch {

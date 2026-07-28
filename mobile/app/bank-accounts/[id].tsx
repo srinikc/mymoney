@@ -1,10 +1,40 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme, RefreshControl, ActivityIndicator, TextInput, Alert, ScrollView } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme, ActivityIndicator, TextInput, Alert, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { formatCurrency, formatDate } from '../../utils/format';
 import api from '../../api/client';
+
+interface AccountDetail {
+  id: number;
+  bankName: string;
+  name: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  balance: number;
+  fixedDeposits: FD[];
+}
+
+interface FD {
+  id: number;
+  fdNumber?: string;
+  principal: number;
+  interestRate?: number;
+  startDate?: string;
+  maturityDate?: string;
+  maturityAmount?: number;
+  status?: string;
+}
+
+interface TxnItem {
+  id: number;
+  vendor?: string;
+  description?: string;
+  date: string;
+  category?: string;
+  amount: number;
+}
 
 export default function BankAccountDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -12,15 +42,15 @@ export default function BankAccountDetailScreen() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
 
-  const [account, setAccount] = useState<any>(null);
+  const [account, setAccount] = useState<AccountDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<'transactions' | 'fds'>('transactions');
   const [search, setSearch] = useState('');
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [txnPage, setTxnPage] = useState(1);
-  const [txnTotalPages, setTxnTotalPages] = useState(1);
+  const [transactions, setTransactions] = useState<TxnItem[]>([]);
+  const [, setTxnPage] = useState(1);
+  const [, setTxnTotalPages] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [editingBalance, setEditingBalance] = useState(false);
   const [balanceValue, setBalanceValue] = useState('');
@@ -49,7 +79,7 @@ export default function BankAccountDetailScreen() {
 
   const fetchTransactions = useCallback(async (targetPage = 1, append = false) => {
     try {
-      const params: any = { page: String(targetPage), pageSize: '50' };
+      const params: Record<string, string | undefined> = { page: String(targetPage), pageSize: '50' };
       if (search) params.search = search;
       const res = await api.get(`/api/bank-accounts/${id}/transactions`, { params });
       const d = res.data;
@@ -76,20 +106,13 @@ export default function BankAccountDetailScreen() {
     }
   }, [tab, fetchTransactions]);
 
-  const loadMore = () => {
-    if (txnPage < txnTotalPages && !loadingMore) {
-      setLoadingMore(true);
-      fetchTransactions(txnPage + 1, true);
-    }
-  };
-
   const handleSaveBalance = async () => {
     const val = parseFloat(balanceValue);
     if (isNaN(val)) return;
     setBalanceLoading(true);
     try {
       await api.put(`/api/bank-accounts/${id}`, { balance: val });
-      setAccount((prev: any) => ({ ...prev, balance: val }));
+      setAccount((prev: AccountDetail | null) => ({ ...prev, balance: val }));
       setEditingBalance(false);
     } catch {
       Alert.alert('Error', 'Failed to update balance');
@@ -123,7 +146,7 @@ export default function BankAccountDetailScreen() {
     }
   };
 
-  const handleDeleteFd = (fd: any) => {
+  const handleDeleteFd = (fd: FD) => {
     Alert.alert('Delete FD', `Delete FD "${fd.fdNumber || `#${fd.id}`}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -210,7 +233,7 @@ export default function BankAccountDetailScreen() {
           {['transactions', 'fds'].map((t) => (
             <TouchableOpacity
               key={t}
-              onPress={() => setTab(t as any)}
+              onPress={() => setTab(t as 'transactions' | 'fds')}
               style={[styles.tab, { backgroundColor: tab === t ? theme.primary : theme.surface, borderColor: tab === t ? theme.primary : theme.border }]}
             >
               <Text style={{ color: tab === t ? '#fff' : theme.text, fontSize: 13, fontWeight: '600' }}>
@@ -287,7 +310,7 @@ export default function BankAccountDetailScreen() {
                 <Text style={{ color: theme.textSecondary }}>No Fixed Deposits</Text>
               </View>
             ) : (
-              fds.map((fd: any) => (
+              fds.map((fd: FD) => (
                 <TouchableOpacity key={fd.id} onLongPress={() => handleDeleteFd(fd)} activeOpacity={0.7}>
                   <View style={[styles.card, { backgroundColor: theme.surface }]}>
                     <View style={styles.fdRow}>

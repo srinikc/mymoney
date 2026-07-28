@@ -6,6 +6,17 @@ import { Colors } from '../constants/Colors';
 import { formatCurrency, formatDate } from '../utils/format';
 import api from '../api/client';
 
+interface InsuranceItem {
+  id: number;
+  name: string;
+  type: string;
+  provider?: string;
+  premium: number;
+  premiumFrequency: string;
+  startDate?: string;
+  renewalDate?: string;
+}
+
 const INSURANCE_TYPES = ['health', 'term_life', 'motor', 'other'];
 const FREQUENCIES = ['monthly', 'quarterly', 'half_yearly', 'yearly'];
 
@@ -13,12 +24,12 @@ export default function InsuranceScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<InsuranceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [editItem, setEditItem] = useState<any>(null);
+  const [editItem, setEditItem] = useState<InsuranceItem | null>(null);
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
@@ -45,7 +56,7 @@ export default function InsuranceScreen() {
     setFormStartDate(new Date().toISOString().split('T')[0]); setFormError(null); setShowForm(true);
   };
 
-  const openEdit = (item: any) => {
+  const openEdit = (item: InsuranceItem) => {
     setEditItem(item); setFormName(item.name || ''); setFormType(item.type || 'health'); setFormProvider(item.provider || '');
     setFormPremium(String(item.premium || '')); setFormFrequency(item.premiumFrequency || 'yearly');
     setFormStartDate(item.startDate?.split('T')[0] || new Date().toISOString().split('T')[0]); setFormError(null); setShowForm(true);
@@ -59,11 +70,11 @@ export default function InsuranceScreen() {
       if (editItem) { await api.put(`/api/insurance/${editItem.id}`, payload); }
       else { await api.post('/api/insurance', payload); }
       setShowForm(false); fetch();
-    } catch (err: any) { setFormError(err?.response?.data?.error || 'Failed to save'); }
+    } catch (err: unknown) { setFormError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to save'); }
     finally { setFormLoading(false); }
   };
 
-  const handleDelete = (item: any) => {
+  const handleDelete = (item: InsuranceItem) => {
     Alert.alert('Delete', `Delete "${item.name}"?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => { try { await api.delete(`/api/insurance/${item.id}`); fetch(); } catch { Alert.alert('Error', 'Failed to delete'); } } },

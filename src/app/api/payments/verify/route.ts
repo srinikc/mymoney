@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
-import crypto from "crypto"
+import crypto from "node:crypto"
 import { z } from "zod"
 
 const VerifySchema = z.object({

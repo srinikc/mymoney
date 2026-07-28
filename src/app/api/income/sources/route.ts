@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
-import { isViewer } from "@/lib/roles"
+import { isViewer, type AuthUser } from "@/lib/roles"
 import { validateBody } from "@/shared/validate"
 import { IncomeSourceCreateSchema } from "@/shared/income-validation"
 
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
   try {
     const session = await auth()
     if (!session?.user?.id) {
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-    if (isViewer(session?.user as any)) {
+    if (isViewer(session?.user as AuthUser)) {
       return NextResponse.json({ error: "Viewers cannot modify data" }, { status: 403 })
     }
     const profileId = (session.user as unknown as { profileId?: number }).profileId

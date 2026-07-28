@@ -14,7 +14,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
-import { formatDate } from '../utils/format';
 import api from '../api/client';
 
 interface SharedMember {
@@ -36,7 +35,7 @@ export default function FamilyScreen() {
 
   const [sent, setSent] = useState<SharedMember[]>([]);
   const [received, setReceived] = useState<SharedMember[]>([]);
-  const [profiles, setProfiles] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,8 +81,8 @@ export default function FamilyScreen() {
       setEmail('');
       setRole('viewer');
       fetchData();
-    } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.error || 'Failed to invite');
+    } catch (err: unknown) {
+      Alert.alert('Error', (err as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to invite');
     } finally {
       setInviting(false);
     }
@@ -178,7 +177,7 @@ export default function FamilyScreen() {
 
               <Text style={[styles.label, { color: theme.textSecondary }]}>Profile</Text>
               <View style={styles.row}>
-                {profiles.map((p: any) => (
+                {profiles.map((p) => (
                   <TouchableOpacity
                     key={p.id}
                     style={[

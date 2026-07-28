@@ -20,7 +20,7 @@ export async function POST() {
       "subject:(debited OR credited) (balance) after:2026-06-01",
     ]
 
-    const allMessages = new Map<string, any>()
+    const allMessages = new Map<string, unknown>()
     for (const query of queries) {
       const msgs = await listMessages(accessToken, query, 15)
       for (const m of msgs) {
@@ -56,7 +56,7 @@ export async function POST() {
 
     for (const update of balanceUpdates) {
       // Match by last 4 digits of account number
-      const suffix = update.accountNumber.replace(/\D/g, "").slice(-4)
+      const suffix = update.accountNumber.replaceAll(/\D/g, "").slice(-4)
       const match = accounts.find((a) => a.accountNumber?.endsWith(suffix))
       if (match) {
         await prisma.bankAccount.update({
@@ -77,6 +77,7 @@ export async function POST() {
       message: `Updated ${updated} account(s), ${skipped} unmatched (add those accounts in Settings first)`,
     })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Sync balances error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

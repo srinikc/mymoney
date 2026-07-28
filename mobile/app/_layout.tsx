@@ -16,7 +16,6 @@ export default function RootLayout() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const { isLoggedIn, isLoading, checkAuth } = useAuthStore();
   const [ready, setReady] = useState(false);
-  const [biometricDone, setBiometricDone] = useState(false);
   const biometricPrompted = useRef(false);
   const pathname = usePathname();
 
@@ -27,7 +26,7 @@ export default function RootLayout() {
       await SplashScreen.hideAsync();
     }
     init();
-  }, []);
+  }, [checkAuth]);
 
   // Biometric lock check after auth is confirmed
   useEffect(() => {

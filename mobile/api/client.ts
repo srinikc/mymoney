@@ -27,7 +27,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       await SecureStore.deleteItemAsync(TOKEN_KEY)
     }
-    return Promise.reject(error)
+    throw error;
   }
 )
 

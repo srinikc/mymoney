@@ -121,6 +121,7 @@ function GoalFormDialog({
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<GoalFormValues>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(goalFormSchema) as any,
     defaultValues: defaultFormValues,
   })

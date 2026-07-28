@@ -1,6 +1,6 @@
 import { prisma } from "./prisma"
 
-type ConfigKey =
+export type ConfigKey =
   | "OPENAI_API_KEY"
   | "ANTHROPIC_API_KEY"
   | "LLM_PROVIDER"
@@ -13,6 +13,8 @@ type ConfigKey =
   | "NEXT_PUBLIC_BASE_URL"
   | "AUTH_GOOGLE_ID"
   | "AUTH_GOOGLE_SECRET"
+  | "DATABASE_URL"
+  | "AUTH_SECRET"
 
 const ENV_FALLBACK: Record<string, string | undefined> = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
@@ -28,9 +30,6 @@ const ENV_FALLBACK: Record<string, string | undefined> = {
   AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID,
   AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET,
 }
-
-// Cache for the current request to avoid repeated DB calls
-let configCache: Record<string, string> | null = null
 
 export async function getConfig(key: ConfigKey, userId?: number): Promise<string | undefined> {
   // Try DB first if userId is provided

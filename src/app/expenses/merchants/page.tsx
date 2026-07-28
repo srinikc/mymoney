@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { MerchantsSkeleton } from "@/components/ui/page-skeleton"
 import type { Category } from "@/types"
-import { SaveAll, Loader2, CheckCircle2, AlertCircle, Upload, Store, Search, Edit3, Trash2 } from "lucide-react"
+import { SaveAll, Loader2, CheckCircle2, AlertCircle, Upload, Search, Edit3, Trash2 } from "lucide-react"
 
 interface UnmappedMerchant {
   key: string

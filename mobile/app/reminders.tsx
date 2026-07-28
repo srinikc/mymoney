@@ -9,11 +9,23 @@ import { formatDate } from '../utils/format';
 import { scheduleReminderNotification, cancelReminderNotification } from '../lib/notifications';
 import api from '../api/client';
 
+interface ReminderItem {
+  id?: string;
+  _id?: string;
+  title?: string;
+  name?: string;
+  description?: string;
+  date?: string;
+  dueDate?: string;
+  reminderDate?: string;
+  status?: string;
+}
+
 export default function RemindersScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<ReminderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +59,7 @@ export default function RemindersScreen() {
       }
       setShowForm(false);
       fetch();
-    } catch (err: any) { setFormError(err.response?.data?.message || 'Failed to save'); }
+    } catch (err) { const apiErr = err as { response?: { data?: { message?: string } }; message?: string }; setFormError(apiErr.response?.data?.message || 'Failed to save'); }
     finally { setFormLoading(false); }
   };
 
@@ -75,12 +87,12 @@ export default function RemindersScreen() {
 
       {loading ? <View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View>
       : error ? <View style={styles.center}><Ionicons name="alert-circle" size={40} color={theme.expense} /><Text style={{ color: theme.expense, fontSize: 14, fontWeight: '500' }}>{error}</Text></View>
-      : <FlatList data={data} keyExtractor={(i, idx) => i.id || i._id || String(idx)}
+      : <FlatList data={data} keyExtractor={(i, idx) => String(i.id ?? i._id ?? idx)}
           renderItem={({ item }) => {
-            const dueDate = new Date(item.date || item.dueDate || item.reminderDate);
+            const dueDate = new Date(item.date || item.dueDate || item.reminderDate || '');
             const isPast = dueDate < new Date();
             return (
-              <TouchableOpacity style={[styles.card, { backgroundColor: theme.surface }]} onLongPress={() => handleDelete(item.id || item._id)}>
+              <TouchableOpacity style={[styles.card, { backgroundColor: theme.surface }]} onLongPress={() => handleDelete(item.id ?? item._id ?? '')}>
                 <View style={styles.cardRow}>
                   <View style={[styles.cardIcon, { backgroundColor: isPast ? theme.expenseLight : theme.incomeLight }]}><Ionicons name="notifications" size={18} color={isPast ? theme.expense : theme.income} /></View>
                   <View style={{ flex: 1 }}>
@@ -88,7 +100,7 @@ export default function RemindersScreen() {
                     {item.description ? <Text style={[styles.cardSubtext, { color: theme.textTertiary }]}>{item.description}</Text> : null}
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ color: isPast ? theme.expense : theme.textSecondary, fontSize: 12, fontWeight: '600' }}>{formatDate(item.date || item.dueDate)}</Text>
+                    <Text style={{ color: isPast ? theme.expense : theme.textSecondary, fontSize: 12, fontWeight: '600' }}>{formatDate(item.date || item.dueDate || new Date().toISOString())}</Text>
                     {item.status ? <View style={[styles.statusBadge, { backgroundColor: item.status === 'completed' ? theme.incomeLight : theme.warningLight }]}><Text style={{ color: item.status === 'completed' ? theme.income : theme.warning, fontSize: 10, fontWeight: '700' }}>{item.status}</Text></View> : null}
                   </View>
                 </View>

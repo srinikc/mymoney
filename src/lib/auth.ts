@@ -6,9 +6,13 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
 import type { Adapter } from "next-auth/adapters"
 import bcrypt from "bcryptjs"
+import { logAudit } from "@/shared/middleware/audit"
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma) as Adapter,
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: 24 * 60 * 60, // 24 hours — session expires after this from login
+  },
   pages: {
     signIn: "/login",
     error: "/login",
@@ -17,7 +21,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     Google({
       clientId: process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET || "",
-      allowDangerousEmailAccountLinking: true,
+      allowDangerousEmailAccountLinking: false,
     }),
     ...(process.env.AUTH_RESEND_KEY
       ? [
@@ -56,11 +60,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         })
 
         if (!user || !user.hashedPassword) {
+          // Log failed login attempt (user not found or no password set)
+          try {
+            const foundUser = user // user exists but no hashedPassword
+            if (foundUser) {
+              const profile = await prisma.profile.findFirst({ where: { userId: foundUser.id, isDefault: true }, select: { id: true } })
+              if (profile) await logAudit(profile.id, "login_failed", "user", foundUser.id, `Failed login attempt for ${email} (no password set)`)
+            }
+          } catch { /* ignore */ }
           return null
         }
 
         const isValid = await bcrypt.compare(password, user.hashedPassword)
         if (!isValid) {
+          // Log failed login attempt (wrong password)
+          try {
+            const profile = await prisma.profile.findFirst({ where: { userId: user.id, isDefault: true }, select: { id: true } })
+            if (profile) await logAudit(profile.id, "login_failed", "user", user.id, `Failed login attempt for ${email} (wrong password)`)
+          } catch { /* ignore */ }
           return null
         }
 
@@ -74,8 +91,43 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
+  events: {
+    async signIn({ user }) {
+      try {
+        const profile = await prisma.profile.findFirst({
+          where: { userId: Number(user.id), isDefault: true },
+          select: { id: true },
+        })
+        if (profile) {
+          await logAudit(profile.id, "login", "user", Number(user.id), `User ${user.email} logged in`)
+        }
+      } catch { /* ignore */ }
+    },
+    async signOut(message: { session?: unknown; token?: unknown }) {
+      const t = message.token as { id?: number; profileId?: number } | undefined
+      const profileId = t?.profileId
+      if (profileId) {
+        try {
+          await logAudit(profileId, "logout", "user", t?.id, "User logged out")
+        } catch { /* ignore */ }
+      }
+    },
+  },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
+      // Idle timeout: if token has a lastActivity and trigger is not "signIn", check idle
+      if (token.lastActivity && trigger !== "signIn") {
+        const idleMs = Date.now() - (token.lastActivity as number)
+        const idleMinutes = Math.floor(idleMs / 60_000)
+        // Auto-logout after 2 hours of inactivity
+        if (idleMinutes >= 120) {
+          return {}
+        }
+      }
+
+      // Update last activity timestamp
+      token.lastActivity = Date.now()
+
       if (user) {
         token.id = Number(user.id)
         token.role = (user as unknown as Record<string, unknown>).role as string || "user"
@@ -95,6 +147,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return token
     },
     async session({ session, token }) {
+      if (!token.id) {
+        // Token expired or invalid — return empty session (forces re-login on client)
+        return { ...session, user: { ...session.user, id: undefined as unknown as number } }
+      }
       const sUser = session.user as unknown as {
         id: number
         role?: string

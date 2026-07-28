@@ -6,7 +6,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   try {
     const session = await auth()
     if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const { id, fdId } = await params
+    const { fdId } = await params
     const body = await req.json()
 
     if (body.maturityDate && body.startDate && new Date(body.maturityDate) <= new Date(body.startDate)) {
@@ -28,7 +28,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     })
     return NextResponse.json(fd)
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("FD PUT error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -36,10 +37,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   try {
     const session = await auth()
     if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const { id, fdId } = await params
+    const { fdId } = await params
     await prisma.fixedDeposit.delete({ where: { id: Number(fdId) } })
     return NextResponse.json({ ok: true })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("FD DELETE error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

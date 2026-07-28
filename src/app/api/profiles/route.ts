@@ -6,7 +6,7 @@ import { PLANS, type PlanId } from "@/lib/pricing"
 /**
  * GET /api/profiles — List all profiles for the authenticated user.
  */
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
   const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

@@ -12,7 +12,7 @@ export default async function globalSetup() {
   if (!csrfToken) throw new Error("Could not get CSRF token")
 
   // POST to credentials callback directly
-  const res = await page.request.post("http://localhost:3005/api/auth/callback/credentials", {
+  await page.request.post("http://localhost:3005/api/auth/callback/credentials", {
     form: {
       csrfToken,
       email: "test@example.com",

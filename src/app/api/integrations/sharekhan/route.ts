@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
     })
   } catch (error) {
     console.error("Sharekhan API error:", error)
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -145,6 +145,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 })
   } catch (error) {
     console.error("Sharekhan import error:", error)
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

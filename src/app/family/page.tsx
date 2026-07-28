@@ -1,13 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { Users, UserPlus, UserMinus, Mail, CheckCircle2, XCircle, Loader2 } from "lucide-react"
+import { Users, UserPlus, UserMinus, Mail, CheckCircle2, Loader2 } from "lucide-react"
+
+interface ProfileOption {
+  id: number
+  name: string
+}
 
 interface SharedMember {
   id: number
@@ -24,14 +29,14 @@ interface SharedMember {
 export default function FamilyPage() {
   const [sent, setSent] = useState<SharedMember[]>([])
   const [received, setReceived] = useState<SharedMember[]>([])
-  const [profiles, setProfiles] = useState<any[]>([])
+  const [profiles, setProfiles] = useState<ProfileOption[]>([])
   const [loading, setLoading] = useState(true)
   const [email, setEmail] = useState("")
   const [role, setRole] = useState("viewer")
   const [profileId, setProfileId] = useState("")
   const [inviting, setInviting] = useState(false)
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
       const [membersRes, profilesRes] = await Promise.all([
@@ -47,9 +52,10 @@ export default function FamilyPage() {
     } finally {
       setLoading(false)
     }
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => { fetchData() }, [fetchData])
 
   const handleInvite = async () => {
     if (!email || !profileId) { toast.error("Email and profile required"); return }
@@ -64,7 +70,7 @@ export default function FamilyPage() {
       toast.success("Invitation sent!")
       setEmail("")
       fetchData()
-    } catch (err: any) { toast.error(err.message) }
+    } catch (err: unknown) { toast.error((err as Error).message) }
     finally { setInviting(false) }
   }
 
@@ -106,7 +112,7 @@ export default function FamilyPage() {
               <Select value={profileId} onValueChange={setProfileId}>
                 <SelectTrigger><SelectValue placeholder="Select profile" /></SelectTrigger>
                 <SelectContent>
-                  {profiles.map((p: any) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+                  {profiles.map((p: ProfileOption) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

@@ -13,7 +13,6 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import {
   EXPENSE_CATEGORIES,
@@ -23,14 +22,22 @@ import {
   formatFullDate,
 } from '../../utils/format';
 import api from '../../api/client';
+
+interface TransactionPayload {
+  amount: number;
+  category: string;
+  name: string;
+  notes: string;
+  date: string;
+  paymentMode: string;
+  type: 'expense' | 'income';
+}
 import TransactionConfirm from '../../components/ui/TransactionConfirm';
 import Toast from '../../components/ui/Toast';
 
 export default function CreateScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
-  const router = useRouter();
-
   const [transactionType, setTransactionType] = useState<'expense' | 'income'>('expense');
   const [amount, setAmount] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -43,7 +50,7 @@ export default function CreateScreen() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [pendingPayload, setPendingPayload] = useState<any>(null);
+  const [pendingPayload, setPendingPayload] = useState<TransactionPayload | null>(null);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' });
 
   const categories = transactionType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
@@ -66,7 +73,7 @@ export default function CreateScreen() {
     setError(null);
   };
 
-  const submitTransaction = useCallback(async (payload: any) => {
+  const submitTransaction = useCallback(async (payload: TransactionPayload) => {
     setLoading(true);
     try {
       if (payload.type === 'expense') {
@@ -80,8 +87,9 @@ export default function CreateScreen() {
         setShowSuccess(false);
         resetForm();
       }, 1500);
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Failed to save. Please try again.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? (err as { response?: { data?: { message?: string } } }).response?.data?.message || err.message : 'Failed to save. Please try again.';
+      setError(message);
       setToast({ visible: true, message: 'Failed to save', type: 'error' });
     } finally {
       setLoading(false);
@@ -117,16 +125,6 @@ export default function CreateScreen() {
     } else {
       submitTransaction(payload);
     }
-  };
-
-  const handleKeyPress = (digit: string) => {
-    if (digit === '.' && amount.includes('.')) return;
-    if (amount.length >= 12) return;
-    setAmount((prev) => prev + digit);
-  };
-
-  const handleBackspace = () => {
-    setAmount((prev) => prev.slice(0, -1));
   };
 
   return (
@@ -209,7 +207,7 @@ export default function CreateScreen() {
                 style={[styles.amountInput, { color: theme.text }]}
                 value={amount}
                 onChangeText={(t) => {
-                  const cleaned = t.replace(/[^0-9.]/g, '');
+                  const cleaned = t.replaceAll(/[^\d.]/g, '');
                   if ((cleaned.match(/\./g) || []).length <= 1) {
                     setAmount(cleaned);
                   }
@@ -308,7 +306,7 @@ export default function CreateScreen() {
                   activeOpacity={0.7}
                 >
                   <Ionicons
-                    name={mode.icon as any}
+                    name={mode.icon as keyof typeof Ionicons.glyphMap}
                     size={16}
                     color={selectedMode === mode.value ? theme.white : theme.textSecondary}
                   />

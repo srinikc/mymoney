@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
+import type { PrismaClient } from "@prisma/client"
 
 interface ImportTransaction {
   type: string
@@ -9,7 +10,7 @@ interface ImportTransaction {
   vendor?: string
   category?: string
   messageId: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export async function POST(req: Request) {
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
     const { prisma } = await import("@/lib/prisma")
     const profileId = (session.user as unknown as { profileId?: number }).profileId
     const body = await req.json()
-    const { sessionId, transactions } = body as { sessionId: number; transactions: ImportTransaction[] }
+    const { transactions } = body as { transactions: ImportTransaction[] }
 
     let imported = 0
 
@@ -29,6 +30,7 @@ export async function POST(req: Request) {
         switch (t.type) {
           case "expense": {
             const catMap = await getCategoryId(prisma, t.category || "Other")
+            if (!catMap) break // skip if no category found
             await prisma.expense.create({
               data: {
                 profileId: profileId || undefined,
@@ -160,17 +162,18 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ imported, total: transactions.length })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error("Gmail import error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
-async function getCategoryId(prisma: any, name: string) {
+async function getCategoryId(prisma: PrismaClient, name: string) {
   const existing = await prisma.category.findFirst({ where: { name, type: "expense" } })
   if (existing) return existing
   return prisma.category.findFirst({ where: { name: "Other", type: "expense" } }) || { id: 13 }
 }
 
-async function getOrCreateCategory(prisma: any, name: string, type: string) {
+async function getOrCreateCategory(prisma: PrismaClient, name: string, type: string) {
   const existing = await prisma.category.findFirst({ where: { name, type } })
   if (existing) return existing
   return prisma.category.create({ data: { name, type, icon: type === "income" ? "wallet" : "circle", color: "#6366f1" } })

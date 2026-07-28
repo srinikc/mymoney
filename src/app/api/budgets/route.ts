@@ -76,8 +76,7 @@ async function checkBudgetThreshold(budgetId: number, userId: number) {
         data: { type: "budget_warning", budgetId: budget.id, pct },
       })
     }
-  } catch {
-  }
+  } catch { /* ignore threshold check errors */ }
 }
 
 export async function POST(req: Request) {

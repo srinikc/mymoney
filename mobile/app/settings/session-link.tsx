@@ -13,7 +13,7 @@ export default function SessionLinkScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
-  const { user } = useAuthStore();
+  useAuthStore();
 
   const [token, setToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -24,7 +24,7 @@ export default function SessionLinkScreen() {
       try {
         const res = await api.get('/api/auth/session-token');
         if (res.data?.token) setToken(res.data.token);
-      } catch {} finally {
+      } catch { /* ignore */ } finally {
         setLoading(false);
       }
     };
@@ -37,7 +37,7 @@ export default function SessionLinkScreen() {
       await Clipboard.setStringAsync(token);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {}
+    } catch { /* ignore */ }
   };
 
   return (

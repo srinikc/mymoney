@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import { prisma } from "@/lib/prisma"
 
 const SETTINGS_KEY = "mobile_preferences"
 
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { profileId, userId, role } = await getAuthContext()
+    // userId auto-checked by getAuthContext
 
     const setting = await prisma.userSetting.findUnique({
-      where: { userId_key: { userId: Number(session.user.id), key: SETTINGS_KEY } },
+      where: { userId_key: { userId: userId, key: SETTINGS_KEY } },
     })
 
     return NextResponse.json(setting?.value || {
@@ -26,11 +26,10 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { profileId, userId, role } = await getAuthContext()
+    // userId auto-checked by getAuthContext
 
     const body = await req.json()
-    const userId = Number(session.user.id)
 
     const existing = await prisma.userSetting.findUnique({
       where: { userId_key: { userId, key: SETTINGS_KEY } },

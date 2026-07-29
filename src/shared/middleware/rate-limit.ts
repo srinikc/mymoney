@@ -1,19 +1,50 @@
-// Simple in-memory rate limiter
-// For production, replace with Redis-based implementation
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs"
+import { join } from "node:path"
 
-export const TIER_LIMITS: Record<string, { limit: number; windowMs: number }> = {
-  free: { limit: 100, windowMs: 60_000 },
-  pro: { limit: 500, windowMs: 60_000 },
-  enterprise: { limit: 2000, windowMs: 60_000 },
+export { TIER_LIMITS, TIER_KEYS, getTierLimit } from "./rate-limit-config"
+
+interface RateEntry {
+  count: number
+  resetAt: number
 }
 
-export const TIER_KEYS = Object.keys(TIER_LIMITS)
+const STORE_PATH = join(process.cwd(), "data", "rate-limit.json")
 
-const requestCounts = new Map<string, { count: number; resetAt: number }>()
-
-export function getTierLimit(tier?: string | null): { limit: number; windowMs: number } {
-  return TIER_LIMITS[tier || "free"] || TIER_LIMITS.free
+function readStore(): Record<string, RateEntry> {
+  try {
+    if (!existsSync(STORE_PATH)) return {}
+    return JSON.parse(readFileSync(STORE_PATH, "utf8"))
+  } catch { return {} }
 }
+
+function writeStore(data: Record<string, RateEntry>): void {
+  try {
+    mkdirSync(join(process.cwd(), "data"), { recursive: true })
+    writeFileSync(STORE_PATH, JSON.stringify(data, null, 2))
+  } catch { /* best effort */ }
+}
+
+let cache: Record<string, RateEntry> = readStore()
+let dirty = false
+
+setInterval(() => {
+  if (dirty) {
+    writeStore(cache)
+    dirty = false
+  }
+}, 10_000)
+
+setInterval(() => {
+  const now = Date.now()
+  let changed = false
+  for (const [key, entry] of Object.entries(cache)) {
+    if (now > entry.resetAt) {
+      delete cache[key]
+      changed = true
+    }
+  }
+  if (changed) dirty = true
+}, 5 * 60 * 1000)
 
 export function checkRateLimit(
   ip: string,
@@ -23,14 +54,16 @@ export function checkRateLimit(
   const now = Date.now()
   const key = ip
 
-  const entry = requestCounts.get(key)
+  const entry = cache[key]
 
   if (!entry || now > entry.resetAt) {
-    requestCounts.set(key, { count: 1, resetAt: now + windowMs })
+    cache[key] = { count: 1, resetAt: now + windowMs }
+    dirty = true
     return { allowed: true, remaining: maxRequests - 1, resetAt: new Date(now + windowMs) }
   }
 
   entry.count++
+  dirty = true
   const remaining = maxRequests - entry.count
 
   if (entry.count > maxRequests) {
@@ -40,12 +73,7 @@ export function checkRateLimit(
   return { allowed: true, remaining, resetAt: new Date(entry.resetAt) }
 }
 
-// Cleanup old entries every 5 minutes
-setInterval(() => {
-  const now = Date.now()
-  for (const [key, entry] of requestCounts) {
-    if (now > entry.resetAt) {
-      requestCounts.delete(key)
-    }
-  }
-}, 5 * 60 * 1000)
+export function resetRateLimiter(): void {
+  cache = {}
+  dirty = true
+}

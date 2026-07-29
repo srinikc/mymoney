@@ -10,14 +10,11 @@ import api from '../api/client';
 
 const KEY_FIELDS = [
   { key: 'LLM_PROVIDER', label: 'LLM Provider', type: 'select' as const, description: 'Choose AI provider for financial advisor' },
-  { key: 'OPENAI_API_KEY', label: 'OpenAI API Key', type: 'password' as const, description: 'Required if using OpenAI' },
+  { key: 'LLM_MODEL', label: 'LLM Model', type: 'text' as const, description: 'e.g. gpt-4o-mini, claude-3-haiku-20240307, or local model name' },
+  { key: 'OPENAI_API_KEY', label: 'OpenAI API Key', type: 'password' as const, description: 'Required if using OpenAI Compatible' },
   { key: 'ANTHROPIC_API_KEY', label: 'Anthropic API Key', type: 'password' as const, description: 'Required if using Claude' },
-  { key: 'LLM_MODEL', label: 'LLM Model', type: 'text' as const, description: 'e.g. gpt-4o-mini' },
-  { key: 'AUTH_RESEND_KEY', label: 'Resend API Key', type: 'password' as const, description: 'For welcome emails' },
-  { key: 'ZERODHA_API_KEY', label: 'Zerodha API Key', type: 'password' as const, description: 'For Zerodha Kite API' },
-  { key: 'ZERODHA_API_SECRET', label: 'Zerodha API Secret', type: 'password' as const, description: 'Zerodha Kite secret' },
-  { key: 'SHAREKHAN_API_KEY', label: 'Sharekhan API Key', type: 'password' as const, description: 'For Sharekhan API' },
-  { key: 'SHAREKHAN_API_SECRET', label: 'Sharekhan API Secret', type: 'password' as const, description: 'Sharekhan secret' },
+  { key: 'LOCAL_LLM_ENDPOINT', label: 'Local LLM Endpoint', type: 'text' as const, description: 'e.g. http://localhost:11434/v1 (Ollama)' },
+  { key: 'AUTH_RESEND_KEY', label: 'Resend API Key', type: 'password' as const, description: 'For welcome emails via resend.com' },
 ];
 
 export default function ApiKeysScreen() {
@@ -71,13 +68,13 @@ export default function ApiKeysScreen() {
             <Text style={[styles.fieldDesc, { color: theme.textTertiary }]}>{field.description}</Text>
             {field.type === 'select' ? (
               <View style={styles.selectRow}>
-                {['openai', 'claude'].map((opt) => (
+                {['openai', 'claude', 'local'].map((opt) => (
                   <TouchableOpacity
                     key={opt}
                     style={[styles.selectOpt, { borderColor: (keys[field.key] || 'openai') === opt ? theme.primary : theme.border, backgroundColor: (keys[field.key] || 'openai') === opt ? theme.primaryLight : 'transparent' }]}
                     onPress={() => setKeys({ ...keys, [field.key]: opt })}
                   >
-                    <Text style={[styles.selectOptText, { color: (keys[field.key] || 'openai') === opt ? theme.primary : theme.text }]}>{opt === 'openai' ? 'OpenAI' : 'Claude'}</Text>
+                    <Text style={[styles.selectOptText, { color: (keys[field.key] || 'openai') === opt ? theme.primary : theme.text }]}>{opt === 'openai' ? 'OpenAI Compatible' : opt === 'claude' ? 'Anthropic Claude' : 'Local LLMs'}</Text>
                   </TouchableOpacity>
                 ))}
               </View>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import { PLANS } from "@/lib/pricing"
 import Razorpay from "razorpay"
 import { z } from "zod"
@@ -20,10 +20,8 @@ const CreateOrderSchema = z.object({
 })
 
 export async function POST(req: Request) {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const { profileId, userId, role } = await getAuthContext()
+  // userId auto-checked by getAuthContext
 
   let body: z.infer<typeof CreateOrderSchema>
   try {
@@ -42,7 +40,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid plan" }, { status: 400 })
   }
 
-  const userId = Number(session.user.id)
   const amountInPaise = plan.price * 100
 
   try {

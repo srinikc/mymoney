@@ -18,15 +18,12 @@ interface KeyField {
 }
 
 const KEY_FIELDS: KeyField[] = [
-  { key: "LLM_PROVIDER", label: "LLM Provider", type: "select", description: "Choose AI provider for the financial advisor chatbot", options: [{ value: "openai", label: "OpenAI" }, { value: "claude", label: "Anthropic Claude" }] },
-  { key: "OPENAI_API_KEY", label: "OpenAI API Key", type: "password", description: "Required if using OpenAI as LLM provider" },
+  { key: "LLM_PROVIDER", label: "LLM Provider", type: "select", description: "Choose AI provider for the financial advisor chatbot", options: [{ value: "openai", label: "OpenAI Compatible" }, { value: "claude", label: "Anthropic Claude" }, { value: "local", label: "Local LLMs" }] },
+  { key: "LLM_MODEL", label: "LLM Model", type: "text", description: "e.g. gpt-4o-mini (OpenAI), claude-3-haiku-20240307 (Claude), or local model name" },
+  { key: "OPENAI_API_KEY", label: "OpenAI API Key", type: "password", description: "Required if using OpenAI Compatible (covers OpenAI, Azure, Groq, etc.)" },
   { key: "ANTHROPIC_API_KEY", label: "Anthropic API Key", type: "password", description: "Required if using Claude as LLM provider" },
-  { key: "LLM_MODEL", label: "LLM Model", type: "text", description: "e.g. gpt-4o-mini (OpenAI) or claude-3-haiku-20240307 (Claude)" },
-  { key: "AUTH_RESEND_KEY", label: "Resend API Key", type: "password", description: "For sending welcome emails and magic links" },
-  { key: "ZERODHA_API_KEY", label: "Zerodha API Key", type: "password", description: "For Zerodha Kite API integration" },
-  { key: "ZERODHA_API_SECRET", label: "Zerodha API Secret", type: "password", description: "Zerodha Kite API secret" },
-  { key: "SHAREKHAN_API_KEY", label: "Sharekhan API Key", type: "password", description: "For Sharekhan API integration" },
-  { key: "SHAREKHAN_API_SECRET", label: "Sharekhan API Secret", type: "password", description: "Sharekhan API secret" },
+  { key: "LOCAL_LLM_ENDPOINT", label: "Local LLM Endpoint", type: "text", description: "e.g. http://localhost:11434/v1/chat/completions (Ollama) or http://localhost:1234/v1 (LM Studio)" },
+  { key: "AUTH_RESEND_KEY", label: "Resend API Key", type: "password", description: "For sending welcome emails and magic links via resend.com" },
 ]
 
 export default function ApiKeysSettingsPage() {

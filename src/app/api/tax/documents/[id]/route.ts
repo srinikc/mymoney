@@ -8,10 +8,6 @@ import path from "node:path"
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
     const { id } = await params
 
     const doc = await prisma.taxDocument.findFirst({
@@ -29,13 +25,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
     if (isViewer(session?.user as AuthUser)) {
       return NextResponse.json({ error: "Viewers cannot modify data" }, { status: 403 })
     }
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
+
     const { id } = await params
 
     const doc = await prisma.taxDocument.findFirst({

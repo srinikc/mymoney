@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { profileId, userId, role } = await getAuthContext()
+    // userId auto-checked by getAuthContext
     const { id } = await params
 
     const account = await prisma.bankAccount.findUnique({
@@ -23,8 +23,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { profileId, userId, role } = await getAuthContext()
+    // userId auto-checked by getAuthContext
     const { id } = await params
     const body = await req.json()
 
@@ -51,8 +51,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { profileId, userId, role } = await getAuthContext()
+    // userId auto-checked by getAuthContext
     const { id } = await params
 
     await prisma.bankAccount.delete({ where: { id: Number(id) } })

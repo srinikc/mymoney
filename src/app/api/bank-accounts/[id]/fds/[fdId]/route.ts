@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string; fdId: string }> }) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { profileId, userId, role } = await getAuthContext()
+    // userId auto-checked by getAuthContext
     const { fdId } = await params
     const body = await req.json()
 
@@ -35,8 +35,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string; fdId: string }> }) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { profileId, userId, role } = await getAuthContext()
+    // userId auto-checked by getAuthContext
     const { fdId } = await params
     await prisma.fixedDeposit.delete({ where: { id: Number(fdId) } })
     return NextResponse.json({ ok: true })

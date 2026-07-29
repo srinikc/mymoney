@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import { getAllConfig, setConfig, type ConfigKey } from "@/lib/get-config"
 
 const EDITABLE_API_KEYS = [
@@ -11,10 +11,10 @@ const EDITABLE_API_KEYS = [
 
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { profileId, userId, role } = await getAuthContext()
+    // userId auto-checked by getAuthContext
 
-    const config = await getAllConfig(Number(session.user.id))
+    const config = await getAllConfig(userId)
     const keys: Record<string, string | undefined> = {}
     for (const k of EDITABLE_API_KEYS) keys[k] = config[k]
 
@@ -27,11 +27,10 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { profileId, userId, role } = await getAuthContext()
+    // userId auto-checked by getAuthContext
 
     const body = await req.json()
-    const userId = Number(session.user.id)
 
     for (const [key, value] of Object.entries(body.keys || {})) {
       if ((EDITABLE_API_KEYS as readonly string[]).includes(key) && typeof value === "string") {

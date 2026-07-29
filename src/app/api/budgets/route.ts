@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import { sendPushToUser } from "@/lib/expo-push"
 import { validateBody } from "@/shared/validate"
 import { BudgetCreateSchema } from "@/shared/validation"
@@ -82,8 +82,7 @@ async function checkBudgetThreshold(budgetId: number, userId: number) {
 export async function POST(req: Request) {
   const { data: body, error } = await validateBody(req, BudgetCreateSchema)
   if (error) return error
-  const session = await auth()
-
+  const { profileId, userId, role } = await getAuthContext()
   const budget = await prisma.budget.create({
     data: {
       categoryId: body.categoryId,
@@ -94,8 +93,8 @@ export async function POST(req: Request) {
     include: { category: true },
   })
 
-  if (session?.user?.id) {
-    checkBudgetThreshold(budget.id, Number(session.user.id)).catch(() => {})
+  if (userId) {
+    checkBudgetThreshold(budget.id, userId).catch(() => {})
   }
 
   return NextResponse.json(budget, { status: 201 })
@@ -104,16 +103,15 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   const body = await req.json()
   if (!body.id) return NextResponse.json({ error: "id required" }, { status: 400 })
-  const session = await auth()
-
+  const { profileId, userId, role } = await getAuthContext()
   const budget = await prisma.budget.update({
     where: { id: Number.parseInt(body.id) },
     data: { amount: Number.parseFloat(body.amount) },
     include: { category: true },
   })
 
-  if (session?.user?.id) {
-    checkBudgetThreshold(budget.id, Number(session.user.id)).catch(() => {})
+  if (userId) {
+    checkBudgetThreshold(budget.id, userId).catch(() => {})
   }
 
   return NextResponse.json(budget)

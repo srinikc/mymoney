@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import { prisma } from "@/lib/prisma"
 
 export async function POST() {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
-
-    const { getAccessToken, listMessages, getMessage, parseMessage } = await import("@/lib/gmail")
+    const { profileId, userId, role } = await getAuthContext()
+    // userId auto-checked by getAuthContext
+    // profileId from getAuthContext
     const { parseEmail } = await import("@/lib/gmail-parser")
 
-    const accessToken = await getAccessToken(Number(session.user.id))
+    const accessToken = await getAccessToken(userId)
 
     // Fetch recent bank alert emails
     const queries = [

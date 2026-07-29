@@ -8,11 +8,6 @@ import { IncomeSourceUpdateSchema } from "@/shared/income-validation"
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
     const { id } = await params
     const where: { id: number; profileId?: number } = { id: Number.parseInt(id) }
     if (profileId) where.profileId = profileId
@@ -32,17 +27,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     if (isViewer(session?.user as AuthUser)) {
       return NextResponse.json({ error: "Viewers cannot modify data" }, { status: 403 })
     }
 
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
-    const { id } = await params
-    const { data: body, error } = await validateBody(req, IncomeSourceUpdateSchema)
+    // profileId from getAuthContext
     if (error) return error
 
     const data: Record<string, unknown> = {}
@@ -90,15 +79,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     if (isViewer(session?.user as AuthUser)) {
       return NextResponse.json({ error: "Viewers cannot modify data" }, { status: 403 })
     }
 
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
     const { id } = await params
     const deleteWhere: { id: number; profileId?: number } = { id: Number.parseInt(id) }
     if (profileId) deleteWhere.profileId = profileId

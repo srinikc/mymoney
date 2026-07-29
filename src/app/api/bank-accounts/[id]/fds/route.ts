@@ -24,6 +24,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const { profileId, userId, role } = await getAuthContext()
     // userId auto-checked by getAuthContext
     // profileId from getAuthContext
+    const { id } = await params
+    const body = await req.json()
     if (body.maturityDate && body.startDate && new Date(body.maturityDate) <= new Date(body.startDate)) {
       return NextResponse.json({ error: "Maturity date must be after start date" }, { status: 400 })
     }

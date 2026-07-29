@@ -30,6 +30,7 @@ export async function POST(req: Request) {
     const { profileId, userId, role } = await getAuthContext()
     // userId auto-checked by getAuthContext
     // profileId from getAuthContext
+    const body = await req.json()
     if (!body.bankName?.trim()) return NextResponse.json({ error: "Bank name is required" }, { status: 400 })
 
     const account = await prisma.bankAccount.create({

@@ -6,8 +6,7 @@ export async function POST(req: Request) {
   try {
     const { profileId, userId, role } = await getAuthContext()
     // userId auto-checked by getAuthContext
-
-    // profileId from getAuthContext
+    const body = await req.json()
     const { expenseId, linkType, targetId } = body
 
     if (!expenseId || !linkType || !targetId) {

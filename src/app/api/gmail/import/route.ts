@@ -20,6 +20,7 @@ export async function POST(req: Request) {
 
     const { prisma } = await import("@/lib/prisma")
     // profileId from getAuthContext
+    const body = await req.json()
     const { transactions } = body as { transactions: ImportTransaction[] }
 
     let imported = 0

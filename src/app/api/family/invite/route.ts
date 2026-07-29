@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 
 export async function POST(req: Request) {
-  const { profileId, userId, role } = await getAuthContext()
+  const { profileId: authProfileId, userId, role: authRole } = await getAuthContext()
   // userId auto-checked by getAuthContext
 
   let body: { profileId?: number; email?: string; role?: string }

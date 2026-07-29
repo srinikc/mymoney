@@ -7,6 +7,7 @@ export async function GET(req: Request) {
     const { profileId, userId, role } = await getAuthContext()
     // userId auto-checked by getAuthContext
     // profileId from getAuthContext
+    const { searchParams } = new URL(req.url)
     const fy = searchParams.get("fy") || "2025-26"
 
     const where = profileId ? { profileId } : {}

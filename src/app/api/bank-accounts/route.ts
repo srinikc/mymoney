@@ -1,12 +1,16 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 
 export async function GET() {
-  try {
-    const { profileId, userId, role } = await getAuthContext()
-    // userId auto-checked by getAuthContext
-    // profileId from getAuthContext
+    const { profileId } = await getAuthContext()
+
+    const accounts = await prisma.bankAccount.findMany({
+      where: profileId ? { profileId } : {},
+      include: { fixedDeposits: true },
+      orderBy: { createdAt: "desc" },
+    })
+
     const enriched = accounts.map((a) => ({
       ...a,
       transactionCount: 0,
@@ -19,17 +23,11 @@ export async function GET() {
     )
 
     return NextResponse.json({ accounts: enriched, totals })
-  } catch (error) {
-    console.error("Bank accounts GET error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
 }
 
 export async function POST(req: Request) {
-  try {
-    const { profileId, userId, role } = await getAuthContext()
-    // userId auto-checked by getAuthContext
-    // profileId from getAuthContext
+    const { profileId } = await getAuthContext()
+
     const body = await req.json()
     if (!body.bankName?.trim()) return NextResponse.json({ error: "Bank name is required" }, { status: 400 })
 
@@ -50,8 +48,4 @@ export async function POST(req: Request) {
     })
 
     return NextResponse.json(account, { status: 201 })
-  } catch (error) {
-    console.error("Bank accounts POST error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
 }

@@ -1,15 +1,9 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
-import { isViewer, type AuthUser } from "@/lib/roles"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 
 export async function GET(req: Request) {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
+    const { profileId } = await getAuthContext()
     const { searchParams } = new URL(req.url)
     const ay = searchParams.get("ay")
 
@@ -21,21 +15,13 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
     })
     return NextResponse.json(records)
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
 }
 
 export async function POST(req: Request) {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-    if (isViewer(session?.user as AuthUser)) {
+    const { profileId, role } = await getAuthContext()
+    if (role === "viewer") {
       return NextResponse.json({ error: "Viewers cannot modify data" }, { status: 403 })
     }
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
 
     const body = await req.json()
     const { ay, itrForm, status, filedDate, acknowledgmentNo, refundAmount, taxableIncome, taxLiability, tdsClaimed, notes } = body
@@ -67,7 +53,4 @@ export async function POST(req: Request) {
       },
     })
     return NextResponse.json(record, { status: 201 })
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
 }

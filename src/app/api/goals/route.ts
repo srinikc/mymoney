@@ -1,27 +1,23 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import { validateBody } from "@/shared/validate"
 import { GoalCreateSchema } from "@/shared/validation"
 
 export async function GET() {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const { profileId, userId, role } = await getAuthContext()
+  // userId auto-checked by getAuthContext
 
   const goals = await prisma.goal.findMany({
-    where: { profileId: session.user.profileId },
+    where: { profileId: profileId },
     orderBy: { createdAt: "desc" },
   })
   return NextResponse.json(goals)
 }
 
 export async function POST(req: Request) {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const { profileId, userId, role } = await getAuthContext()
+  // userId auto-checked by getAuthContext
 
   const { data: body, error } = await validateBody(req, GoalCreateSchema)
   if (error) return error
@@ -39,7 +35,7 @@ export async function POST(req: Request) {
       monthlyContribution: body.monthlyContribution ? Number(body.monthlyContribution) : null,
       notes: body.notes || null,
       status: body.status || "active",
-      profileId: session.user.profileId,
+      profileId: profileId,
     },
   })
   return NextResponse.json(goal, { status: 201 })

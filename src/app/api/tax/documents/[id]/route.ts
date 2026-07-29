@@ -13,7 +13,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
     const profileId = (session.user as unknown as { profileId?: number }).profileId
     const { id } = await params
-
     const doc = await prisma.taxDocument.findFirst({
       where: { id: Number(id), ...(profileId ? { profileId } : {}) },
     })
@@ -37,19 +36,16 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     }
     const profileId = (session.user as unknown as { profileId?: number }).profileId
     const { id } = await params
-
     const doc = await prisma.taxDocument.findFirst({
       where: { id: Number(id), ...(profileId ? { profileId } : {}) },
     })
     if (!doc) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 })
     }
-
     try {
       const fullPath = path.join(process.cwd(), "public", doc.filePath)
       await unlink(fullPath)
     } catch { /* ignore file cleanup errors */ }
-
     await prisma.taxDocument.delete({ where: { id: doc.id } })
     return NextResponse.json({ message: "Document deleted" })
   } catch {

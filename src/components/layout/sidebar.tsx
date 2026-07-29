@@ -42,6 +42,7 @@ import {
   HelpCircle,
   Link2,
   Mail,
+  Server,
 } from "lucide-react"
 import { useUIStore } from "@/lib/store"
 import { ProfileSwitcher } from "./profile-switcher"
@@ -85,6 +86,7 @@ const adminItems = [
   { href: "/admin/profiles", label: "Profiles", icon: UserCircle },
   { href: "/admin/features", label: "Feature Flags", icon: ToggleLeft },
   { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText },
+  { href: "/settings/environment", label: "Environment", icon: Server },
   { href: "/setup-guide", label: "Setup Guide", icon: BookOpen },
 ]
 

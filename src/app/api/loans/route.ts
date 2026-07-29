@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 
 export async function GET(_req: Request) {
   try {
-    const session = await auth()
-    if (!session?.user?.profileId) {
+    const { profileId, userId, role } = await getAuthContext()
+    if (!profileId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const loans = await prisma.loan.findMany({
-      where: { profileId: session.user.profileId },
+      where: { profileId: profileId },
       orderBy: { createdAt: "desc" },
     })
 
@@ -22,8 +22,8 @@ export async function GET(_req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const session = await auth()
-    if (!session?.user?.profileId) {
+    const { profileId, userId, role } = await getAuthContext()
+    if (!profileId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
     const loan = await prisma.loan.create({
       data: {
-        profileId: session.user.profileId,
+        profileId: profileId,
         name,
         type: type || "Other",
         principal,

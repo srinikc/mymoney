@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Stack, SplashScreen, usePathname } from 'expo-router';
+import { Stack, SplashScreen, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme, View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { useAuthStore } from '../store/auth';
@@ -18,6 +18,7 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const biometricPrompted = useRef(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     async function init() {
@@ -49,6 +50,16 @@ export default function RootLayout() {
       }
     }).catch(() => {});
   }, [ready, isLoggedIn]);
+
+  // Redirect to onboarding for first-time users
+  useEffect(() => {
+    if (!isLoggedIn || pathname === '/onboarding' || pathname === '/login') return;
+    api.get('/api/onboarding').then((r) => {
+      if (r.data && !r.data.completed) {
+        router.replace('/onboarding');
+      }
+    }).catch(() => {});
+  }, [isLoggedIn, pathname, router]);
 
   // Push notification registration and handler setup
   useEffect(() => {
@@ -134,6 +145,26 @@ export default function RootLayout() {
             />
             <Stack.Screen
               name="settings"
+              options={{ presentation: 'card' }}
+            />
+            <Stack.Screen
+              name="onboarding"
+              options={{ presentation: 'card' }}
+            />
+            <Stack.Screen
+              name="environment"
+              options={{ presentation: 'card' }}
+            />
+            <Stack.Screen
+              name="api-keys"
+              options={{ presentation: 'card' }}
+            />
+            <Stack.Screen
+              name="auto-link"
+              options={{ presentation: 'card' }}
+            />
+            <Stack.Screen
+              name="gmail-import"
               options={{ presentation: 'card' }}
             />
           </>

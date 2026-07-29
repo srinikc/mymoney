@@ -16,10 +16,22 @@ interface Asset {
 interface Liability {
   id: number; name: string; type: string; amount: number; interestRate: number | null; dueDate: string | null; notes: string | null
 }
+interface NetWorthData {
+  totalAssets: number
+  totalLiabilities: number
+  netWorth: number
+  breakdown: {
+    userAssets: number
+    investments: number
+    bankBalance: number
+    fixedDeposits: number
+  }
+}
 
 export default function NetWorthPage() {
   const [assets, setAssets] = useState<Asset[]>([])
   const [liabilities, setLiabilities] = useState<Liability[]>([])
+  const [summary, setSummary] = useState<NetWorthData | null>(null)
   const [loading, setLoading] = useState(true)
   const [assetOpen, setAssetOpen] = useState(false)
   const [liabOpen, setLiabOpen] = useState(false)
@@ -28,8 +40,12 @@ export default function NetWorthPage() {
 
   const load = useCallback(async () => {
     try {
-      const [a, l] = await Promise.all([fetch("/api/assets").then(r => r.json()), fetch("/api/liabilities").then(r => r.json())])
-      setAssets(a); setLiabilities(l)
+      const [a, l, s] = await Promise.all([
+        fetch("/api/assets").then(r => r.json()),
+        fetch("/api/liabilities").then(r => r.json()),
+        fetch("/api/net-worth").then(r => r.json()),
+      ])
+      setAssets(a); setLiabilities(l); setSummary(s)
     } catch {
       setAssets([]); setLiabilities([])
     } finally {
@@ -38,10 +54,6 @@ export default function NetWorthPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
-
-  const totalAssets = assets.reduce((s, a) => s + a.amount, 0)
-  const totalLiabilities = liabilities.reduce((s, l) => s + l.amount, 0)
-  const netWorth = totalAssets - totalLiabilities
 
   const addAsset = async () => {
     await fetch("/api/assets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(assetForm) })
@@ -58,6 +70,8 @@ export default function NetWorthPage() {
 
   if (loading) return <CardGridSkeleton />
 
+  const s = summary || { totalAssets: 0, totalLiabilities: 0, netWorth: 0, breakdown: { userAssets: 0, investments: 0, bankBalance: 0, fixedDeposits: 0 } }
+
   return (
     <div className="space-y-6">
       <div>
@@ -68,15 +82,34 @@ export default function NetWorthPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><TrendingUp className="h-4 w-4 text-emerald-500" /> Total Assets</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalAssets)}</p></CardContent>
+          <CardContent><p className="text-2xl font-bold text-emerald-600">{formatCurrency(s.totalAssets)}</p></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><TrendingDown className="h-4 w-4 text-red-500" /> Total Liabilities</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-red-600">{formatCurrency(totalLiabilities)}</p></CardContent>
+          <CardContent><p className="text-2xl font-bold text-red-600">{formatCurrency(s.totalLiabilities)}</p></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><WalletCards className="h-4 w-4 text-primary" /> Net Worth</CardTitle></CardHeader>
-          <CardContent><p className={`text-2xl font-bold ${netWorth >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatCurrency(netWorth)}</p></CardContent>
+          <CardContent><p className={`text-2xl font-bold ${s.netWorth >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatCurrency(s.netWorth)}</p></CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="border-emerald-200 dark:border-emerald-800">
+          <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Manual Assets</CardTitle></CardHeader>
+          <CardContent><p className="text-lg font-semibold text-emerald-600">{formatCurrency(s.breakdown.userAssets)}</p></CardContent>
+        </Card>
+        <Card className="border-blue-200 dark:border-blue-800">
+          <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Investments & Shares</CardTitle></CardHeader>
+          <CardContent><p className="text-lg font-semibold text-blue-600">{formatCurrency(s.breakdown.investments)}</p></CardContent>
+        </Card>
+        <Card className="border-purple-200 dark:border-purple-800">
+          <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Bank Balance</CardTitle></CardHeader>
+          <CardContent><p className="text-lg font-semibold text-purple-600">{formatCurrency(s.breakdown.bankBalance)}</p></CardContent>
+        </Card>
+        <Card className="border-amber-200 dark:border-amber-800">
+          <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Fixed Deposits</CardTitle></CardHeader>
+          <CardContent><p className="text-lg font-semibold text-amber-600">{formatCurrency(s.breakdown.fixedDeposits)}</p></CardContent>
         </Card>
       </div>
 
@@ -94,7 +127,6 @@ export default function NetWorthPage() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="bank">Bank Account</SelectItem>
-                      <SelectItem value="investment">Investment</SelectItem>
                       <SelectItem value="property">Property</SelectItem>
                       <SelectItem value="vehicle">Vehicle</SelectItem>
                       <SelectItem value="cash">Cash</SelectItem>

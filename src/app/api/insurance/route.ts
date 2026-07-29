@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 
 export async function GET(_req: Request) {
   try {
-    const session = await auth()
-    if (!session?.user?.profileId) {
+    const { profileId, userId, role } = await getAuthContext()
+    if (!profileId) {
       return NextResponse.json([], { status: 200 })
     }
     const insurance = await prisma.insurance.findMany({
-      where: { profileId: session.user.profileId },
+      where: { profileId: profileId },
       orderBy: { createdAt: "desc" },
     })
     return NextResponse.json(insurance)
@@ -20,14 +20,14 @@ export async function GET(_req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const session = await auth()
-    if (!session?.user?.profileId) {
+    const { profileId, userId, role } = await getAuthContext()
+    if (!profileId) {
       return NextResponse.json({ error: "Internal server error" }, { status: 401 })
     }
     const body = await req.json()
     const insurance = await prisma.insurance.create({
       data: {
-        profileId: session.user.profileId,
+        profileId: profileId,
         name: body.name,
         type: body.type || "Other",
         provider: body.provider || null,

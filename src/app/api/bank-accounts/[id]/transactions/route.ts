@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import type { Prisma } from "@prisma/client"
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { profileId, userId, role } = await getAuthContext()
+    // userId auto-checked by getAuthContext
     const { id } = await params
     const url = new URL(req.url)
     const page = Math.max(1, Number(url.searchParams.get("page")) || 1)

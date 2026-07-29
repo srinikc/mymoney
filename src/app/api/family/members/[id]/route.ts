@@ -1,17 +1,14 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 
 export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const { profileId, userId, role } = await getAuthContext()
+  // userId auto-checked by getAuthContext
 
-  const userId = Number(session.user.id)
   const { id } = await params
   const inviteId = Number(id)
 

@@ -1,17 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
-import { isViewer, type AuthUser } from "@/lib/roles"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import { validateBody } from "@/shared/validate"
 import { IncomeSourceCreateSchema } from "@/shared/income-validation"
 
 export async function GET(_req: Request) {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
+    const { profileId } = await getAuthContext()
 
     const where = profileId ? { profileId } : {}
 
@@ -21,21 +15,13 @@ export async function GET(_req: Request) {
       orderBy: { createdAt: "desc" },
     })
     return NextResponse.json(sources)
-    } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
 }
 
 export async function POST(req: Request) {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-    if (isViewer(session?.user as AuthUser)) {
+    const { profileId, role } = await getAuthContext()
+    if (role === "viewer") {
       return NextResponse.json({ error: "Viewers cannot modify data" }, { status: 403 })
     }
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
 
     const { data: body, error } = await validateBody(req, IncomeSourceCreateSchema)
     if (error) return error
@@ -81,7 +67,4 @@ export async function POST(req: Request) {
       include: { category: true },
     })
     return NextResponse.json(source, { status: 201 })
-    } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
 }

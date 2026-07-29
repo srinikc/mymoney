@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import { validateBody } from "@/shared/validate"
 import { GoalUpdateSchema } from "@/shared/validation"
 
@@ -16,11 +16,9 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params
-    const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-  const goal = await getOwnedGoal(Number(id), session.user.profileId)
+    const { profileId, userId, role } = await getAuthContext()
+  // userId auto-checked by getAuthContext
+  const goal = await getOwnedGoal(Number(id), profileId)
   if (!goal) return NextResponse.json({ error: "Not found" }, { status: 404 })
   return NextResponse.json(goal)
 }
@@ -30,11 +28,9 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params
-    const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-  const goal = await getOwnedGoal(Number(id), session.user.profileId)
+    const { profileId, userId, role } = await getAuthContext()
+  // userId auto-checked by getAuthContext
+  const goal = await getOwnedGoal(Number(id), profileId)
   if (!goal) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
   const { data: body, error } = await validateBody(req, GoalUpdateSchema)
@@ -66,11 +62,9 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params
-    const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-  const goal = await getOwnedGoal(Number(id), session.user.profileId)
+    const { profileId, userId, role } = await getAuthContext()
+  // userId auto-checked by getAuthContext
+  const goal = await getOwnedGoal(Number(id), profileId)
   if (!goal) return NextResponse.json({ error: "Not found" }, { status: 404 })
   await prisma.goal.delete({ where: { id: Number(id) } })
   return NextResponse.json({ success: true })

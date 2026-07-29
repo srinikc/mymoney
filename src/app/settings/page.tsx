@@ -76,24 +76,27 @@ export default function SettingsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">Configure LLM (OpenAI/Claude), Resend, Zerodha, and Sharekhan API keys</p>
+              <p className="text-sm text-muted-foreground">Configure LLM (OpenAI/Claude) and Resend API keys</p>
             </CardContent>
           </Card>
         </Link>
 
-        <Link href="/settings/environment">
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <Server className="h-5 w-5 text-primary" />
-                <CardTitle className="text-base">Environment</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">View and override env config: DB URL, Auth secret, Google OAuth, App URL</p>
-            </CardContent>
-          </Card>
-        </Link>
+        {isAdmin && (
+          <Link href="/settings/environment">
+            <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full border-amber-200 dark:border-amber-800">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <Server className="h-5 w-5 text-amber-500" />
+                  <CardTitle className="text-base">Environment</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">View and override env config: DB URL, Auth secret, Google OAuth, App URL</p>
+                <Badge variant="outline" className="mt-2 text-xs border-amber-200 text-amber-700">Admin only</Badge>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
 
         <Link href="/settings/bank-accounts">
           <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">

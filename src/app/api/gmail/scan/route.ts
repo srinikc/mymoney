@@ -1,20 +1,20 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import type { ParserKeywords } from "@/lib/gmail-parser"
 
 export async function POST() {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { profileId, userId, role } = await getAuthContext()
+    // userId auto-checked by getAuthContext
 
     const { getAccessToken, listMessages, getMessage, parseMessage } = await import("@/lib/gmail")
     const { parseEmail, DEFAULT_KEYWORDS } = await import("@/lib/gmail-parser")
     const { prisma } = await import("@/lib/prisma")
-    const accessToken = await getAccessToken(Number(session.user.id))
+    const accessToken = await getAccessToken(userId)
 
     // Load custom keywords if configured
     const setting = await prisma.userSetting.findUnique({
-      where: { userId_key: { userId: Number(session.user.id), key: "gmail_parser_keywords" } },
+      where: { userId_key: { userId: userId, key: "gmail_parser_keywords" } },
       select: { value: true },
     })
     const kw = (setting?.value || DEFAULT_KEYWORDS) as ParserKeywords

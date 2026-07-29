@@ -1,7 +1,7 @@
 ﻿import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { jwtVerify } from "jose"
-import { getTierLimit } from "@/shared/middleware/rate-limit"
+import { getTierLimit } from "@/shared/middleware/rate-limit-config"
 
 const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET || "")
 

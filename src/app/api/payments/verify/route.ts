@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import crypto from "node:crypto"
 import { z } from "zod"
 
@@ -12,10 +12,8 @@ const VerifySchema = z.object({
 })
 
 export async function POST(req: Request) {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const { profileId, userId, role } = await getAuthContext()
+  // userId auto-checked by getAuthContext
 
   let body: z.infer<typeof VerifySchema>
   try {
@@ -37,8 +35,6 @@ export async function POST(req: Request) {
   if (expectedSignature !== body.razorpay_signature) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
   }
-
-  const userId = Number(session.user.id)
 
   const payment = await prisma.payment.findUnique({
     where: { orderId: body.razorpay_order_id },

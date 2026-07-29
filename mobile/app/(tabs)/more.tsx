@@ -85,7 +85,6 @@ const MENU_SECTIONS: MenuSection[] = [
     items: [
       { title: 'Settings', icon: 'settings-outline', route: '/settings' },
       { title: 'API Keys', icon: 'key-outline', route: '/api-keys' },
-      { title: 'Environment', icon: 'server-outline', route: '/environment' },
       { title: 'Gmail Keywords', icon: 'mail-outline', route: '/gmail-parser' },
       { title: 'Bank Accounts', icon: 'business-outline', route: '/settings/bank-accounts' },
       { title: 'Session Link', icon: 'link-outline', route: '/settings/session-link' },
@@ -169,6 +168,13 @@ export default function MoreScreen() {
                   <Ionicons name="shield-checkmark" size={18} color="#D97706" />
                 </View>
                 <Text style={[styles.menuLabel, { color: theme.text }]}>Admin Panel</Text>
+                <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.menuItem, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.borderLight }]} onPress={() => router.push('/environment' as never)} activeOpacity={0.6}>
+                <View style={[styles.menuIcon, { backgroundColor: '#FEF3C7' }]}>
+                  <Ionicons name="server-outline" size={18} color="#D97706" />
+                </View>
+                <Text style={[styles.menuLabel, { color: theme.text }]}>Environment</Text>
                 <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
               </TouchableOpacity>
             </View>

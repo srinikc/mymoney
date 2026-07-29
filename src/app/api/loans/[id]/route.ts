@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const session = await auth()
-    if (!session?.user?.profileId) {
+    const { profileId, userId, role } = await getAuthContext()
+    if (!profileId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -14,7 +14,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       where: { id: Number.parseInt(id) },
     })
 
-    if (!loan || loan.profileId !== session.user.profileId) {
+    if (!loan || loan.profileId !== profileId) {
       return NextResponse.json({ error: "Not found" }, { status: 404 })
     }
 
@@ -27,8 +27,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const session = await auth()
-    if (!session?.user?.profileId) {
+    const { profileId, userId, role } = await getAuthContext()
+    if (!profileId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -36,7 +36,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       where: { id: Number.parseInt(id) },
     })
 
-    if (!existing || existing.profileId !== session.user.profileId) {
+    if (!existing || existing.profileId !== profileId) {
       return NextResponse.json({ error: "Not found" }, { status: 404 })
     }
 
@@ -73,8 +73,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const session = await auth()
-    if (!session?.user?.profileId) {
+    const { profileId, userId, role } = await getAuthContext()
+    if (!profileId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -82,7 +82,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       where: { id: Number.parseInt(id) },
     })
 
-    if (!existing || existing.profileId !== session.user.profileId) {
+    if (!existing || existing.profileId !== profileId) {
       return NextResponse.json({ error: "Not found" }, { status: 404 })
     }
 

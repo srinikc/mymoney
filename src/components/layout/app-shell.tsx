@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Menu, LogOut, User, Moon, Sun, HelpCircle } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { HelpDrawer } from "@/components/help/HelpDrawer"
 import { getHelpForPath } from "@/components/help/help-content"
 import type { HelpSection } from "@/components/help/help-content"
@@ -27,6 +27,7 @@ const FALLBACK_HELP: HelpSection = {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const { sidebarOpen, setMobileSidebarOpen } = useUIStore()
   const { data: session } = useSession()
   const { theme, setTheme } = useTheme()
@@ -35,7 +36,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => setMounted(true), [])
 
-  if (["/login", "/setup"].includes(pathname)) {
+  // Redirect to onboarding for first-time users
+  useEffect(() => {
+    if (!session?.user || pathname === "/onboarding" || pathname === "/login" || pathname === "/setup") return
+    fetch("/api/onboarding")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.completed) {
+          router.push("/onboarding")
+        }
+      })
+      .catch(() => {})
+  }, [session, pathname, router])
+
+  if (["/login", "/setup", "/onboarding"].includes(pathname)) {
     return <div className="min-h-screen bg-background">{children}</div>
   }
 

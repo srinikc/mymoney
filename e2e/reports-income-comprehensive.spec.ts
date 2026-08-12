@@ -11,7 +11,7 @@ test.describe("Reports Income — Comprehensive", () => {
       const incomeStat = page.getByText(/total income/i).first()
       if (await incomeStat.isVisible().catch(() => false)) {
         await expect(incomeStat).toBeVisible()
-        const card = incomeStat.locator("xpath=ancestor::div[contains(@class,'rounded-lg')][1]")
+        const card = incomeStat.locator("xpath=ancestor::div[contains(@class,'rounded-xl')][1]")
         expect(await card.textContent()).toMatch(/₹/)
       }
     })

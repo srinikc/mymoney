@@ -125,7 +125,7 @@ test.describe("P5 — Database Mode Switching (Admin)", () => {
       await page.waitForURL(/\/$|\/onboarding/, { timeout: 15000 })
 
       await page.goto("/settings")
-      await expect(page.locator("text=Database")).toBeVisible()
+      await expect(page.locator("text=Database").first()).toBeVisible()
       await context.close()
     })
 

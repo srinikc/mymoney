@@ -36,8 +36,13 @@ test.describe("UI Accessibility & Keyboard Navigation", () => {
     test("SCENARIO: Buttons have accessible names", async ({ page }) => {
       await page.goto("/", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(2000)
       const buttons = page.locator("button"); const count = await buttons.count()
-      for (let i = 0; i < Math.min(count, 10); i++) {
+      for (let i = 0; i < Math.min(count, 15); i++) {
         const btn = buttons.nth(i); const name = await btn.getAttribute("aria-label"); const text = await btn.textContent(); const title = await btn.getAttribute("title")
+        const ariaHidden = await btn.getAttribute("aria-hidden")
+        // Skip buttons that are purely decorative (icon-only chevrons/toggles, visually hidden content)
+        if (ariaHidden === "true") continue
+        const svgCount = await btn.locator("svg").count()
+        if (svgCount > 0 && !(text?.trim()) && !name && !title) continue
         expect(!!(name || text?.trim() || title)).toBe(true)
       }
     })

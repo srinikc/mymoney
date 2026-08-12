@@ -86,12 +86,15 @@ test.describe("Error, Loading & Empty States", () => {
       await page.fill('input[name="name"]', `ToastGoal-${Date.now()}`); await page.fill('input[name="targetAmount"]', "25000")
       await page.getByRole("button", { name: "Create Goal" }).click(); await page.waitForTimeout(2000)
     })
-    test("SCENARIO: Login error shows as toast or inline message", async ({ page }) => {
+    test("SCENARIO: Login error shows as toast or inline message", async ({ browser }) => {
+      const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+      const page = await context.newPage()
       await page.goto("/login", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(2000)
       await page.locator("#email").fill("wrong@example.com"); await page.locator("#password").fill("wrongpassword")
       await page.getByRole("button", { name: "Sign in with Email" }).click(); await page.waitForTimeout(2000)
       const errorMsg = page.getByText(/invalid email or password/i)
       if (await errorMsg.isVisible().catch(() => false)) await expect(errorMsg).toBeVisible()
+      await context.close()
     })
   })
 

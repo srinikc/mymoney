@@ -26,7 +26,7 @@ test.describe("End-to-End Cross-Feature Workflows", () => {
 
   test.describe("Income → Dashboard → Tax workflow", () => {
     test("SCENARIO: Creating income source reflects on dashboard and tax", async ({ request }) => {
-      const incomeRes = await request.post("/api/income/sources", { data: { name: "E2E Test Income", type: "monthly", amount: 50000, categoryId: 14, startDate: "2026-01-01" } })
+      const incomeRes = await request.post("/api/income/sources", { data: { name: "E2E Test Income", type: "monthly", amount: 50000, categoryName: "Salary", startDate: "2026-01-01" } })
       expect(incomeRes.ok()).toBe(true)
     })
   })

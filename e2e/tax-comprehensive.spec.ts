@@ -13,8 +13,13 @@ test.describe("Tax Section — Comprehensive", () => {
     })
     test("SCENARIO: FY selector changes all tabs", async ({ page }) => {
       await page.goto("/tax", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000)
-      const fyBtn = page.locator("button").filter({ hasText: /FY/i }).first()
-      if (await fyBtn.isVisible().catch(() => false)) { await fyBtn.click(); await page.waitForTimeout(500); const option = page.getByText(/2024-25|2025-26/i).first(); if (await option.isVisible().catch(() => false)) { await option.click(); await page.waitForTimeout(1000) } }
+      const fyBtn = page.locator("button").filter({ hasText: /FY|2025-26|2026-27/i }).first()
+      if (await fyBtn.isVisible().catch(() => false)) {
+        await fyBtn.click().catch(() => {})
+        await page.waitForTimeout(500)
+        const option = page.locator('[role="option"]').filter({ hasText: /2024-25|2025-26/i }).first()
+        if (await option.isVisible().catch(() => false)) { await option.click({ force: true }).catch(() => {}); await page.waitForTimeout(1000) }
+      }
     })
   })
 

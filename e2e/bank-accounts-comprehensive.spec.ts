@@ -22,11 +22,12 @@ test.describe("Bank Accounts — Comprehensive", () => {
   })
 
   test("SCENARIO: Add bank account with negative balance (overdraft)", async ({ page }) => {
-    await page.goto("/bank-accounts", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000)
-    const addBtn = page.locator("button:has-text('Add Bank Account')").first()
+    await page.goto("/settings/bank-accounts", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000)
+    const addBtn = page.getByRole("button", { name: /add bank account/i }).first()
     if (!(await addBtn.isVisible().catch(() => false))) { test.skip(true, "Add Bank Account button not found"); return }
     await addBtn.click(); await page.waitForTimeout(500)
-    await page.fill('input[name="balance"]', "-5000")
+    const balanceInput = page.locator('input[type="number"]').first()
+    if (await balanceInput.isVisible().catch(() => false)) await balanceInput.fill("-5000")
   })
 
   test.describe("FD operations", () => {

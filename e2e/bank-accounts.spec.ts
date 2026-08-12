@@ -7,22 +7,23 @@ test.describe("Bank Accounts", () => {
   })
 
   test("SCENARIO: Add a bank account with balance", async ({ page }) => {
-    await page.goto("/bank-accounts", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000)
-    const addBtn = page.locator("button:has-text('Add Bank Account')").first()
+    await page.goto("/settings/bank-accounts", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000)
+    const addBtn = page.getByRole("button", { name: /add bank account/i }).first()
     if (!(await addBtn.isVisible().catch(() => false))) { test.skip(true, "Add Bank Account button not found"); return }
     await addBtn.click(); await page.waitForTimeout(500)
-    await page.fill('input[name="name"]', `TestBank-${Date.now()}`)
-    await page.fill('input[name="bankName"]', "HDFC Bank"); await page.fill('input[name="accountNumber"]', "12345678")
-    await page.fill('input[name="ifscCode"]', "HDFC0001234"); await page.fill('input[name="balance"]', "50000")
-    await page.getByRole("button", { name: /save|add|create/i }).first().click(); await page.waitForTimeout(2000)
+    await page.fill('input[placeholder*="HDFC"]', "HDFC Bank")
+    await page.fill('input[placeholder*="Salary Account"]', `TestBank-${Date.now()}`)
+    await page.fill('input[placeholder*="XXXX1234"]', "12345678")
+    await page.fill('input[placeholder*="HDFC0001234"]', "HDFC0001234")
+    await page.getByRole("button", { name: /save account/i }).click(); await page.waitForTimeout(2000)
   })
 
   test("SCENARIO: Add bank account with empty name shows error", async ({ page }) => {
-    await page.goto("/bank-accounts", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000)
-    const addBtn = page.locator("button:has-text('Add Bank Account')").first()
+    await page.goto("/settings/bank-accounts", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000)
+    const addBtn = page.getByRole("button", { name: /add bank account/i }).first()
     if (!(await addBtn.isVisible().catch(() => false))) { test.skip(true, "Add Bank Account button not found"); return }
     await addBtn.click(); await page.waitForTimeout(500)
-    await page.getByRole("button", { name: /save|add|create/i }).first().click(); await page.waitForTimeout(500)
+    await page.getByRole("button", { name: /save account/i }).click(); await page.waitForTimeout(500)
   })
 
   test("SCENARIO: Delete a bank account with confirmation", async ({ page }) => {
@@ -35,9 +36,12 @@ test.describe("Bank Accounts", () => {
     }
   })
 
-  test("SCENARIO: GET /api/bank-accounts returns 401 without auth", async ({ page }) => {
+  test("SCENARIO: GET /api/bank-accounts returns 401 without auth", async ({ browser }) => {
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+    const page = await context.newPage()
     await page.goto("/", { waitUntil: "domcontentloaded" })
     const status = await page.evaluate(async () => { const r = await fetch("/api/bank-accounts"); return r.status })
+    await context.close()
     expect(status).toBeGreaterThanOrEqual(401)
   })
 })

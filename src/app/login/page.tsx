@@ -21,13 +21,22 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      fetch("/api/onboarding/status")
-        .then((r) => r.json())
-        .then((data) => {
-          router.push(data.completed ? "/" : "/onboarding")
-        })
-        .catch(() => router.push("/"))
+      router.push("/")
       return
+    }
+    const params = new URLSearchParams(window.location.search)
+    const oauthError = params.get("error")
+    if (oauthError) {
+      const messages: Record<string, string> = {
+        OAuthAccountNotLinked: "This email already exists with a password login. Sign in with your email and password instead, then link Google in account settings.",
+        OAuthSignin: "Google sign-in could not be completed. Please try again.",
+        OAuthCallback: "Google sign-in callback failed. Please try again.",
+        AccessDenied: "Google sign-in was denied.",
+        Configuration: "Google sign-in is not configured. Contact your admin.",
+      }
+      setError(messages[oauthError] || `Sign-in failed: ${oauthError}`)
+      params.delete("error")
+      window.history.replaceState({}, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`)
     }
     fetch("/api/setup/status")
       .then((r) => r.json())

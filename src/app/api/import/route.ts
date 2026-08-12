@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import * as XLSX from "xlsx"
 import { shouldAutoMap, getExistingMappingKeys, resetMappingCache } from "@/shared/merchant-mapping"
 import { parseGpayTakeoutEntry, parseGpayTakeoutJson, parseGpayTakeoutHtml } from "@/shared/gpay-parser"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 
 // Cache categories to avoid N+1 queries
 let catCache: Map<string, number> | null = null
@@ -17,8 +18,11 @@ async function getCatId(name: string): Promise<number> {
   return catCache.get(name.toLowerCase()) || otherCatIdCache!
 }
 
-async function getMaxExpenseDate(): Promise<Date | null> {
-  const result = await prisma.expense.aggregate({ _max: { date: true } })
+async function getMaxExpenseDate(profileId: number): Promise<Date | null> {
+  const result = await prisma.expense.aggregate({
+    where: { profileId },
+    _max: { date: true },
+  })
   return result._max.date || null
 }
 
@@ -36,11 +40,11 @@ async function getMappingsLookup(): Promise<Map<string, { person: string | null;
 }
 
 // Helper: insert expense, flag if duplicate
-async function upsertExpense(date: Date, amount: number, vendor: string, categoryId: number, importSessionId?: number, extra?: { person?: string; subCategory?: string; bankAccount?: string }): Promise<{ flagged: boolean }> {
+async function upsertExpense(date: Date, amount: number, vendor: string, categoryId: number, importSessionId?: number, extra?: { person?: string; subCategory?: string; bankAccount?: string; profileId?: number }): Promise<{ flagged: boolean }> {
   let flagged = false
   if (vendor) {
     const existing = await prisma.expense.findFirst({
-      where: { date, amount, vendor },
+      where: { date, amount, vendor, profileId: extra?.profileId ?? null },
     })
     flagged = !!existing
   }
@@ -54,6 +58,7 @@ async function upsertExpense(date: Date, amount: number, vendor: string, categor
       subCategory: extra?.subCategory || null,
       bankAccount: extra?.bankAccount || null,
       importSessionId: importSessionId ?? null,
+      profileId: extra?.profileId ?? null,
       flagged,
     },
   })
@@ -61,6 +66,14 @@ async function upsertExpense(date: Date, amount: number, vendor: string, categor
 }
 
 export async function POST(req: Request) {
+  let profileId: number
+  try {
+    const ctx = await getAuthContext()
+    profileId = ctx.profileId
+  } catch (e) {
+    return handleAuthError(e)
+  }
+
   try {
     const formData = await req.formData()
     const file = formData.get("file") as File
@@ -107,7 +120,7 @@ export async function POST(req: Request) {
       for (const txn of validTxns) {
         if (txn.vendor) {
           const dupCheck = await prisma.expense.findFirst({
-            where: { date: txn.date, amount: txn.amount, vendor: txn.vendor },
+            where: { date: txn.date, amount: txn.amount, vendor: txn.vendor, profileId },
           })
           if (dupCheck) { skipped++; continue }
         }
@@ -121,6 +134,7 @@ export async function POST(req: Request) {
             person: mapping?.person || null,
             subCategory: mapping?.subCategory || null,
             importSessionId: session.id,
+            profileId,
           },
         })
         imported++
@@ -167,7 +181,7 @@ export async function POST(req: Request) {
         const content = htmlEntry.getData().toString("utf-8")
         let htmlTxns = parseGpayTakeoutHtml(content)
         // Filter to only transactions after last DB entry
-        const maxDate = await getMaxExpenseDate()
+        const maxDate = await getMaxExpenseDate(profileId)
         if (maxDate) {
           htmlTxns = htmlTxns.filter((t) => t.date >= maxDate)
         }
@@ -176,7 +190,7 @@ export async function POST(req: Request) {
           if (txn.vendor) zipVendors.push(txn.vendor)
           if (txn.vendor) {
             const dupCheck = await prisma.expense.findFirst({
-              where: { date: txn.date, amount: txn.amount, vendor: txn.vendor },
+              where: { date: txn.date, amount: txn.amount, vendor: txn.vendor, profileId },
             })
             if (dupCheck) { skipped++; continue }
           }
@@ -191,6 +205,7 @@ export async function POST(req: Request) {
               subCategory: mapping?.subCategory || null,
               bankAccount: txn.bankAccount || null,
               importSessionId: session.id,
+              profileId,
             },
           })
           imported++
@@ -214,7 +229,7 @@ export async function POST(req: Request) {
               if (parsed.vendor) zipVendors.push(parsed.vendor)
               if (parsed.vendor) {
                 const dupCheck = await prisma.expense.findFirst({
-                  where: { date: parsed.date, amount: parsed.amount, vendor: parsed.vendor },
+                  where: { date: parsed.date, amount: parsed.amount, vendor: parsed.vendor, profileId },
                 })
                 if (dupCheck) { skipped++; continue }
               }
@@ -228,6 +243,7 @@ export async function POST(req: Request) {
                   person: mapping?.person || null,
                   subCategory: mapping?.subCategory || null,
                   importSessionId: session.id,
+                  profileId,
                 },
               })
               imported++
@@ -277,7 +293,7 @@ export async function POST(req: Request) {
     if (fileName.endsWith(".html") || fileName.endsWith(".htm")) {
       const text = buffer.toString("utf-8")
       let htmlTxns = parseGpayTakeoutHtml(text)
-      const maxDate = await getMaxExpenseDate()
+      const maxDate = await getMaxExpenseDate(profileId)
       if (maxDate) {
         const before = htmlTxns.length
         htmlTxns = htmlTxns.filter((t) => t.date >= maxDate)
@@ -298,7 +314,7 @@ export async function POST(req: Request) {
       for (const txn of htmlTxns) {
         if (txn.vendor) {
           const dupCheck = await prisma.expense.findFirst({
-            where: { date: txn.date, amount: txn.amount, vendor: txn.vendor },
+            where: { date: txn.date, amount: txn.amount, vendor: txn.vendor, profileId },
           })
           if (dupCheck) { skipped++; continue }
         }
@@ -313,6 +329,7 @@ export async function POST(req: Request) {
             subCategory: mapping?.subCategory || null,
             bankAccount: txn.bankAccount || null,
             importSessionId: session.id,
+            profileId,
           },
         })
         imported++
@@ -393,7 +410,7 @@ export async function POST(req: Request) {
       if (isNaN(amount) || amount === 0) { skipped++; continue }
 
       const categoryId = (await autoCategorizeByExact(categoryName)) || (await autoCategorize(vendor))
-      const result = await upsertExpense(date, amount, vendor, categoryId, session.id)
+      const result = await upsertExpense(date, amount, vendor, categoryId, session.id, { profileId })
       if (result.flagged) flagged++; else imported++
     }
 

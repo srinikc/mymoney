@@ -1,9 +1,11 @@
 ﻿import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { getAuthContext, handleAuthError , withAuth } from "@/lib/with-auth"
 
 export async function GET() {
-    const { profileId } = await getAuthContext()
+    const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
 
     const accounts = await prisma.bankAccount.findMany({
       where: profileId ? { profileId } : {},
@@ -26,7 +28,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-    const { profileId } = await getAuthContext()
+    const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
 
     const body = await req.json()
     if (!body.bankName?.trim()) return NextResponse.json({ error: "Bank name is required" }, { status: 400 })

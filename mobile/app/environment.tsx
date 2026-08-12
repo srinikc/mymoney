@@ -9,14 +9,27 @@ import { Colors } from '../constants/Colors';
 import { useAuthStore } from '../store/auth';
 import api from '../api/client';
 
+interface EnvVarDef {
+  key: string;
+  label: string;
+  description: string;
+  sensitive: boolean;
+  editable: boolean;
+}
+
+interface EnvVarInfo {
+  value?: string;
+  envValue?: string;
+}
+
 export default function EnvironmentScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
   const { user } = useAuthStore();
 
-  const [vars, setVars] = useState<Record<string, unknown>>({});
-  const [definitions, setDefinitions] = useState<Record<string, unknown>[]>([]);
+  const [vars, setVars] = useState<Record<string, EnvVarInfo>>({});
+  const [definitions, setDefinitions] = useState<EnvVarDef[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
@@ -91,7 +104,7 @@ export default function EnvironmentScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={[styles.description, { color: theme.textTertiary }]}>View and override environment configuration.</Text>
         {definitions.map((def) => {
-          const info = vars[def.key] || {};
+          const info: EnvVarInfo = vars[def.key] || {};
           return (
             <View key={def.key} style={[styles.card, { backgroundColor: theme.surface }]}>
               <View style={styles.cardHeader}>

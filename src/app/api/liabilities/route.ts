@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { withAuth } from "@/lib/with-auth"
 
 export async function GET() {
   const liabilities = await prisma.liability.findMany({ orderBy: { createdAt: "desc" } })

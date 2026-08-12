@@ -87,7 +87,7 @@ export default function GoalsScreen() {
             const target = item.targetAmount || item.target || 0;
             const pct = target > 0 ? Math.min(100, (saved / target) * 100) : 0;
             return (
-              <TouchableOpacity style={[styles.card, { backgroundColor: theme.surface }]} onLongPress={() => handleDelete(item.id || item._id)}>
+              <TouchableOpacity style={[styles.card, { backgroundColor: theme.surface }]} onLongPress={() => handleDelete(item.id || item._id || '')}>
                 <View style={styles.cardRow}>
                   <View style={[styles.cardIcon, { backgroundColor: theme.incomeLight }]}><Ionicons name="flag" size={18} color={theme.income} /></View>
                   <View style={{ flex: 1 }}>

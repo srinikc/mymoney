@@ -147,7 +147,7 @@ export default function ReviewDuplicatesScreen() {
                 <Text style={[styles.cardDate, { color: theme.textTertiary }]}>{formatDate(item.date)}</Text>
                 {item.category && (
                   <View style={[styles.catBadge, { backgroundColor: theme.primaryLight }]}>
-                    <Text style={[styles.catBadgeText, { color: theme.primary }]}>{item.category.name || item.category}</Text>
+                    <Text style={[styles.catBadgeText, { color: theme.primary }]}>{item.category?.name || ''}</Text>
                   </View>
                 )}
               </View>

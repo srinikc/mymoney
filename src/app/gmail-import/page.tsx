@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
-import { Mail, RefreshCw, Check, Loader2 } from "lucide-react"
+import { Mail, RefreshCw, Check, Loader2, LogIn } from "lucide-react"
 
 interface Transaction {
   type: string
@@ -25,6 +25,11 @@ export default function GmailImportPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [summary, setSummary] = useState<{ totalEmails: number; parsed: number } | null>(null)
   const [sessionId, setSessionId] = useState<number | null>(null)
+  const [connected, setConnected] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    fetch("/api/auth/status").then(r => r.json()).then(data => setConnected(data.connected)).catch(() => setConnected(false))
+  }, [])
 
   const handleScan = async () => {
     setScanning(true)
@@ -33,6 +38,10 @@ export default function GmailImportPage() {
     setSummary(null)
     try {
       const res = await fetch("/api/gmail/scan", { method: "POST" })
+      if (res.status === 401) {
+        toast.error("Connect Google in Settings first")
+        return
+      }
       const data = await res.json()
       if (data.error) throw new Error(data.error)
       setTransactions(data.transactions || [])
@@ -101,10 +110,16 @@ export default function GmailImportPage() {
           <Mail className="h-6 w-6" />
           <h1 className="text-2xl font-bold">Gmail Import</h1>
         </div>
-        <Button onClick={handleScan} disabled={scanning}>
-          {scanning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-          Scan Gmail
-        </Button>
+        {connected === false ? (
+          <Button onClick={() => window.location.href = "/settings"}>
+            <LogIn className="h-4 w-4 mr-2" /> Connect in Settings
+          </Button>
+        ) : (
+          <Button onClick={handleScan} disabled={scanning}>
+            {scanning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            Scan Gmail
+          </Button>
+        )}
       </div>
 
       {summary && (
@@ -139,7 +154,7 @@ export default function GmailImportPage() {
           <CardContent className="py-12 text-center text-muted-foreground">
             <Mail className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p className="text-lg font-medium">No transactions scanned yet</p>
-            <p className="text-sm mt-1">Click &ldquo;Scan Gmail&rdquo; to find financial transactions in your inbox.</p>
+            <p className="text-sm mt-1">{connected === false ? "Go to Settings → Google Account to connect, then scan." : "Click &ldquo;Scan Gmail&rdquo; to find financial transactions in your inbox."}</p>
             <p className="text-xs mt-2 opacity-60">Requires Gmail API access with read-only scope.</p>
           </CardContent>
         </Card>

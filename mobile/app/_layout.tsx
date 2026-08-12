@@ -51,16 +51,6 @@ export default function RootLayout() {
     }).catch(() => {});
   }, [ready, isLoggedIn]);
 
-  // Redirect to onboarding for first-time users
-  useEffect(() => {
-    if (!isLoggedIn || pathname === '/onboarding' || pathname === '/login') return;
-    api.get('/api/onboarding').then((r) => {
-      if (r.data && !r.data.completed) {
-        router.replace('/onboarding');
-      }
-    }).catch(() => {});
-  }, [isLoggedIn, pathname, router]);
-
   // Push notification registration and handler setup
   useEffect(() => {
     setupNotificationHandler();
@@ -145,10 +135,6 @@ export default function RootLayout() {
             />
             <Stack.Screen
               name="settings"
-              options={{ presentation: 'card' }}
-            />
-            <Stack.Screen
-              name="onboarding"
               options={{ presentation: 'card' }}
             />
             <Stack.Screen

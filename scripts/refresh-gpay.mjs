@@ -11,7 +11,6 @@ function log(msg) {
 }
 
 const isSetup = process.argv.includes("--setup")
-const isPoll = process.argv.includes("--poll")
 
 async function runExportFlow({ page, context, headless }) {
   let capturedExportId = null
@@ -305,11 +304,6 @@ async function runSetup() {
 async function refreshGPay() {
   if (isSetup) {
     return await runSetup()
-  }
-
-  if (isPoll) {
-    log("Poll mode — not yet implemented")
-    return { status: "success", note: "polled" }
   }
 
   log("=== Phase 1: Headless with Drive delivery ===")

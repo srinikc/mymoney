@@ -26,7 +26,6 @@ const knownRoutes = [
   "/loans",
   "/login",
   "/net-worth",
-  "/onboarding",
   "/plans",
   "/privacy",
   "/reminders",

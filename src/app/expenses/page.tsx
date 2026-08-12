@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ColumnFilter } from "@/components/expenses/column-filter"
 import { DriveDialog } from "@/components/expenses/drive-dialog"
+import { BankAnalysisDialog } from "@/components/expenses/bank-analysis-dialog"
 import { formatCurrency, formatDate, toLocalDateString } from "@/lib/utils"
 import { TableSkeleton } from "@/components/ui/page-skeleton"
 import type { Expense, Category } from "@/types"
@@ -101,6 +102,8 @@ export default function ExpensesPage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<Record<number, { categoryId: string; subCategory: string; person: string; vendor: string }>>({})
   const [driveImporting, setDriveImporting] = useState(false)
+  const [bankAnalysisReady, setBankAnalysisReady] = useState(false)
+  const [bankAnalysisOpen, setBankAnalysisOpen] = useState(false)
 
 
   const [isAddingNew, setIsAddingNew] = useState(false)
@@ -173,23 +176,31 @@ export default function ExpensesPage() {
     params.set("sortField", sortField)
     params.set("sortDir", sortDir)
 
-    const [expRes, catRes] = await Promise.all([
-      fetch(`/api/expenses?${params}`),
-      fetch("/api/categories"),
-    ])
-    const result: PaginatedResponse = await expRes.json()
-    setExpenses(result.data)
-    setTotal(result.total)
-    setPage(result.page)
-    setTotalPages(result.totalPages)
-    setDistinctPersons(result.distinctPersons)
-    setDistinctRecurrenceTypes(result.distinctRecurrenceTypes)
-    setDistinctPaymentModes(result.distinctPaymentModes || [])
-    setDistinctVendors(result.distinctVendors || [])
-    setDistinctSubCategories(result.distinctSubCategories || [])
-    setDistinctBankAccounts(result.distinctBankAccounts || [])
-    setTotalAmount(result.totalAmount || 0)
-    setCategories(await catRes.json())
+    try {
+      const [expRes, catRes] = await Promise.all([
+        fetch(`/api/expenses?${params}`),
+        fetch("/api/categories"),
+      ])
+      if (!expRes.ok) {
+        const errData = await expRes.json().catch(() => ({ error: "Request failed" }))
+        throw new Error(errData.error || `HTTP ${expRes.status}`)
+      }
+      const result: PaginatedResponse = await expRes.json()
+      setExpenses(result.data)
+      setTotal(result.total)
+      setPage(result.page)
+      setTotalPages(result.totalPages)
+      setDistinctPersons(result.distinctPersons)
+      setDistinctRecurrenceTypes(result.distinctRecurrenceTypes)
+      setDistinctPaymentModes(result.distinctPaymentModes || [])
+      setDistinctVendors(result.distinctVendors || [])
+      setDistinctSubCategories(result.distinctSubCategories || [])
+      setDistinctBankAccounts(result.distinctBankAccounts || [])
+      setTotalAmount(result.totalAmount || 0)
+      setCategories(await catRes.json())
+    } catch (err) {
+      console.error("Failed to load expenses:", err)
+    }
     setLoading(false)
   }, [search, categoryFilter, sessionFilter, personFilter, recurrenceFilter, paymentModeFilter, vendorFilter, subCategoryFilter, bankFilter, notesFilter, otherTypeFilter, vendorFilterMode, subCategoryFilterMode, dateFrom, dateTo, amountMin, amountMax, sortField, sortDir, page])
 
@@ -202,6 +213,14 @@ export default function ExpensesPage() {
     fetch("/api/import-sessions").then(r => r.json()).then(setImportSessions)
     fetch("/api/expenses/flagged?pageSize=1").then(r => r.json()).then(d => setFlaggedCount(d.total || 0)).catch(() => {})
     const params = new URLSearchParams(window.location.search)
+    fetch("/api/bank-analysis/status").then(r => r.json()).then(d => {
+      const ready = Boolean(d.ready)
+      setBankAnalysisReady(ready)
+      if (ready && params.get("bank") === "1") {
+        setBankAnalysisOpen(true)
+        window.history.replaceState({}, "", "/expenses")
+      }
+    }).catch(() => {})
     const gdrive = params.get("gdrive")
     if (params.get("importSessionId")) setSessionFilter(params.get("importSessionId")!)
     if (gdrive === "connected") {
@@ -710,8 +729,8 @@ export default function ExpensesPage() {
     try {
       const res = await fetch("/api/drive/list")
       const data = await res.json()
-      if (data.needsReauth) { await fetch("/api/auth/logout"); window.location.href = "/api/auth/google"; return }
-      if (data.error === "Not authenticated" || res.status === 401) { window.location.href = "/api/auth/google"; return }
+      if (data.needsReauth) { setImportResult("Google session expired. Go to Settings → Google Account to reconnect."); return }
+      if (data.error === "Not authenticated" || res.status === 401) { setImportResult("Connect Google in Settings first."); return }
       if (!res.ok) { setImportResult("Drive error: " + (data.errorDetail || data.error)); return }
       setDriveFiles(data.files || [])
       setDriveDialogOpen(true)
@@ -982,6 +1001,12 @@ export default function ExpensesPage() {
              gpayStep === "done" ? "Refresh GPay" :
              gpayStep === "error" ? "Refresh GPay" : "Refresh GPay"}
           </Button>
+
+          {bankAnalysisReady && (
+            <Button variant="outline" size="sm" onClick={() => setBankAnalysisOpen(true)}>
+              <FileSpreadsheet className="mr-2 h-4 w-4" /> Bank Analysis
+            </Button>
+          )}
 
           <label className="cursor-pointer">
             <Button variant="outline" size="sm" asChild>
@@ -1694,6 +1719,12 @@ export default function ExpensesPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <BankAnalysisDialog
+        open={bankAnalysisOpen}
+        onOpenChange={setBankAnalysisOpen}
+        onApplied={() => { loadData(); fetch("/api/import-sessions").then(r => r.json()).then(setImportSessions) }}
+      />
 
       <TransactionConfirm
         open={confirmTx.open}

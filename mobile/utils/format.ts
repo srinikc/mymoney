@@ -20,7 +20,8 @@ export function formatCurrencyCompact(amount: number): string {
   return `₹${amount}`;
 }
 
-export function formatDate(dateString: string): string {
+export function formatDate(dateString?: string | null): string {
+  if (!dateString) return '';
   const date = new Date(dateString);
   const now = new Date();
   const diff = now.getTime() - date.getTime();

@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { getAuthContext, handleAuthError , withAuth } from "@/lib/with-auth"
 import { logAudit } from "@/shared/middleware/audit"
 
 export async function DELETE() {
-  const { profileId, userId, role } = await getAuthContext()
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId, userId, role } = auth
   // userId auto-checked by getAuthContext
 
   if (!profileId) {

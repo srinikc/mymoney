@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { getAuthContext, handleAuthError , withAuth } from "@/lib/with-auth"
 import { PLANS, type PlanId } from "@/lib/pricing"
 
 /**
  * GET /api/profiles — List all profiles for the authenticated user.
  */
 export async function GET(_req: Request) {
-  const { profileId, userId, role } = await getAuthContext()
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId, userId, role } = auth
   // userId auto-checked by getAuthContext
 
   const profiles = await prisma.profile.findMany({
@@ -28,7 +30,9 @@ export async function GET(_req: Request) {
  * POST /api/profiles — Create a new profile for the authenticated user.
  */
 export async function POST(req: Request) {
-  const { profileId, userId, role } = await getAuthContext()
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId, userId, role } = auth
   // userId auto-checked by getAuthContext
 
   let body: { name?: string }

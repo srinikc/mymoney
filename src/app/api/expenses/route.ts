@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { validateBody } from "@/shared/validate"
 import { ExpenseCreateSchema } from "@/shared/validation"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import type { Prisma } from "@prisma/client"
 
 /**
@@ -49,6 +50,14 @@ function buildMultiSelectFilter(
 }
 
 export async function GET(req: Request) {
+  let profileId: number
+  try {
+    const ctx = await getAuthContext()
+    profileId = ctx.profileId
+  } catch (e) {
+    return handleAuthError(e)
+  }
+
   const { searchParams } = new URL(req.url)
 
   // Single-value params (kept for backward compatibility)
@@ -89,7 +98,7 @@ export async function GET(req: Request) {
   const sortDir = searchParams.get("sortDir") || "desc"
 
   // Build filter conditions using AND array to support multiple filter types
-  const andConditions: Prisma.ExpenseWhereInput[] = []
+  const andConditions: Prisma.ExpenseWhereInput[] = [{ profileId }]
 
   // Show archived records only when ?archived=true, otherwise hide them
   const archived = searchParams.get("archived") === "true"
@@ -218,37 +227,37 @@ export async function GET(req: Request) {
     prisma.expense.count({ where }),
     prisma.expense.aggregate({ where, _sum: { amount: true } }),
     prisma.expense.findMany({
-      where: { person: { not: null }, deletedAt: null },
+      where: { person: { not: null }, deletedAt: null, profileId },
       select: { person: true },
       distinct: ["person"],
       orderBy: { person: "asc" },
     }),
     prisma.expense.findMany({
-      where: { deletedAt: null },
+      where: { deletedAt: null, profileId },
       select: { recurrenceType: true },
       distinct: ["recurrenceType"],
       orderBy: { recurrenceType: "asc" },
     }),
     prisma.expense.findMany({
-      where: { deletedAt: null },
+      where: { deletedAt: null, profileId },
       select: { paymentMode: true },
       distinct: ["paymentMode"],
       orderBy: { paymentMode: "asc" },
     }),
     prisma.expense.findMany({
-      where: { vendor: { not: null }, deletedAt: null },
+      where: { vendor: { not: null }, deletedAt: null, profileId },
       select: { vendor: true },
       distinct: ["vendor"],
       orderBy: { vendor: "asc" },
     }),
     prisma.expense.findMany({
-      where: { subCategory: { not: null }, deletedAt: null },
+      where: { subCategory: { not: null }, deletedAt: null, profileId },
       select: { subCategory: true },
       distinct: ["subCategory"],
       orderBy: { subCategory: "asc" },
     }),
     prisma.expense.findMany({
-      where: { bankAccount: { not: null }, deletedAt: null },
+      where: { bankAccount: { not: null }, deletedAt: null, profileId },
       select: { bankAccount: true },
       distinct: ["bankAccount"],
       orderBy: { bankAccount: "asc" },
@@ -272,6 +281,14 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  let profileId: number
+  try {
+    const ctx = await getAuthContext()
+    profileId = ctx.profileId
+  } catch (e) {
+    return handleAuthError(e)
+  }
+
   const { data: body, error } = await validateBody(req, ExpenseCreateSchema)
   if (error) return error
 
@@ -301,6 +318,7 @@ export async function POST(req: Request) {
       recurrenceType: body.recurrenceType || "onetime",
       tags: body.tags || null,
       notes: body.notes || null,
+      profileId,
     },
     include: { category: true },
   })
@@ -309,9 +327,19 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  let profileId: number
+  try {
+    const ctx = await getAuthContext()
+    profileId = ctx.profileId
+  } catch (e) {
+    return handleAuthError(e)
+  }
+
   const { searchParams } = new URL(req.url)
   const id = searchParams.get("id")
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })
+  const owned = await prisma.expense.findFirst({ where: { id: Number.parseInt(id), profileId } })
+  if (!owned) return NextResponse.json({ error: "Not found" }, { status: 404 })
   await prisma.expense.update({
     where: { id: Number.parseInt(id) },
     data: { deletedAt: new Date() },

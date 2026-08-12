@@ -1,177 +1,97 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getStoredToken } from "@/lib/token-store"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import { driveDownloadRaw, refreshAccessToken } from "@/lib/oauth"
-import { storeToken } from "@/lib/token-store"
 import { parseGpayTakeoutHtml } from "@/shared/gpay-parser"
 
 export async function POST(req: Request) {
+  let profileId: number
+  let userId: number
   try {
-    const token = await getStoredToken()
-    if (!token) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
-    }
+    const ctx = await getAuthContext()
+    profileId = ctx.profileId
+    userId = ctx.userId
+  } catch (e) {
+    return handleAuthError(e)
+  }
 
+  try {
+    const account = await prisma.account.findFirst({
+      where: { userId, provider: "google" },
+      select: { id: true, access_token: true, refresh_token: true, expires_at: true },
+    })
+    if (!account?.access_token) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+
+    const { getAccessToken } = await import("@/lib/gmail")
+    let accessToken = await getAccessToken(userId)
+    const refreshToken = account.refresh_token || ""
     const { fileId } = await req.json()
     if (!fileId) return NextResponse.json({ error: "fileId required" }, { status: 400 })
 
-    let downloadRes = await driveDownloadRaw(fileId, token.accessToken)
-
-    if (downloadRes.status === 401 && token.refreshToken) {
+    let downloadRes = await driveDownloadRaw(fileId, accessToken)
+    if (downloadRes.status === 401 && refreshToken) {
       try {
-        const refreshed = await refreshAccessToken(token.refreshToken)
-        token.accessToken = refreshed.access_token
-        await storeToken({ ...token, accessToken: refreshed.access_token })
-        downloadRes = await driveDownloadRaw(fileId, token.accessToken)
+        const refreshed = await refreshAccessToken(refreshToken)
+        accessToken = refreshed.access_token
+        await prisma.account.update({
+          where: { id: account.id },
+          data: { access_token: refreshed.access_token },
+        })
+        downloadRes = await driveDownloadRaw(fileId, accessToken)
       } catch {
         return NextResponse.json({ error: "Session expired", needsReauth: true }, { status: 401 })
       }
     }
-
     if (!downloadRes.ok || !downloadRes.buffer) {
-      return NextResponse.json({
-        error: "Download failed",
-        errorDetail: `HTTP ${downloadRes.status}: ${downloadRes.body}`,
-      }, { status: 500 })
+      return NextResponse.json({ error: "Download failed", errorDetail: `HTTP ${downloadRes.status}: ${downloadRes.body}` }, { status: 500 })
     }
 
     const buffer = Buffer.from(downloadRes.buffer)
-    let imported = 0
-    let skipped = 0
-    let total = 0
+    let imported = 0, skipped = 0, total = 0
 
-    // Try as ZIP
     try {
       const AdmZip = (await import("adm-zip")).default
       const zip = new AdmZip(buffer)
       const allEntries = zip.getEntries() as Array<{ entryName: string; getData: () => Buffer }>
-
-      // First pass: find My Activity.html in GPay Takeout structure
-      const htmlEntry = allEntries.find((e) =>
-        e.entryName.replaceAll('\\', "/").toLowerCase().includes("my activity")
-      )
-
+      const htmlEntry = allEntries.find((e) => e.entryName.replaceAll('\\', "/").toLowerCase().includes("my activity"))
       if (htmlEntry) {
-        console.warn("[DRIVE IMPORT] Found HTML entry:", htmlEntry.entryName)
         const content = htmlEntry.getData().toString("utf-8")
-        console.warn("[DRIVE IMPORT] HTML size:", content.length, "First 800 chars:", content.slice(0, 800))
-        // Debug: search for transaction data in stripped text
-        const stripped = content.replaceAll(/<[^>]+>/g, " ").replaceAll('&nbsp;', " ")
-        const paidMatch = stripped.match(/paid|sent|received/gi)
-        console.warn("[DRIVE IMPORT] 'Paid/Sent/Received' occurrences:", paidMatch?.length || 0)
-        if (paidMatch) {
-          const idx = stripped.search(/paid|sent|received/i)
-          console.warn("[DRIVE IMPORT] First occurrence around:", stripped.substring(Math.max(0, idx - 50), idx + 200))
-        }
         let htmlTxns = parseGpayTakeoutHtml(content)
-        // Filter to only transactions after last DB entry
-        const maxDate = await prisma.expense.aggregate({ _max: { date: true } }).then((r) => r._max.date)
-        if (maxDate) {
-          const before = htmlTxns.length
-          htmlTxns = htmlTxns.filter((t) => t.date >= maxDate)
-          console.warn("[DRIVE IMPORT] Date filter: max DB date:", maxDate, "kept", htmlTxns.length, "of", before)
-        }
-        console.warn("[DRIVE IMPORT] Parsed from HTML:", htmlTxns.length)
-        const driveVendors: string[] = []
-        for (const txn of htmlTxns) {
-          total++
-          if (txn.vendor) { driveVendors.push(txn.vendor) }
-          const catId = await autoCategorize(txn.vendor)
-          const existing = await prisma.expense.findFirst({
-            where: {
-              date: txn.date,
-              amount: txn.amount,
-              vendor: txn.vendor || null,
-              ...(txn.bankAccount ? { bankAccount: txn.bankAccount } : {}),
-            },
-          })
-          if (existing) { skipped++; continue }
-          // Fallback dedup for legacy midnight-dated records (migration)
-          if (txn.date.getHours() !== 0 || txn.date.getMinutes() !== 0) {
-            const midnightDate = new Date(txn.date.getFullYear(), txn.date.getMonth(), txn.date.getDate())
-            const legacyExisting = await prisma.expense.findFirst({
-              where: {
-                date: midnightDate,
-                amount: txn.amount,
-                vendor: txn.vendor || null,
-                ...(txn.bankAccount ? { bankAccount: txn.bankAccount } : {}),
-              },
-            })
-            if (legacyExisting) { skipped++; continue }
-          }
-          await prisma.expense.create({
-            data: {
-              date: txn.date, amount: txn.amount, categoryId: catId,
-              vendor: txn.vendor || null, description: txn.vendor || null, paymentMode: "UPI",
-              bankAccount: txn.bankAccount || null,
-            },
-          })
-          imported++
-        }
-        // Create placeholder mappings for new vendors
-        if (imported > 0 && driveVendors.length > 0) {
-          const existingMappings = await prisma.merchantMapping.findMany({
-            where: { merchantKey: { in: [...new Set(driveVendors.map((v) => v.toLowerCase().trim()))] } },
-            select: { merchantKey: true },
-          })
-          const existingSet = new Set(existingMappings.map((m) => m.merchantKey))
-          const newKeys = [...new Set(driveVendors.map((v) => v.toLowerCase().trim()))].filter((k) => !existingSet.has(k))
-          if (newKeys.length > 0) {
-            await prisma.merchantMapping.createMany({
-              data: newKeys.map((key) => ({ merchantKey: key, source: "gpay-import" })),
-            })
-          }
-        }
-        if (imported > 0 || skipped > 0) {
-          return NextResponse.json({ success: true, imported, skipped, total, message: `Imported ${imported} GPay transactions from Drive, skipped ${skipped}` })
-        }
-      }
-    } catch (error) { console.error("[DRIVE IMPORT] ZIP error:", error); /* not a ZIP, try as standalone HTML */ }
-
-    // Try as standalone HTML (not zipped)
-      try {
-        const text = buffer.toString("utf-8")
-        let htmlTxns = parseGpayTakeoutHtml(text)
-        const maxDate = await prisma.expense.aggregate({ _max: { date: true } }).then((r) => r._max.date)
+        const maxDate = await prisma.expense.aggregate({ where: { profileId }, _max: { date: true } }).then((r) => r._max.date)
         if (maxDate) htmlTxns = htmlTxns.filter((t) => t.date >= maxDate)
         for (const txn of htmlTxns) {
-          total++
-          const catId = await autoCategorize(txn.vendor)
-          const existing = await prisma.expense.findFirst({
-            where: {
-              date: txn.date,
-              amount: txn.amount,
-              vendor: txn.vendor || null,
-              ...(txn.bankAccount ? { bankAccount: txn.bankAccount } : {}),
-            },
-          })
+          total++; const catId = await autoCategorize(txn.vendor)
+          const existing = await prisma.expense.findFirst({ where: { date: txn.date, amount: txn.amount, vendor: txn.vendor || null, profileId, ...(txn.bankAccount ? { bankAccount: txn.bankAccount } : {}) } })
           if (existing) { skipped++; continue }
-          // Fallback dedup for legacy midnight-dated records (migration)
           if (txn.date.getHours() !== 0 || txn.date.getMinutes() !== 0) {
-            const midnightDate = new Date(txn.date.getFullYear(), txn.date.getMonth(), txn.date.getDate())
-            const legacyExisting = await prisma.expense.findFirst({
-              where: {
-                date: midnightDate,
-                amount: txn.amount,
-                vendor: txn.vendor || null,
-                ...(txn.bankAccount ? { bankAccount: txn.bankAccount } : {}),
-              },
-            })
+            const legacyExisting = await prisma.expense.findFirst({ where: { date: new Date(txn.date.getFullYear(), txn.date.getMonth(), txn.date.getDate()), amount: txn.amount, vendor: txn.vendor || null, profileId } })
             if (legacyExisting) { skipped++; continue }
           }
-          await prisma.expense.create({
-            data: {
-              date: txn.date, amount: txn.amount, categoryId: catId,
-              vendor: txn.vendor || null, description: txn.vendor || null, paymentMode: "UPI",
-              bankAccount: txn.bankAccount || null,
-            },
-          })
+          await prisma.expense.create({ data: { date: txn.date, amount: txn.amount, categoryId: catId, vendor: txn.vendor || null, description: txn.vendor || null, paymentMode: "UPI", bankAccount: txn.bankAccount || null, profileId } })
           imported++
         }
-        if (imported > 0 || skipped > 0) {
-          return NextResponse.json({ success: true, imported, skipped, total, message: `Imported ${imported} GPay transactions from HTML, skipped ${skipped}` })
+        if (imported > 0 || skipped > 0) return NextResponse.json({ success: true, imported, skipped, total, message: `Imported ${imported} GPay transactions from Drive, skipped ${skipped}` })
+      }
+    } catch { /* not a ZIP */ }
+
+    try {
+      const text = buffer.toString("utf-8")
+      let htmlTxns = parseGpayTakeoutHtml(text)
+      const maxDate = await prisma.expense.aggregate({ where: { profileId }, _max: { date: true } }).then((r) => r._max.date)
+      if (maxDate) htmlTxns = htmlTxns.filter((t) => t.date >= maxDate)
+      for (const txn of htmlTxns) {
+        total++; const catId = await autoCategorize(txn.vendor)
+        const existing = await prisma.expense.findFirst({ where: { date: txn.date, amount: txn.amount, vendor: txn.vendor || null, profileId, ...(txn.bankAccount ? { bankAccount: txn.bankAccount } : {}) } })
+        if (existing) { skipped++; continue }
+        if (txn.date.getHours() !== 0 || txn.date.getMinutes() !== 0) {
+          const legacyExisting = await prisma.expense.findFirst({ where: { date: new Date(txn.date.getFullYear(), txn.date.getMonth(), txn.date.getDate()), amount: txn.amount, vendor: txn.vendor || null, profileId } })
+          if (legacyExisting) { skipped++; continue }
         }
-      } catch { /* not HTML either */ }
+        await prisma.expense.create({ data: { date: txn.date, amount: txn.amount, categoryId: catId, vendor: txn.vendor || null, description: txn.vendor || null, paymentMode: "UPI", bankAccount: txn.bankAccount || null, profileId } })
+        imported++
+      }
+      if (imported > 0 || skipped > 0) return NextResponse.json({ success: true, imported, skipped, total, message: `Imported ${imported} GPay transactions from HTML, skipped ${skipped}` })
+    } catch { /* not HTML */ }
 
     return NextResponse.json({ error: "File contains no recognizable GPay transaction data" }, { status: 400 })
   } catch (error) {
@@ -197,10 +117,7 @@ async function autoCategorize(vendor: string): Promise<number> {
     [/(sip|mutual|fund|stocks|share|nps|ppf|fd|fixed deposit|invest|demat)/i, "Investment"],
   ]
   for (const [pattern, catName] of rules) {
-    if (pattern.test(v)) {
-      const cat = await prisma.category.findFirst({ where: { name: catName } })
-      if (cat) return cat.id
-    }
+    if (pattern.test(v)) { const cat = await prisma.category.findFirst({ where: { name: catName } }); if (cat) return cat.id }
   }
   return await getOtherCatId()
 }

@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { getAuthContext, handleAuthError , withAuth } from "@/lib/with-auth"
 
 export async function GET(req: Request) {
-    const { profileId } = await getAuthContext()
+    const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
     const { searchParams } = new URL(req.url)
     const ay = searchParams.get("ay")
 
@@ -18,7 +20,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-    const { profileId, role } = await getAuthContext()
+    const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId, role } = auth
     if (role === "viewer") {
       return NextResponse.json({ error: "Viewers cannot modify data" }, { status: 403 })
     }

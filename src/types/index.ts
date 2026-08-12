@@ -37,6 +37,7 @@ export interface Budget {
   id: number
   categoryId: number
   category: Category
+  subCategory?: string | null
   month: number
   year: number
   amount: number

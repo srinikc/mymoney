@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { getAuthContext, handleAuthError , withAuth } from "@/lib/with-auth"
 import { PLANS } from "@/lib/pricing"
 import Razorpay from "razorpay"
 import { z } from "zod"
@@ -20,7 +20,9 @@ const CreateOrderSchema = z.object({
 })
 
 export async function POST(req: Request) {
-  const { profileId, userId, role } = await getAuthContext()
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId, userId, role } = auth
   // userId auto-checked by getAuthContext
 
   let body: z.infer<typeof CreateOrderSchema>

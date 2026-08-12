@@ -3,10 +3,15 @@ import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import type { ParserKeywords } from "@/lib/gmail-parser"
 
 export async function POST() {
+  let userId: number
   try {
-    const { profileId, userId, role } = await getAuthContext()
-    // userId auto-checked by getAuthContext
+    const ctx = await getAuthContext()
+    userId = ctx.userId
+  } catch (e) {
+    return handleAuthError(e)
+  }
 
+  try {
     const { getAccessToken, listMessages, getMessage, parseMessage } = await import("@/lib/gmail")
     const { parseEmail, DEFAULT_KEYWORDS } = await import("@/lib/gmail-parser")
     const { prisma } = await import("@/lib/prisma")
@@ -66,6 +71,7 @@ export async function POST() {
     })
   } catch (error) {
     console.error("Gmail scan error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    const message = error instanceof Error ? error.message : "Internal server error"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

@@ -1,9 +1,11 @@
 ﻿import { NextResponse } from "next/server"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { getAuthContext, handleAuthError , withAuth } from "@/lib/with-auth"
 import { prisma } from "@/lib/prisma"
 
 export async function POST() {
-    const { profileId, userId } = await getAuthContext()
+    const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId, userId } = auth
 
     const { getAccessToken, listMessages, getMessage, parseMessage } = await import("@/lib/gmail")
     const { parseEmail } = await import("@/lib/gmail-parser")

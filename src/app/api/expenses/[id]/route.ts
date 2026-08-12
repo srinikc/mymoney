@@ -2,9 +2,20 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { validateBody } from "@/shared/validate"
 import { ExpenseUpdateSchema } from "@/shared/validation"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  let profileId: number
+  try {
+    const ctx = await getAuthContext()
+    profileId = ctx.profileId
+  } catch (e) {
+    return handleAuthError(e)
+  }
+
   const { id } = await params
+  const owned = await prisma.expense.findFirst({ where: { id: Number.parseInt(id), profileId } })
+  if (!owned) return NextResponse.json({ error: "Not found" }, { status: 404 })
   const { data: body, error } = await validateBody(req, ExpenseUpdateSchema)
   if (error) return error
 

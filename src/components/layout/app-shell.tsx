@@ -36,20 +36,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => setMounted(true), [])
 
-  // Redirect to onboarding for first-time users
-  useEffect(() => {
-    if (!session?.user || pathname === "/onboarding" || pathname === "/login" || pathname === "/setup") return
-    fetch("/api/onboarding")
-      .then((r) => r.json())
-      .then((data) => {
-        if (!data.completed) {
-          router.push("/onboarding")
-        }
-      })
-      .catch(() => {})
-  }, [session, pathname, router])
-
-  if (["/login", "/setup", "/onboarding"].includes(pathname)) {
+  if (["/login", "/setup"].includes(pathname)) {
     return <div className="min-h-screen bg-background">{children}</div>
   }
 

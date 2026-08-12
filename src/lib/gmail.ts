@@ -29,23 +29,23 @@ export interface ParsedEmail {
 
 export async function getAccessToken(userId: number): Promise<string> {
   const { prisma } = await import("@/lib/prisma")
-  const token = await prisma.account.findFirst({
+  const account = await prisma.account.findFirst({
     where: { userId, provider: "google" },
-    select: { access_token: true, refresh_token: true, expires_at: true },
+    select: { id: true, access_token: true, refresh_token: true, expires_at: true },
   })
-  if (!token?.access_token) throw new Error("No Google token found")
+  if (!account?.access_token) throw new Error("No Google token found")
 
-  if (token.expires_at && token.expires_at * 1000 < Date.now() && token.refresh_token) {
+  if (account.expires_at && account.expires_at * 1000 < Date.now() && account.refresh_token) {
     const { refreshAccessToken } = await import("./oauth")
-    const refreshed = await refreshAccessToken(token.refresh_token)
+    const refreshed = await refreshAccessToken(account.refresh_token)
     await prisma.account.update({
-      where: { provider_providerAccountId: { provider: "google", providerAccountId: String(userId) } },
+      where: { id: account.id },
       data: { access_token: refreshed.access_token, expires_at: Math.floor(Date.now() / 1000) + refreshed.expires_in },
     })
     return refreshed.access_token
   }
 
-  return token.access_token
+  return account.access_token
 }
 
 export async function listMessages(

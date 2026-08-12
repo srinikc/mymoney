@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import { shouldAutoMap, getExistingMappingKeys } from "@/shared/merchant-mapping"
 import { parseGpayTakeoutEntry, parseGpayTakeoutJson, parseGpayTakeoutHtml } from "@/shared/gpay-parser"
 
@@ -8,6 +9,14 @@ interface ZipFile {
 }
 
 export async function POST(req: Request) {
+  let profileId: number
+  try {
+    const ctx = await getAuthContext()
+    profileId = ctx.profileId
+  } catch (e) {
+    return handleAuthError(e)
+  }
+
   try {
     const formData = await req.formData()
     const file = formData.get("file") as File
@@ -43,7 +52,7 @@ export async function POST(req: Request) {
       if (htmlEntry) {
         const content = htmlEntry.getData().toString("utf-8")
         let htmlTxns = parseGpayTakeoutHtml(content)
-        const maxDate = await prisma.expense.aggregate({ _max: { date: true } }).then(r => r._max.date)
+const maxDate = await prisma.expense.aggregate({ where: { profileId }, _max: { date: true } }).then(r => r._max.date)
         if (maxDate) htmlTxns = htmlTxns.filter((t) => t.date >= maxDate)
         transactions = htmlTxns.map((t) => ({ date: t.date, amount: t.amount, vendor: t.vendor }))
       }
@@ -67,7 +76,7 @@ export async function POST(req: Request) {
       source = "gpay-takeout-html"
       const text = buffer.toString("utf-8")
       let htmlTxns = parseGpayTakeoutHtml(text)
-      const maxDate = await prisma.expense.aggregate({ _max: { date: true } }).then(r => r._max.date)
+      const maxDate = await prisma.expense.aggregate({ where: { profileId }, _max: { date: true } }).then(r => r._max.date)
       if (maxDate) htmlTxns = htmlTxns.filter((t) => t.date >= maxDate)
       transactions = htmlTxns.map((t) => ({ date: t.date, amount: t.amount, vendor: t.vendor }))
     } else {
@@ -88,7 +97,7 @@ export async function POST(req: Request) {
       if (!txn.vendor) { blankVendor++; willImport++; continue }
       vendorSet.add(txn.vendor.toLowerCase().trim())
       const existing = await prisma.expense.findFirst({
-        where: { date: txn.date, amount: txn.amount, vendor: txn.vendor },
+        where: { date: txn.date, amount: txn.amount, vendor: txn.vendor, profileId },
       })
       if (existing) willSkip++
       else willImport++

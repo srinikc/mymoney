@@ -82,9 +82,10 @@ test.describe("P3 — Goals", () => {
     await expect(page.getByText("Marriage Fund").first()).toBeVisible({ timeout: 5000 })
   })
 
-  test("SCENARIO: /plans redirects to /goals", async ({ page }) => {
+  test("SCENARIO: /plans page loads (subscriptions)", async ({ page }) => {
     await page.goto("/plans", { waitUntil: "domcontentloaded" })
     await page.waitForTimeout(2000)
-    await expect(page).toHaveURL(/\/goals/)
+    await expect(page.locator("body")).not.toHaveClass(/error/)
+    await expect(page.locator("h1")).toContainText(/plan/i)
   })
 })

@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { getAuthContext, handleAuthError , withAuth } from "@/lib/with-auth"
 import { validateBody } from "@/shared/validate"
 import { GoalCreateSchema } from "@/shared/validation"
 
 export async function GET() {
-  const { profileId, userId, role } = await getAuthContext()
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId, userId, role } = auth
   // userId auto-checked by getAuthContext
 
   const goals = await prisma.goal.findMany({
@@ -16,7 +18,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { profileId, userId, role } = await getAuthContext()
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId, userId, role } = auth
   // userId auto-checked by getAuthContext
 
   const { data: body, error } = await validateBody(req, GoalCreateSchema)

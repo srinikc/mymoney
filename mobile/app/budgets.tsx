@@ -149,7 +149,7 @@ export default function BudgetsScreen() {
             return (
               <TouchableOpacity
                 style={[styles.card, { backgroundColor: theme.surface }]}
-                onLongPress={() => handleDelete(item.id || item._id)}
+                onLongPress={() => handleDelete(item.id || item._id || '')}
               >
                 <View style={styles.cardRow}>
                   <View style={[styles.cardIcon, { backgroundColor: theme.primaryLight }]}>

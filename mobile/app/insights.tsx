@@ -112,7 +112,7 @@ export default function InsightsScreen() {
               <Text style={[styles.cardTitle, { color: theme.text }]}>Monthly Trend</Text>
               <View style={styles.barChart}>
                 {data.monthlyTrend.map((m: MonthlyTrend, i: number) => {
-                  const max = Math.max(...data.monthlyTrend.map((x: MonthlyTrend) => x.amount));
+                  const max = Math.max(...(data.monthlyTrend || []).map((x: MonthlyTrend) => x.amount));
                   const pct = max > 0 ? (m.amount / max) * 100 : 0;
                   return (
                     <View key={i} style={styles.barCol}>

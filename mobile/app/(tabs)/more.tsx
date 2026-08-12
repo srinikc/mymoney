@@ -75,7 +75,6 @@ const MENU_SECTIONS: MenuSection[] = [
   {
     title: 'Account',
     items: [
-      { title: 'Onboarding Wizard', icon: 'rocket-outline', route: '/onboarding' },
       { title: 'Family Sharing', icon: 'people-outline', route: '/family' },
       { title: 'Plans', icon: 'diamond-outline', route: '/plans' },
     ],
@@ -99,15 +98,44 @@ export default function MoreScreen() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  const [, setGpayLoading] = useState(false);
+  const [gpayLoading, setGpayLoading] = useState(false);
 
   const handleGpaySync = async () => {
     setGpayLoading(true);
     try {
       const res = await api.post('/api/refresh-gpay');
-      Alert.alert('GPay Sync', `Sync started! Job ID: ${res.data?.jobId || 'pending'}\nCheck back in a few minutes.`);
+      const jobId = res.data?.jobId;
+      if (!jobId) {
+        Alert.alert('GPay Sync', 'Could not start the GPay export. Check that Playwright and Chrome are installed on the server.');
+        return;
+      }
+      // Poll the job until it settles, matching the web app behavior.
+      const maxAttempts = 60;
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const statusRes = await api.get(`/api/refresh-gpay?jobId=${jobId}`);
+        const status = statusRes.data?.job?.status;
+        if (status === 'export_created' || status === 'already_in_progress') {
+          Alert.alert(
+            'GPay Sync',
+            'Google is creating the export. It will be delivered to your Google Drive and auto-imported shortly. Open the web app (Expenses → Refresh GPay) to watch progress.'
+          );
+          return;
+        }
+        if (status === 'auth_required') {
+          Alert.alert(
+            'GPay Sync',
+            'Your Google session has expired. Re-authenticate from the web app (Expenses → Refresh GPay → Re-authenticate), then try again.'
+          );
+          return;
+        }
+        if (status === 'failed' || status === 'reauth_failed') {
+          Alert.alert('GPay Sync', `The export failed. ${statusRes.data?.job?.error || ''}`.trim());
+          return;
+        }
+      }
+      Alert.alert('GPay Sync', 'Timed out while waiting for the export. Check the web app for details.');
     } catch {
-      // Fallback: use the import endpoint for manual file
       Alert.alert('GPay Sync', 'Please export from Google Takeout and import via the web app.');
     } finally {
       setGpayLoading(false);

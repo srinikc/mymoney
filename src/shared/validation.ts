@@ -41,6 +41,7 @@ export const ExpenseUpdateSchema = z.object({
 
 export const BudgetCreateSchema = z.object({
   categoryId: z.union([z.string(), z.number()]).transform(Number),
+  subCategory: z.string().nullable().optional(),
   month: z.union([z.string(), z.number()]).transform(Number),
   year: z.union([z.string(), z.number()]).transform(Number),
   amount: z.union([z.string(), z.number()]).transform(Number),

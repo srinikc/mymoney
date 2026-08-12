@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { getAuthContext, handleAuthError , withAuth } from "@/lib/with-auth"
 import { writeFile, mkdir, unlink } from "node:fs/promises"
 import path from "node:path"
 import type { Prisma } from "@prisma/client"
@@ -10,7 +10,9 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024
 const DOC_TYPES = ["form16", "form26as", "form10e", "capital_gains", "home_loan_cert", "rent_receipts", "donation_receipt", "other"] as const
 
 export async function GET(req: Request) {
-    const { profileId } = await getAuthContext()
+    const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
     const { searchParams } = new URL(req.url)
     const fy = searchParams.get("fy")
 
@@ -25,7 +27,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-    const { profileId, role } = await getAuthContext()
+    const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId, role } = auth
     if (role === "viewer") {
       return NextResponse.json({ error: "Viewers cannot modify data" }, { status: 403 })
     }

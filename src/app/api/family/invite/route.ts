@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { getAuthContext, handleAuthError , withAuth } from "@/lib/with-auth"
 
 export async function POST(req: Request) {
-  const { profileId: authProfileId, userId, role: authRole } = await getAuthContext()
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId: authProfileId, userId, role: authRole } = auth
   // userId auto-checked by getAuthContext
 
   let body: { profileId?: number; email?: string; role?: string }

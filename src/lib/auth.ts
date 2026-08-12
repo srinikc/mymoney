@@ -21,7 +21,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     Google({
       clientId: process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET || "",
-      allowDangerousEmailAccountLinking: false,
+      allowDangerousEmailAccountLinking: true,
     }),
     ...(process.env.AUTH_RESEND_KEY
       ? [
@@ -94,10 +94,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   events: {
     async signIn({ user }) {
       try {
-        const profile = await prisma.profile.findFirst({
+        // Ensure a default profile exists so every API route works without onboarding
+        let profile = await prisma.profile.findFirst({
           where: { userId: Number(user.id), isDefault: true },
           select: { id: true },
         })
+        if (!profile) {
+          profile = await prisma.profile.create({
+            data: {
+              name: user.name || "Default",
+              userId: Number(user.id),
+              isDefault: true,
+            },
+            select: { id: true },
+          })
+        }
         if (profile) {
           await logAudit(profile.id, "login", "user", Number(user.id), `User ${user.email} logged in`)
         }

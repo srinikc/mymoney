@@ -77,7 +77,7 @@ export default function AssetsScreen() {
       : <FlatList data={data} keyExtractor={(i, idx) => i.id || i._id || String(idx)}
           ListHeaderComponent={total > 0 ? <View style={[styles.summary, { backgroundColor: theme.primary }]}><Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 }}>Total Assets</Text><Text style={{ color: '#fff', fontSize: 28, fontWeight: '800', marginTop: 4 }}>{formatCurrency(total)}</Text></View> : null}
           renderItem={({ item }) => (
-            <TouchableOpacity style={[styles.card, { backgroundColor: theme.surface }]} onLongPress={() => handleDelete(item.id || item._id)}>
+            <TouchableOpacity style={[styles.card, { backgroundColor: theme.surface }]} onLongPress={() => handleDelete(item.id || item._id || '')}>
               <View style={styles.cardRow}>
                 <View style={[styles.cardIcon, { backgroundColor: theme.incomeLight }]}><Ionicons name="diamond" size={18} color={theme.income} /></View>
                 <Text style={[styles.cardTitle, { color: theme.text, flex: 1 }]}>{item.name || item.title || 'Asset'}</Text>

@@ -156,7 +156,7 @@ export default function ListScreen() {
     ]);
   };
 
-  const getCategoryIcon = (cat: string): string => {
+  const getCategoryIcon = (cat: string) => {
     const allCats = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
     const found = allCats.find((c) => c.value === cat?.toLowerCase());
     return found?.icon || 'ellipsis-horizontal';
@@ -211,7 +211,7 @@ export default function ListScreen() {
             {getAmountPrefix(item)}
             {formatCurrency(Math.abs(item.amount || 0))}
           </Text>
-          <TouchableOpacity onPress={() => handleDelete(item.id || item._id)} disabled={isDeleting}>
+          <TouchableOpacity onPress={() => handleDelete(item.id || item._id || '')} disabled={isDeleting}>
             {isDeleting ? (
               <ActivityIndicator size="small" color={theme.expense} />
             ) : (

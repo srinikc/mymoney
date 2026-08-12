@@ -81,7 +81,7 @@ export default function DealsPage() {
               <Input placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
               <Input placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               <div className="grid grid-cols-2 gap-4">
-                <Input placeholder="Discount" value={form.discount} onChange={(e) => setForm({ ...form, discount: e.target.value })} />
+                <Input type="number" placeholder="Discount" value={form.discount} onChange={(e) => setForm({ ...form, discount: e.target.value })} />
                 <Input placeholder="Coupon Code" value={form.couponCode} onChange={(e) => setForm({ ...form, couponCode: e.target.value })} />
               </div>
               <Input placeholder="URL" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />

@@ -190,7 +190,7 @@ export default function MerchantsScreen() {
 
   const openEditModal = (mapping: MappingItem) => {
     setEditMapping(mapping);
-    setEditCategory(mapping.category?.id || mapping.categoryId || '');
+    setEditCategory(mapping.category ? String(mapping.category.id ?? mapping.category.name) : mapping.categoryId || '');
     setEditSubCategory(mapping.subCategory || '');
     setEditPerson(mapping.person || '');
     setEditModal(true);
@@ -309,7 +309,7 @@ export default function MerchantsScreen() {
             <View style={styles.mappingTags}>
               {item.category && (
                 <View style={[styles.tag, { backgroundColor: theme.primaryLight }]}>
-                  <Text style={[styles.tagText, { color: theme.primary }]}>{item.category.name || item.category}</Text>
+                  <Text style={[styles.tagText, { color: theme.primary }]}>{item.category?.name || ''}</Text>
                 </View>
               )}
               {item.subCategory && (

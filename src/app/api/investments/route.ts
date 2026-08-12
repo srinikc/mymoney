@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { validateBody } from "@/shared/validate"
 import { InvestmentCreateSchema, InvestmentUpdateSchema } from "@/shared/validation"
+import { withAuth } from "@/lib/with-auth"
 
 export async function GET() {
   const investments = await prisma.investment.findMany({ orderBy: { purchaseDate: "desc" } })

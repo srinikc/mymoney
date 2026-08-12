@@ -39,3 +39,11 @@ export function handleAuthError(error: unknown): NextResponse {
   }
   throw error
 }
+
+export async function withAuth(): Promise<AuthenticatedContext & { error?: NextResponse }> {
+  try {
+    return await getAuthContext()
+  } catch (e) {
+    return { error: handleAuthError(e), userId: 0, profileId: 0, role: "" }
+  }
+}

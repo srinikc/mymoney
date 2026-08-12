@@ -5,9 +5,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { Colors } from '../constants/Colors';
 import { formatCurrency, formatDate } from '../utils/format';
-import api from '../api/client';
+import api, { BASE_URL } from '../api/client';
 
 interface ExpenseItem {
   id: number;
@@ -44,6 +45,7 @@ export default function ExpensesScreen() {
   const [formLoading, setFormLoading] = useState(false);
   const [filterDateFrom] = useState('');
   const [filterDateTo] = useState('');
+  const [bankAnalysisReady, setBankAnalysisReady] = useState(false);
 
   const fetchExpenses = useCallback(async (targetPage = 1, append = false) => {
     try {
@@ -73,6 +75,7 @@ export default function ExpensesScreen() {
 
   useEffect(() => {
     api.get('/api/categories').then((r) => setCategories(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    api.get('/api/bank-analysis/status').then((r) => setBankAnalysisReady(Boolean(r.data?.ready))).catch(() => {});
   }, []);
 
   const loadMore = () => {
@@ -117,6 +120,17 @@ export default function ExpensesScreen() {
 
   const getCategoryColor = (cat: { color?: string } | undefined) => cat?.color || theme.primary;
 
+  const handleBankAnalysis = () => {
+    Alert.alert(
+      'Bank Analysis',
+      'Upload your bank statement on the web app to enrich expense descriptions with the note text from your statement.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Open Web App', onPress: () => Linking.openURL(`${BASE_URL}/expenses?bank=1`).catch(() => {}) },
+      ],
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -125,6 +139,11 @@ export default function ExpensesScreen() {
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Expenses</Text>
+        {bankAnalysisReady && (
+          <TouchableOpacity onPress={handleBankAnalysis} style={[styles.addBtn, { backgroundColor: theme.primaryLight, marginRight: 8 }]}>
+            <Ionicons name="file-tray-outline" size={20} color={theme.primary} />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity onPress={() => setShowForm(true)} style={[styles.addBtn, { backgroundColor: theme.primaryLight }]}>
           <Ionicons name="add" size={22} color={theme.primary} />
         </TouchableOpacity>

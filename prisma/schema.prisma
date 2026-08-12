@@ -177,16 +177,17 @@ model Expense {
 // ── Budget ────────────────────────────────────────────────────────────
 
 model Budget {
-  id         Int      @id @default(autoincrement())
-  categoryId Int
-  category   Category @relation(fields: [categoryId], references: [id])
-  month      Int
-  year       Int
-  amount     Float
-  profileId  Int?
-  profile    Profile? @relation(fields: [profileId], references: [id])
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          Int      @id @default(autoincrement())
+  categoryId  Int
+  category    Category @relation(fields: [categoryId], references: [id])
+  subCategory String?
+  month       Int
+  year        Int
+  amount      Float
+  profileId   Int?
+  profile     Profile? @relation(fields: [profileId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([categoryId, month, year])
   @@index([categoryId])

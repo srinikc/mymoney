@@ -1161,21 +1161,6 @@ export const helpContent: Record<string, HelpSection> = {
     ],
   },
 
-  "/onboarding": {
-    title: "Onboarding Wizard",
-    summary: "Step-by-step setup to get you started with MyMoney after your first login.",
-    details: "The Onboarding Wizard appears after your first login (or when you reset onboarding). It walks you through essential setup: enter your name and preferences, optionally connect your Gmail for auto-import, link bank accounts, and set up key integrations. Completing the wizard unlocks the full Dashboard experience. You can skip any step and configure it later from Settings.",
-    workflow: [
-      { step: "Fill in your details", description: "Enter your name, preferred currency (INR/USD/etc.), and timezone.", example: "Name: Srinivas, Currency: INR, Timezone: Asia/Kolkata." },
-      { step: "Connect accounts (optional)", description: "Optionally link your Gmail, bank accounts, or broker accounts during setup.", example: "Sign in with Google to enable Gmail import." },
-      { step: "Finish setup", description: "Complete the wizard to go to your Dashboard, now fully configured." },
-    ],
-    relatedFeatures: [
-      { name: "Dashboard", description: "The final step of onboarding takes you to the Dashboard." },
-      { name: "Settings Hub", description: "Configure anything you skipped during onboarding from Settings." },
-    ],
-  },
-
   "/login": {
     title: "Login",
     summary: "Sign in to MyMoney with email/password or Google OAuth.",

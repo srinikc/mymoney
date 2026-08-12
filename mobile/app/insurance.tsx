@@ -93,7 +93,7 @@ export default function InsuranceScreen() {
       {loading ? <View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View>
       : error ? <View style={styles.center}><Ionicons name="alert-circle" size={40} color={theme.expense} /><Text style={{ color: theme.expense, fontSize: 14 }}>{error}</Text></View>
       : (
-        <FlatList data={data} keyExtractor={(i, idx) => i.id || String(idx)}
+        <FlatList data={data} keyExtractor={(i, idx) => String(i.id ?? idx)}
           renderItem={({ item }) => (
             <TouchableOpacity onPress={() => openEdit(item)} onLongPress={() => handleDelete(item)}>
               <View style={[styles.card, { backgroundColor: theme.surface }]}>

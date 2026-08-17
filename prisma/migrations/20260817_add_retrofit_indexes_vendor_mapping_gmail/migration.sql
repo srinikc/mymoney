@@ -1,4 +1,4 @@
-﻿-- DropIndex
+-- DropIndex
 DROP INDEX "NotificationConfig_channel_key";
 
 -- AlterTable

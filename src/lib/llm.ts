@@ -1,13 +1,16 @@
 import OpenAI from "openai"
 import Anthropic from "@anthropic-ai/sdk"
 
-export type LLMProvider = "openai" | "claude"
+export type LLMProvider = "openai" | "claude" | "local" | "opencode" | string
 
 interface LLMConfig {
   provider: LLMProvider
   openaiApiKey?: string
   anthropicApiKey?: string
+  opencodeApiKey?: string
   model?: string
+  baseUrl?: string
+  localEndpoint?: string
 }
 
 async function getConfig(userId?: number): Promise<LLMConfig> {
@@ -15,24 +18,33 @@ async function getConfig(userId?: number): Promise<LLMConfig> {
     provider: (process.env.LLM_PROVIDER as LLMProvider) || "openai",
     openaiApiKey: process.env.OPENAI_API_KEY,
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+    opencodeApiKey: process.env.OPENCODE_API_KEY,
     model: process.env.LLM_MODEL,
+    baseUrl: process.env.LLM_BASE_URL,
+    localEndpoint: process.env.LOCAL_LLM_ENDPOINT,
   }
 
   if (!userId) return fallback
 
   try {
     const { getConfig: getDbConfig } = await import("./get-config")
-    const [provider, openaiKey, anthropicKey, model] = await Promise.all([
+    const [provider, openaiKey, anthropicKey, opencodeKey, model, baseUrl, localEndpoint] = await Promise.all([
       getDbConfig("LLM_PROVIDER", userId),
       getDbConfig("OPENAI_API_KEY", userId),
       getDbConfig("ANTHROPIC_API_KEY", userId),
+      getDbConfig("OPENCODE_API_KEY", userId),
       getDbConfig("LLM_MODEL", userId),
+      getDbConfig("LLM_BASE_URL", userId),
+      getDbConfig("LOCAL_LLM_ENDPOINT", userId),
     ])
     return {
       provider: (provider || fallback.provider) as LLMProvider,
       openaiApiKey: openaiKey || fallback.openaiApiKey,
       anthropicApiKey: anthropicKey || fallback.anthropicApiKey,
+      opencodeApiKey: opencodeKey || fallback.opencodeApiKey,
       model: model || fallback.model,
+      baseUrl: baseUrl || fallback.baseUrl,
+      localEndpoint: localEndpoint || fallback.localEndpoint,
     }
   } catch {
     return fallback
@@ -44,6 +56,16 @@ export async function queryLLM(prompt: string, userId?: number): Promise<string>
 
   if (config.provider === "claude" && config.anthropicApiKey) {
     return queryClaude(prompt, config)
+  }
+
+  if (config.provider === "local" && config.localEndpoint) {
+    return queryOpenAI(prompt, config, config.localEndpoint)
+  }
+
+  // OpenCode Zen is an OpenAI-compatible gateway. Free models work with no key;
+  // a real API key (OPENCODE_API_KEY) is used when set.
+  if (config.provider === "opencode") {
+    return queryOpenCode(prompt, config)
   }
 
   // Default to OpenAI
@@ -67,6 +89,14 @@ export async function queryLLMStream(
     return queryClaudeStream(prompt, onChunk, config, signal)
   }
 
+  if (config.provider === "local" && config.localEndpoint) {
+    return queryOpenAIStream(prompt, onChunk, config, signal, config.localEndpoint)
+  }
+
+  if (config.provider === "opencode") {
+    return queryOpenCodeStream(prompt, onChunk, config, signal)
+  }
+
   if (config.openaiApiKey) {
     return queryOpenAIStream(prompt, onChunk, config, signal)
   }
@@ -82,8 +112,15 @@ export async function queryLLMStream(
   return response
 }
 
-async function queryOpenAI(prompt: string, config: LLMConfig): Promise<string> {
-  const openai = new OpenAI({ apiKey: config.openaiApiKey })
+function normalizeEndpoint(endpoint: string): string {
+  return endpoint.replace(/\/chat\/completions\/?$/, "").replace(/\/+$/, "")
+}
+
+async function queryOpenAI(prompt: string, config: LLMConfig, baseUrl?: string): Promise<string> {
+  const openai = new OpenAI({
+    apiKey: config.openaiApiKey || "local",
+    baseURL: baseUrl ? normalizeEndpoint(baseUrl) : config.baseUrl || undefined,
+  })
   const model = config.model || "gpt-4o-mini"
 
   const response = await openai.chat.completions.create({
@@ -97,6 +134,100 @@ async function queryOpenAI(prompt: string, config: LLMConfig): Promise<string> {
   })
 
   return response.choices[0]?.message?.content ?? "I'm sorry, I couldn't generate a response."
+}
+
+async function queryOpenCode(prompt: string, config: LLMConfig): Promise<string> {
+  const baseUrl = normalizeEndpoint(config.baseUrl || "https://opencode.ai/zen/v1")
+  const model = config.model || "gpt-4o-mini"
+  const headers: Record<string, string> = { "Content-Type": "application/json" }
+  if (config.opencodeApiKey) headers["Authorization"] = `Bearer ${config.opencodeApiKey}`
+
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: "You are MyMoney AI, a helpful personal finance assistant for Indian users." },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 1024,
+      temperature: 0.7,
+    }),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`OpenCode Zen API error ${response.status}: ${text.slice(0, 300)}`)
+  }
+
+  const data = await response.json()
+  return data.choices?.[0]?.message?.content ?? "I'm sorry, I couldn't generate a response."
+}
+
+async function queryOpenCodeStream(
+  prompt: string,
+  onChunk: (chunk: string) => void,
+  config: LLMConfig,
+  signal?: AbortSignal,
+): Promise<string> {
+  const baseUrl = normalizeEndpoint(config.baseUrl || "https://opencode.ai/zen/v1")
+  const model = config.model || "gpt-4o-mini"
+  const headers: Record<string, string> = { "Content-Type": "application/json" }
+  if (config.opencodeApiKey) headers["Authorization"] = `Bearer ${config.opencodeApiKey}`
+
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers,
+    signal,
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: "You are MyMoney AI, a helpful personal finance assistant for Indian users." },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 1024,
+      temperature: 0.7,
+      stream: true,
+    }),
+  })
+
+  if (!response.ok || !response.body) {
+    const text = await response.text().catch(() => "")
+    throw new Error(`OpenCode Zen API error ${response.status}: ${text.slice(0, 300)}`)
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let fullResponse = ""
+  let buffer = ""
+  let done = false
+
+  while (!done) {
+    const { done: readDone, value } = await reader.read()
+    done = readDone
+    if (readDone || signal?.aborted) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split("\n")
+    buffer = lines.pop() || ""
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed.startsWith("data:")) continue
+      const payload = trimmed.slice(5).trim()
+      if (payload === "[DONE]") continue
+      try {
+        const json = JSON.parse(payload)
+        const content = json.choices?.[0]?.delta?.content ?? ""
+        if (content) {
+          fullResponse += content
+          onChunk(content)
+        }
+      } catch {
+        // ignore partial JSON lines
+      }
+    }
+  }
+  return fullResponse
 }
 
 async function queryClaude(prompt: string, config: LLMConfig): Promise<string> {
@@ -120,8 +251,12 @@ async function queryOpenAIStream(
   onChunk: (chunk: string) => void,
   config: LLMConfig,
   signal?: AbortSignal,
+  baseUrl?: string,
 ): Promise<string> {
-  const openai = new OpenAI({ apiKey: config.openaiApiKey })
+  const openai = new OpenAI({
+    apiKey: config.openaiApiKey || "local",
+    baseURL: baseUrl ? normalizeEndpoint(baseUrl) : config.baseUrl || undefined,
+  })
   const model = config.model || "gpt-4o-mini"
 
   const stream = await openai.chat.completions.create({

@@ -27,6 +27,10 @@ model User {
   payments  Payment[]
   invitedSharedProfiles SharedProfile[] @relation("InvitedUser")
   sentInvitations SharedProfile[] @relation("Inviter")
+  gmailImportLogs GmailImportLog[]
+  gmailScans GmailScan[]
+  vendorMappings VendorMapping[]
+  importSessions ImportSession[]
 }
 
 model Profile {
@@ -40,6 +44,7 @@ model Profile {
 
   // Relations to all data tables
   expenses    Expense[]
+  importSessions ImportSession[]
   budgets     Budget[]
   goals       Goal[]
   investments Investment[]
@@ -58,6 +63,8 @@ model Profile {
   bankAccounts BankAccount[]
   fixedDeposits FixedDeposit[]
   sharedProfiles SharedProfile[]
+  alertRules AlertRule[]
+  notificationConfigs NotificationConfig[]
 }
 
 model Account {
@@ -172,6 +179,9 @@ model Expense {
   @@index([person])
   @@index([importSessionId])
   @@index([profileId])
+  @@index([profileId, subCategory])
+  @@index([profileId, person])
+  @@index([profileId, deletedAt])
 }
 
 // ── Budget ────────────────────────────────────────────────────────────
@@ -250,24 +260,31 @@ model Investment {
 
 // ── Merchant Mapping ──────────────────────────────────────────────────
 
-model MerchantMapping {
+model VendorMapping {
   id          Int      @id @default(autoincrement())
-  merchantKey String   @unique
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vendorKey   String
   description String?
-  expenseType String?
+  category    String?
   subCategory String?
   person      String?
   source      String   @default("manual")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([merchantKey])
+  @@unique([userId, vendorKey])
+  @@index([userId])
 }
 
 // ── Import Session ────────────────────────────────────────────────────
 
 model ImportSession {
   id           Int       @id @default(autoincrement())
+  userId       Int?
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  profileId    Int?
+  profile      Profile?  @relation(fields: [profileId], references: [id], onDelete: SetNull)
   source       String
   fileName     String?
   totalRows    Int       @default(0)
@@ -277,6 +294,9 @@ model ImportSession {
   status       String    @default("preview")
   createdAt    DateTime  @default(now())
   expenses     Expense[]
+
+  @@index([userId])
+  @@index([profileId])
 }
 
 // ── Reminder ──────────────────────────────────────────────────────────
@@ -396,22 +416,31 @@ model Subscription {
 
 model AlertRule {
   id        Int      @id @default(autoincrement())
+  profileId Int?
+  profile   Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
   name      String
   type      String
   config    String?
   isEnabled Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([profileId])
 }
 
 model NotificationConfig {
   id         Int      @id @default(autoincrement())
-  channel    String   @unique
+  profileId  Int?
+  profile    Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  channel    String
   enabled    Boolean  @default(false)
   config     String?
   alertTypes String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@unique([profileId, channel])
+  @@index([profileId])
 }
 
 // ── Income Source ────────────────────────────────────────────────────
@@ -684,4 +713,40 @@ model SharedProfile {
   @@index([invitedUserId])
   @@index([invitedBy])
   @@index([status])
+}
+
+// ── Gmail Import Tracking ──────────────────────────────────────────────
+// Records which Gmail messageIds have already been imported so scans can
+// skip previously processed emails (incremental / diff scanning).
+
+model GmailImportLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messageId  String
+  importedAt DateTime @default(now())
+
+  @@unique([userId, messageId])
+  @@index([userId])
+}
+
+// Tracks in-progress/completed Gmail scans so a long scan can run in the
+// background while the user navigates away. Results are stored as JSON.
+model GmailScan {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      String   @default("running") // running | done | error
+  totalEmails Int      @default(0)
+  processed   Int      @default(0)
+  parsed      Int      @default(0)
+  alreadyImported Int  @default(0)
+  transactions Json?
+  journal     Json?
+  error       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
 }

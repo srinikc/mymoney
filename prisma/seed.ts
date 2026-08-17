@@ -29,23 +29,34 @@ async function main() {
     console.log(`  Created ${defaultCategories.length} categories`)
   }
 
-  // Load merchant mappings from bundled JSON
+  // Load vendor mappings from bundled JSON (per-user: assign to first user)
   const mappingsPath = path.join(__dirname, "..", "data", "mappings.json")
-  if (fs.existsSync(mappingsPath)) {
+  const firstUser = await prisma.user.findFirst({ orderBy: { id: "asc" } })
+  if (fs.existsSync(mappingsPath) && firstUser) {
     const mappingsData = JSON.parse(fs.readFileSync(mappingsPath, "utf-8"))
     let loaded = 0
     for (const m of mappingsData) {
-      const existing = await prisma.merchantMapping.findUnique({
-        where: { merchantKey: m.merchantKey },
+      const existing = await prisma.vendorMapping.findUnique({
+        where: { userId_vendorKey: { userId: firstUser.id, vendorKey: m.merchantKey ?? m.vendorKey } },
       })
       if (!existing) {
-        await prisma.merchantMapping.create({ data: m })
+        await prisma.vendorMapping.create({
+          data: {
+            userId: firstUser.id,
+            vendorKey: m.merchantKey ?? m.vendorKey,
+            description: m.description ?? null,
+            category: m.expenseType ?? m.category ?? null,
+            subCategory: m.subCategory ?? null,
+            person: m.person ?? null,
+            source: "seed",
+          },
+        })
         loaded++
       }
     }
-    console.log(`  Loaded ${loaded} merchant mappings (${mappingsData.length} total in file)`)
+    console.log(`  Loaded ${loaded} vendor mappings for user ${firstUser.id} (${mappingsData.length} total in file)`)
   } else {
-    console.log("  No mappings.json found — skipping merchant mappings seed")
+    console.log("  No mappings.json found or no user exists — skipping vendor mappings seed")
   }
 
   console.log("Seed complete!")

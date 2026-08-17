@@ -5,12 +5,86 @@ import { fileURLToPath } from "node:url"
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PROFILE_DIR = join(__dirname, "..", ".gpay-profile")
 
+// Google blocks sign-in from browsers that expose automation. Launch real
+// Chrome without the automation banner/flags and mask navigator.webdriver so
+// the persistent profile can be signed into normally (once), then reused.
+function launchArgs() {
+  return [
+    "--disable-blink-features=AutomationControlled",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-infobars",
+  ]
+}
+
 function log(msg) {
   const ts = new Date().toISOString().slice(11, 19)
   console.log(`[${ts}] ${msg}`)
 }
 
+// Launch a persistent profile using real Chrome when it's installed, falling
+// back to Playwright's bundled Chromium otherwise so the feature still works
+// on machines without Chrome. Real Chrome is preferred because it is far less
+// likely to be blocked by Google's sign-in checks.
+async function launchPersistent(headless) {
+  const options = {
+    headless,
+    args: launchArgs(),
+    ignoreDefaultArgs: ["--enable-automation"],
+  }
+  try {
+    const context = await chromium.launchPersistentContext(PROFILE_DIR, { ...options, channel: "chrome" })
+    log("Launched with installed Chrome")
+    return context
+  } catch (err) {
+    const msg = String(err.message || err)
+    if (!/executable doesn't exist|executable.*not found|channel/i.test(msg)) throw err
+    log("Chrome not found, falling back to bundled Chromium: " + msg)
+    return chromium.launchPersistentContext(PROFILE_DIR, options)
+  }
+}
+
 const isSetup = process.argv.includes("--setup")
+
+// Wait for a headed login window to leave accounts.google.com. Reports HONESTLY:
+// - ok: user finished signing in (URL left accounts.google.com)
+// - closed: the browser window was closed before login completed
+// - blocked: Google showed a sign-in block/captcha page ("couldn't sign in",
+//   "This browser or app may not be secure", etc.)
+// - timeout: 5 minutes elapsed with no sign-in
+// Returns { ok: true } or { ok: false, error: <human message> }.
+async function waitForLoginToLeaveGoogle(page, context) {
+  const deadline = Date.now() + 300000
+  let sawBlockPage = false
+  let lastError = null
+  while (Date.now() < deadline) {
+    if (context.browser() === null || page.isClosed()) {
+      return { ok: false, error: "The browser window was closed before Google sign-in finished. Please try again." }
+    }
+    try {
+      const url = page.url()
+      if (!url.includes("accounts.google.com")) {
+        return { ok: true }
+      }
+      // Detect known Google block/captcha pages so we can give a real reason.
+      const text = await page.evaluate(() => (document.body?.innerText || "").slice(0, 2000)).catch(() => "")
+      if (/couldn't sign you in|couldn’t sign you in|unable to sign you in|this browser or app may not be secure|verify it's you|verify it’s you|checking your browser/i.test(text)) {
+        sawBlockPage = true
+        lastError = "Google blocked the sign-in (" + text.split("\n").map(s => s.trim()).filter(Boolean).slice(0, 2).join(" — ") + ")."
+      }
+    } catch {
+      // Page is navigating — keep waiting.
+    }
+    await new Promise(r => setTimeout(r, 1000))
+  }
+  if (sawBlockPage) {
+    return {
+      ok: false,
+      error: (lastError || "Google blocked the sign-in.") + " Google restricts sign-in from automated browser sessions. Click 'Re-authenticate' and try once more; if it keeps failing, export manually from takeout.google.com and upload the file.",
+    }
+  }
+  return { ok: false, error: "Google sign-in did not complete within 5 minutes." }
+}
 
 async function runExportFlow({ page, context, headless }) {
   let capturedExportId = null
@@ -57,36 +131,37 @@ async function runExportFlow({ page, context, headless }) {
   await new Promise(r => setTimeout(r, 2000))
 
   // Handle login page
+  // ANY redirect to accounts.google.com means the Google session is not valid —
+  // this covers the login page, account chooser, "confirm identifier", 2FA
+  // challenge, captcha, etc. Do NOT guess from body text: Google changes these
+  // page layouts often (e.g. confirmidentifier shows no "Sign in"/"Password").
   const urlAtStart = page.url()
   if (urlAtStart.includes("accounts.google.com")) {
-    const pageText = await page.evaluate(() => document.body.innerText || "")
-    const isLoginPage = pageText.includes("Sign in") || pageText.includes("Password") || pageText.includes("Email") || pageText.length < 50
-    if (isLoginPage) {
-      if (!headless) {
-        log("Please log into your Google account in the browser window.")
-        log("Waiting up to 5 minutes for login to complete...")
-        try {
-          await page.waitForFunction(
-            () => !window.location.href.includes("accounts.google.com"),
-            { timeout: 300000, polling: 1000 }
-          )
-          log("Login detected, continuing...")
-        } catch {
-          log("Login wait timed out or browser was closed.")
-          await context.close()
-          return { status: "error", error: "Login did not complete within 5 minutes." }
-        }
-      } else {
+    if (!headless) {
+      log("Please log into your Google account in the browser window.")
+      log("Waiting up to 5 minutes for login to complete...")
+      const loginWait = await waitForLoginToLeaveGoogle(page, context)
+      if (!loginWait.ok) {
         await context.close()
-        return { status: "auth_required" }
+        return { status: "error", error: loginWait.error }
       }
+      log("Login detected, continuing...")
     } else {
-      log("URL shows accounts.google.com but page has content — treating as authenticated")
+      await context.close()
+      return { status: "auth_required" }
     }
   }
 
-  // Re-check URL after potential login
+  // Re-check URL after potential login — a redirect to accounts.google.com
+  // (e.g. 2FA, "confirm it's you", blocked session) means auth did NOT complete.
   const afterLoginUrl = page.url()
+  if (afterLoginUrl.includes("accounts.google.com")) {
+    await context.close()
+    return {
+      status: "auth_required",
+      error: "Google login did not complete (extra verification required). Click 'Re-authenticate' to sign in manually.",
+    }
+  }
 
   // Check for existing export FIRST
   const bodyText = await page.evaluate(() => document.body.innerText || "")
@@ -103,6 +178,17 @@ async function runExportFlow({ page, context, headless }) {
     const debugUrl = page.url()
     const debugTitle = await page.title()
     const debugText = await page.evaluate(() => document.body.innerText.slice(0, 200))
+
+    // Still on a Google sign-in page — the session is invalid, not a UI issue.
+    if (debugUrl.includes("accounts.google.com")) {
+      log(`Still on Google sign-in page. URL: ${debugUrl}, Title: ${debugTitle}`)
+      await context.close()
+      return {
+        status: "auth_required",
+        error: "Google session expired. Click 'Re-authenticate' to log in.",
+      }
+    }
+
     log(`GPay selector not found. URL: ${debugUrl}, Title: ${debugTitle}, Body: ${debugText}`)
 
     if (debugUrl.includes("takeout/transfer") || debugUrl.includes("takeout/export")) {
@@ -110,8 +196,14 @@ async function runExportFlow({ page, context, headless }) {
       return { status: "already_in_progress" }
     }
 
+    // On Takeout but the GPay checkbox isn't where we expect — either Google
+    // changed the layout or this is the wrong account's Takeout page. Give the
+    // user an actionable message instead of a raw URL dump.
     await context.close()
-    return { status: "error", error: `GPay checkbox not found on page. URL: ${debugUrl}, Title: "${debugTitle}"` }
+    return {
+      status: "error",
+      error: "Could not find the Google Pay checkbox on the Takeout page. Google may have changed the Takeout layout, or you are signed into a different account. Try 'Re-authenticate', or export manually from takeout.google.com and upload the file.",
+    }
   }
   await new Promise(r => setTimeout(r, 1000))
 
@@ -221,10 +313,11 @@ async function runExportFlow({ page, context, headless }) {
       log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
       log("")
       try {
-        await page.waitForFunction(
-          () => !window.location.href.includes("signin/challenge"),
-          { timeout: 300000, polling: 1000 }
-        )
+        const challengeWait = await waitForLoginToLeaveGoogle(page, context)
+        if (!challengeWait.ok) {
+          await context.close()
+          return { status: "error", error: challengeWait.error }
+        }
         log("Drive challenge completed, continuing...")
       } catch {
         log("Drive challenge wait timed out or browser was closed.")
@@ -258,7 +351,10 @@ async function runExportFlow({ page, context, headless }) {
 }
 
 async function runHeadless() {
-  const context = await chromium.launchPersistentContext(PROFILE_DIR, { headless: true, channel: "chrome" })
+  const context = await launchPersistent(true)
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, "webdriver", { get: () => undefined })
+  })
   const page = await context.newPage()
   page.setDefaultTimeout(15000)
   try {
@@ -278,7 +374,10 @@ async function runSetup() {
   console.log("and the script will continue automatically.")
   console.log("Close the browser window when done.")
   console.log("")
-  const context = await chromium.launchPersistentContext(PROFILE_DIR, { headless: false, channel: "chrome" })
+  const context = await launchPersistent(false)
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, "webdriver", { get: () => undefined })
+  })
   const page = await context.newPage()
   page.setDefaultTimeout(15000)
   try {

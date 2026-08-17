@@ -20,7 +20,7 @@ import DatePicker from "@/components/ui/date-picker"
 import TransactionConfirm from "@/components/ui/transaction-confirm"
 import {
   Upload, Search, Download, FileSpreadsheet,
-  Loader2, Cloud, LogOut, Edit3, ChevronLeft, ChevronRight, RefreshCw, AlertCircle, CheckCircle2, X,
+  Loader2, Cloud, LogOut, Edit3, ChevronLeft, ChevronRight, RefreshCw, AlertCircle, CheckCircle2, X, Trash2,
 } from "lucide-react"
 
 interface DriveFile {
@@ -68,6 +68,7 @@ export default function ExpensesPage() {
   const [subCategoryFilter, setSubCategoryFilter] = useState<string[]>([])
   const [bankFilter, setBankFilter] = useState<string[]>([])
   const [notesFilter, setNotesFilter] = useState("")
+  const [descriptionFilter, setDescriptionFilter] = useState("")
   const [otherTypeFilter, setOtherTypeFilter] = useState("")
 
   // Filter modes for text-based fields (P3.6)
@@ -86,13 +87,15 @@ export default function ExpensesPage() {
   const [distinctVendors, setDistinctVendors] = useState<string[]>([])
   const [distinctSubCategories, setDistinctSubCategories] = useState<string[]>([])
   const [distinctBankAccounts, setDistinctBankAccounts] = useState<string[]>([])
+  const [savedVendors, setSavedVendors] = useState<string[]>([])
+  const [savedVendorSubCats, setSavedVendorSubCats] = useState<string[]>([])
+  const [savedVendorPersons, setSavedVendorPersons] = useState<string[]>([])
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
   const [datePreset, setDatePreset] = useState("all")
   const [totalAmount, setTotalAmount] = useState(0)
   const [amountMin, setAmountMin] = useState("")
   const [amountMax, setAmountMax] = useState("")
-  const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<string | null>(null)
   const [gdriveConnected, setGdriveConnected] = useState(false)
   const [gdriveEmail, setGdriveEmail] = useState("")
@@ -100,30 +103,62 @@ export default function ExpensesPage() {
   const [scanning, setScanning] = useState(false)
   const [driveDialogOpen, setDriveDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [editForm, setEditForm] = useState<Record<number, { categoryId: string; subCategory: string; person: string; vendor: string }>>({})
+  const [editForm, setEditForm] = useState<Record<number, { categoryId: string; subCategory: string; person: string; vendor: string; description: string }>>({})
   const [driveImporting, setDriveImporting] = useState(false)
   const [bankAnalysisReady, setBankAnalysisReady] = useState(false)
   const [bankAnalysisOpen, setBankAnalysisOpen] = useState(false)
 
 
   const [isAddingNew, setIsAddingNew] = useState(false)
+  const [highlightId, setHighlightId] = useState<number | null>(null)
   const newFormDefault = { date: new Date().toISOString().split("T")[0], amount: "", categoryId: "", vendor: "", description: "", paymentMode: "UPI", person: "", subCategory: "", bankAccount: "", notes: "" }
   const [newForm, setNewForm] = useState(newFormDefault)
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; ids: number[] }>({ open: false, ids: [] })
-  const [confirmTx, setConfirmTx] = useState<{ open: boolean; pendingForm: typeof newFormDefault }>({ open: false, pendingForm: newFormDefault })
+  const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set())
+  const [batchDeleting, setBatchDeleting] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [confirmRangeDelete, setConfirmRangeDelete] = useState<{ open: boolean; scope: string }>({ open: false, scope: "all" })
+  const [rangeDeleting, setRangeDeleting] = useState(false)
+  const [confirmTx, setConfirmTx] = useState<{ open: boolean; pendingForm: typeof newFormDefault; repeat?: RepeatPayload | null }>({ open: false, pendingForm: newFormDefault, repeat: null })
 
-  const doAddExpense = async (formData: typeof newFormDefault) => {
+  interface RepeatPayload { day?: number; direction: "forward" | "backward"; count: number }
+  const [repeatOpen, setRepeatOpen] = useState(false)
+  const [repeatDay, setRepeatDay] = useState("1")
+  const [repeatDirection, setRepeatDirection] = useState<"forward" | "backward">("forward")
+  const [repeatCount, setRepeatCount] = useState("")
+
+  const buildRepeatPayload = (): RepeatPayload | null => {
+    const count = Number.parseInt(repeatCount)
+    if (!repeatOpen || !Number.isFinite(count) || count < 1) return null
+    return { day: Number.parseInt(repeatDay) || 1, direction: repeatDirection, count }
+  }
+
+  const doAddExpense = async (formData: typeof newFormDefault, repeat?: RepeatPayload | null) => {
     try {
+      const payload: Record<string, unknown> = { ...formData }
+      if (repeat) payload.repeat = repeat
       const res = await fetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       })
       if (res.ok) {
+        const data = await res.json()
         setIsAddingNew(false)
         setNewForm(newFormDefault)
-        toast.success("Expense added")
+        setRepeatOpen(false)
+        setRepeatCount("")
+        if (data.recurring) {
+          toast.success(`Created ${data.created} entries, skipped ${data.skippedExisting} already entered this month`)
+          if (data.createdIds?.[0]) setHighlightId(data.createdIds[0])
+        } else {
+          toast.success("Expense added")
+          if (data.id) setHighlightId(data.id)
+        }
         loadData()
+        if (data.id || data.createdIds?.[0]) {
+          setTimeout(() => setHighlightId(null), 4000)
+        }
       } else {
         const data = await res.json()
         toast.error(data.error || "Failed to add expense")
@@ -136,11 +171,12 @@ export default function ExpensesPage() {
   const handleAddNew = async () => {
     if (!newForm.amount || !newForm.date) return
     const amount = Number.parseFloat(newForm.amount)
+    const repeat = buildRepeatPayload()
     if (amount >= 10000) {
-      setConfirmTx({ open: true, pendingForm: { ...newForm } })
+      setConfirmTx({ open: true, pendingForm: { ...newForm }, repeat })
       return
     }
-    await doAddExpense(newForm)
+    await doAddExpense(newForm, repeat)
   }
 
   const loadData = useCallback(async (targetPage?: number) => {
@@ -167,6 +203,7 @@ export default function ExpensesPage() {
     }
     if (bankFilter.length > 0) params.set("bankAccounts", bankFilter.join(","))
     if (notesFilter) params.set("notes", notesFilter)
+    if (descriptionFilter) params.set("description", descriptionFilter)
     if (otherTypeFilter) params.set("otherType", otherTypeFilter)
 
     if (dateFrom) params.set("dateFrom", dateFrom)
@@ -202,13 +239,14 @@ export default function ExpensesPage() {
       console.error("Failed to load expenses:", err)
     }
     setLoading(false)
-  }, [search, categoryFilter, sessionFilter, personFilter, recurrenceFilter, paymentModeFilter, vendorFilter, subCategoryFilter, bankFilter, notesFilter, otherTypeFilter, vendorFilterMode, subCategoryFilterMode, dateFrom, dateTo, amountMin, amountMax, sortField, sortDir, page])
+  }, [search, categoryFilter, sessionFilter, personFilter, recurrenceFilter, paymentModeFilter, vendorFilter, subCategoryFilter, bankFilter, notesFilter, descriptionFilter, otherTypeFilter, vendorFilterMode, subCategoryFilterMode, dateFrom, dateTo, amountMin, amountMax, sortField, sortDir, page])
 
   useEffect(() => { loadData() }, [loadData])
 
   useEffect(() => {
     fetch("/api/auth/status").then(r => r.json()).then(data => {
       if (data.connected) { setGdriveConnected(true); setGdriveEmail(data.email || "") }
+      if (data.isAdmin) setIsAdmin(true)
     })
     fetch("/api/import-sessions").then(r => r.json()).then(setImportSessions)
     fetch("/api/expenses/flagged?pageSize=1").then(r => r.json()).then(d => setFlaggedCount(d.total || 0)).catch(() => {})
@@ -237,31 +275,6 @@ export default function ExpensesPage() {
     detectPendingGpayFile()
   }, [])
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setImporting(true)
-    setImportResult(null)
-    const formData = new FormData()
-    formData.append("file", file)
-    try {
-      const res = await fetch("/api/import", { method: "POST", body: formData })
-      const result = await res.json()
-      if (res.ok) {
-        setImportResult(result.message || "Imported successfully")
-        toast.success(result.message || "File imported successfully")
-        setPage(1)
-        fetch("/api/import-sessions").then(r => r.json()).then(setImportSessions)
-      } else {
-        setImportResult(result.error || "Import failed (" + res.status + ")")
-        toast.error(result.error || "Import failed")
-      }
-    } catch (error) {
-      setImportResult("Import failed: " + String(error))
-      toast.error("Import failed: " + String(error))
-    } finally { setImporting(false); e.target.value = "" }
-  }
-
   const handleExport = async () => {
     const res = await fetch("/api/export?type=expenses&format=xlsx")
     const blob = await res.blob()
@@ -281,6 +294,7 @@ export default function ExpensesPage() {
       : []
   ))
   const gpayAutoModeRef = useRef(false)
+  const gpayStaleInProgressRef = useRef(false)
   const [gpayError, setGpayError] = useState("")
   const gpayPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const gpayDrivePollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -292,6 +306,7 @@ export default function ExpensesPage() {
   const [gpayImportResult, setGpayImportResult] = useState<{ imported: number; skipped: number } | null>(null)
   const [gpayPendingFileId, setGpayPendingFileId] = useState<string | null>(null)
   const [, setGpayPendingFileName] = useState("")
+  const [gpayPendingFileCreated, setGpayPendingFileCreated] = useState("")
   const [gpayPreviewPendingId, setGpayPreviewPendingId] = useState("")
   const [gpayReauthExportCreated, setGpayReauthExportCreated] = useState(true)
   const [gpayPreview, setGpayPreview] = useState<{
@@ -308,17 +323,49 @@ export default function ExpensesPage() {
     localStorage.setItem("mymoney-gpay-known-files", JSON.stringify([...knownGpayFilesRef.current]))
   }, [])
 
+  // Google Takeout delivers TWO zips per export: a small index zip (only
+  // archive_browser.html, NO GPay data) and the real data zip (contains
+  // My Activity.html with the transactions). Picking the first .zip often
+  // grabs the empty index file, so choose the candidate with the most bytes —
+  // the real data zip is always much larger than the index zip.
+  // A file is only "new" if it appeared AFTER the last successful import
+  // (mymoney-gpay-last-sync); older exports were already imported, so they are
+  // treated as known and never re-flagged.
+  const pickBestGpayFile = useCallback((files: { id: string; name: string; size?: string; createdTime?: string }[]) => {
+    const lastSyncRaw = localStorage.getItem("mymoney-gpay-last-sync") || ""
+    const lastSync = lastSyncRaw ? new Date(lastSyncRaw).getTime() : 0
+    const candidates = files.filter(
+      (f) => (f.name === "MyActivity.html" || f.name.endsWith(".zip")) &&
+        !knownGpayFilesRef.current.has(f.id) &&
+        (f.createdTime ? new Date(f.createdTime).getTime() > lastSync : true)
+    )
+    if (candidates.length === 0) return null
+    return candidates.reduce((best, f) => {
+      const bestSize = Number(best.size) || 0
+      const size = Number(f.size) || 0
+      if (size > bestSize) return f
+      if (size === bestSize && (f.name === "MyActivity.html" || best.name !== "MyActivity.html")) return f
+      return best
+    })
+  }, [])
+
   // Resume pending sync on mount (MUST run before save effect below)
   // Check if a GPay file already arrived while we were away
   const checkAndImportPendingGpayFile = async () => {
     try {
       const listRes = await fetch("/api/drive/list")
-      if (!listRes.ok) return false
+      if (!listRes.ok) {
+        const errData = await listRes.json().catch(() => ({}))
+        if (errData.needsReauth) {
+          setGpayError("Your Google Drive connection has expired. Reconnect it in Settings → Google Account, then try Refresh GPay again.")
+          setGpayStep("error")
+          setGpayJobId(null)
+        }
+        return false
+      }
       const data = await listRes.json()
-      const files: { id: string; name: string }[] = data.files || []
-      const pendingFile = files.find(
-        (f) => (f.name === "MyActivity.html" || f.name.endsWith(".zip")) && !knownGpayFilesRef.current.has(f.id)
-      )
+      const files: { id: string; name: string; size?: string }[] = data.files || []
+      const pendingFile = pickBestGpayFile(files)
       if (pendingFile) {
         const ok = await finishGpayAutoImport(pendingFile.id)
         if (ok) return true
@@ -335,13 +382,12 @@ export default function ExpensesPage() {
       const listRes = await fetch("/api/drive/list")
       if (!listRes.ok) return
       const data = await listRes.json()
-      const files: { id: string; name: string }[] = data.files || []
-      const pendingFile = files.find(
-        (f) => (f.name === "MyActivity.html" || f.name.endsWith(".zip")) && !knownGpayFilesRef.current.has(f.id)
-      )
+      const files: { id: string; name: string; size?: string; createdTime?: string }[] = data.files || []
+      const pendingFile = pickBestGpayFile(files)
       if (pendingFile) {
         setGpayPendingFileId(pendingFile.id)
         setGpayPendingFileName(pendingFile.name)
+        setGpayPendingFileCreated(pendingFile.createdTime || "")
       }
     } catch { /* ignore */ }
   }
@@ -368,7 +414,15 @@ export default function ExpensesPage() {
     setGpayStep("importing")
     try {
       const result = await handleImportFromDrive(fileId)
-      if (result) setGpayImportResult({ imported: result.imported, skipped: result.skipped })
+      if (!result || result.error) {
+        knownGpayFilesRef.current.delete(fileId)
+        localStorage.setItem("mymoney-gpay-known-files", JSON.stringify([...knownGpayFilesRef.current]))
+        setGpayStep("error")
+        setGpayError(result?.message || "Failed to import GPay file from Drive.")
+        setGpayJobId(null)
+        return
+      }
+      setGpayImportResult({ imported: result.imported, skipped: result.skipped })
       setGpayStep("done")
       setGpayJobId(null)
       persistLastGpaySync(new Date().toISOString())
@@ -386,7 +440,15 @@ export default function ExpensesPage() {
       const fileId = gpayPreviewPendingId || gpayPendingFileId || ""
       addKnownGpayFile(fileId)
       const result = await handleImportFromDrive(fileId)
-      if (result) setGpayImportResult({ imported: result.imported, skipped: result.skipped })
+      if (!result || result.error) {
+        knownGpayFilesRef.current.delete(fileId)
+        localStorage.setItem("mymoney-gpay-known-files", JSON.stringify([...knownGpayFilesRef.current]))
+        setGpayStep("error")
+        setGpayError(result?.message || "Failed to import GPay file from Drive.")
+        setGpayJobId(null)
+        return
+      }
+      setGpayImportResult({ imported: result.imported, skipped: result.skipped })
       setGpayStep("done")
       setGpayJobId(null)
       persistLastGpaySync(new Date().toISOString())
@@ -402,6 +464,7 @@ export default function ExpensesPage() {
       addKnownGpayFile(gpayPendingFileId)
       setGpayPendingFileId(null)
       setGpayPendingFileName("")
+      setGpayPendingFileCreated("")
     }
   }
 
@@ -423,15 +486,16 @@ export default function ExpensesPage() {
           listRes = await fetch("/api/drive/list")
           if (listRes.ok) data = await listRes.json()
         } catch { /* drive list failed */ }
-        const files: { id: string; name: string }[] = data?.files || []
+        const files: { id: string; name: string; size?: string }[] = data?.files || []
         const gpayFiles = files.filter((f) => f.name === "MyActivity.html" || f.name.endsWith(".zip"))
         const unimported = gpayFiles.filter((f) => !knownGpayFilesRef.current.has(f.id))
 
         if (unimported.length > 0) {
-          // Found un-imported files — import the first one
+          // Found un-imported files — import the one with actual GPay data
           gpayAutoModeRef.current = true
           setGpayStep("waiting_drive")
-          await finishGpayAutoImport(unimported[0].id)
+          const best = pickBestGpayFile(files)
+          await finishGpayAutoImport(best?.id || unimported[0].id)
           return
         }
 
@@ -455,7 +519,7 @@ export default function ExpensesPage() {
         gpayAutoModeRef.current = true
         setGpayStep(step === "export_in_progress" ? "waiting_drive" : step)
         const found = await checkAndImportPendingGpayFile()
-        if (!found) startGpayDrivePolling()
+        if (!found && gpayStep !== "error") startGpayDrivePolling()
       } catch {
         localStorage.removeItem("mymoney-gpay-pending")
       }
@@ -491,18 +555,30 @@ export default function ExpensesPage() {
       const listRes = await fetch("/api/drive/list")
       if (listRes.ok) {
         const data = await listRes.json()
-        const files: { id: string; name: string }[] = data.files || []
+        const files: { id: string; name: string; size?: string }[] = data.files || []
         for (const f of files) {
           if (f.name.endsWith(".html") && f.name !== "MyActivity.html") addKnownGpayFile(f.id)
         }
         const gpayFiles = files.filter((f) => f.name === "MyActivity.html" || f.name.endsWith(".zip"))
-        const newFile = gpayFiles.find((f) => !knownGpayFilesRef.current.has(f.id))
+        const newFile = pickBestGpayFile(files)
         if (newFile) {
           const ok = await finishGpayAutoImport(newFile.id)
           if (ok) return
+          // A real import failure already set step "error" and stopped polling.
+          if (gpayStep === "error") return
         }
         lastKnownCount = knownGpayFilesRef.current.size
         lastMatchCount = gpayFiles.length
+      } else {
+        const errData = await listRes.json().catch(() => ({}))
+        if (errData.needsReauth) {
+          if (gpayDrivePollRef.current) clearInterval(gpayDrivePollRef.current)
+          if (gpayTimeoutRef.current) clearTimeout(gpayTimeoutRef.current)
+          setGpayError("Your Google Drive connection has expired. Reconnect it in Settings → Google Account, then try Refresh GPay again.")
+          setGpayStep("error")
+          setGpayJobId(null)
+          return
+        }
       }
     } catch { /* gpay poll failed */ }
 
@@ -511,16 +587,28 @@ export default function ExpensesPage() {
     gpayDrivePollRef.current = setInterval(async () => {
       try {
         const res = await fetch("/api/drive/list")
-        if (!res.ok) return
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}))
+          if (errData.needsReauth) {
+            if (gpayDrivePollRef.current) clearInterval(gpayDrivePollRef.current)
+            if (gpayTimeoutRef.current) clearTimeout(gpayTimeoutRef.current)
+            setGpayError("Your Google Drive connection has expired. Reconnect it in Settings → Google Account, then try Refresh GPay again.")
+            setGpayStep("error")
+            setGpayJobId(null)
+          }
+          return
+        }
         const data = await res.json()
-        const files: { id: string; name: string }[] = data.files || []
+        const files: { id: string; name: string; size?: string }[] = data.files || []
         const gpayFiles = files.filter((f) => f.name === "MyActivity.html" || f.name.endsWith(".zip"))
-        const newFile = gpayFiles.find((f) => !knownGpayFilesRef.current.has(f.id))
+        const newFile = pickBestGpayFile(files)
         if (newFile) {
           if (gpayDrivePollRef.current) clearInterval(gpayDrivePollRef.current)
           if (gpayTimeoutRef.current) clearTimeout(gpayTimeoutRef.current)
           const ok = await finishGpayAutoImport(newFile.id)
           if (ok) return
+          // Real import failure — stop; don't retry-loop every 15s.
+          if (gpayStep === "error") return
           // File wasn't ready — restart polling
           startGpayDrivePolling(timeoutMs)
           return
@@ -571,6 +659,7 @@ export default function ExpensesPage() {
         const status = data.job?.status
         if (status === "export_created" || status === "already_in_progress") {
           clearAllPolling()
+          gpayStaleInProgressRef.current = status === "already_in_progress"
           setGpayStep("waiting_drive")
           setGpayJobId(null)
           // NOTE: persistLastGpaySync is NOT called here — it's only set
@@ -635,6 +724,7 @@ export default function ExpensesPage() {
     if (gpayDrivePollRef.current) { clearInterval(gpayDrivePollRef.current); gpayDrivePollRef.current = null }
     if (gpayTimeoutRef.current) { clearTimeout(gpayTimeoutRef.current); gpayTimeoutRef.current = null }
     if (reauthPollRef.current) { clearInterval(reauthPollRef.current); reauthPollRef.current = null }
+    gpayStaleInProgressRef.current = false
     setGpayStep("idle")
     setGpayJobId(null)
     setGpayError("")
@@ -642,6 +732,7 @@ export default function ExpensesPage() {
 
   const startFreshExport = async () => {
     gpayAutoModeRef.current = false
+    gpayStaleInProgressRef.current = false
     setGpayStep("starting_export")
     setGpayDialogOpen(true)
 
@@ -662,12 +753,12 @@ export default function ExpensesPage() {
     setGpayStep("error")
   }
 
-  const startReauth = async () => {
+  const startReauth = async (reset = false) => {
     setReauthStatus("reauth_started")
     setGpayError("")
     setGpayDialogOpen(true)
     try {
-      const res = await fetch("/api/refresh-gpay?action=reauth", { method: "POST" })
+      const res = await fetch(`/api/refresh-gpay?action=${reset ? "reset" : "reauth"}`, { method: "POST" })
       const data = await res.json()
       if (data.reauthToken) {
         startReauthPolling(data.reauthToken)
@@ -758,6 +849,17 @@ export default function ExpensesPage() {
   const finishGpayAutoImport = async (fileId: string) => {
     setGpayStep("importing")
     const result = await handleImportFromDrive(fileId)
+    if (!result || result.error) {
+      // Real failure — surface the actual error, stop polling, and do NOT mark
+      // the file as known so it stays retryable instead of being silently
+      // dropped (the old bug: failed imports vanished without a trace).
+      if (gpayDrivePollRef.current) clearInterval(gpayDrivePollRef.current)
+      if (gpayTimeoutRef.current) clearTimeout(gpayTimeoutRef.current)
+      setGpayError(result?.message || "Failed to import GPay file from Drive.")
+      setGpayStep("error")
+      setGpayJobId(null)
+      return false
+    }
     const importedCount = result?.imported ?? 0
     const hadContent = result && result.total && result.total > 0
 
@@ -775,30 +877,53 @@ export default function ExpensesPage() {
       if (result) setGpayImportResult({ imported: 0, skipped: result.skipped })
       setGpayStep("waiting_drive")
     } else {
-      // File had no recognizable transactions — mark as known to avoid infinite retry loop.
-      // If the real file arrives later with a different Drive ID, polling will still find it.
+      // File had no recognizable transactions (e.g. the index zip that ships
+      // with every export) — mark as known to avoid an infinite retry loop.
+      // If the real data file arrives later, polling will still find it.
       addKnownGpayFile(fileId)
-      if (result) setGpayImportResult({ imported: 0, skipped: 0 })
       setGpayStep("waiting_drive")
     }
     return importedCount > 0
   }
 
-  const handleImportFromDrive = async (fileId: string) => {
+const handleImportFromDrive = async (fileId: string) => {
     setDriveImporting(true)
     setImportResult(null)
     try {
       const res = await fetch("/api/drive/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileId }) })
-      const result = await res.json()
-      const msg = result.message || (res.ok ? "Imported successfully" : result.error || "Import failed")
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const raw = result.errorDetail || result.error || "Import failed"
+        // 4xx "no recognizable data" (e.g. the small index zip that ships with
+        // every Takeout export) is expected — treat it as "nothing to import",
+        // NOT a real failure.
+        if (res.status === 401 || res.status >= 500) {
+          const msg = res.status === 401 ? "Your Google Drive connection has expired. Reconnect it in Settings → Google Account, then try again." : `Drive import failed: ${raw}`
+          setImportResult(msg)
+          return { ok: false, status: res.status, imported: 0, skipped: 0, total: 0, message: msg, error: raw }
+        }
+        const msg = result.message || result.error || "No GPay data found in this file"
+        setImportResult(msg)
+        return { ok: false, status: res.status, imported: 0, skipped: 0, total: 0, message: msg }
+      }
+      const msg = result.message || "Imported successfully"
       setImportResult(msg)
       setDriveDialogOpen(false)
       setPage(1)
       loadData(1)
       fetch("/api/import-sessions").then(r => r.json()).then(setImportSessions)
-      return { imported: result.imported ?? 0, skipped: result.skipped ?? 0, total: result.total ?? 0, message: msg }
-    } catch (error) { setImportResult("Drive import failed: " + String(error)); return null }
-    finally { setDriveImporting(false) }
+      fetch("/api/vendors/all").then(r => r.json()).then(d => {
+        const vendors = d.vendors || []
+        setSavedVendors(vendors.map((v: { vendorKey: string }) => v.vendorKey))
+        setSavedVendorSubCats(vendors.map((v: { subCategory: string | null }) => v.subCategory).filter(Boolean))
+        setSavedVendorPersons(vendors.map((v: { person: string | null }) => v.person).filter(Boolean))
+      }).catch(() => {})
+      return { ok: true, status: res.status, imported: result.imported ?? 0, skipped: result.skipped ?? 0, total: result.total ?? 0, message: msg }
+    } catch (error) {
+      const msg = "Drive import failed: " + String(error)
+      setImportResult(msg)
+      return null
+    } finally { setDriveImporting(false) }
   }
 
 
@@ -812,6 +937,7 @@ export default function ExpensesPage() {
         subCategory: expense.subCategory || "",
         person: expense.person || "",
         vendor: expense.vendor || "",
+        description: expense.description || "",
       },
     }))
   }
@@ -832,6 +958,7 @@ export default function ExpensesPage() {
           subCategory: form.subCategory || null,
           person: form.person || null,
           vendor: form.vendor || "",
+          description: form.description || "",
         }),
       })
       const updated = await res.json()
@@ -848,16 +975,30 @@ export default function ExpensesPage() {
   }
 
   const deleteExpense = async (id: number) => {
+    setDeletingIds((prev) => new Set(prev).add(id))
     try {
       const res = await fetch(`/api/expenses?id=${id}`, { method: "DELETE" })
       if (res.ok) {
         setExpenses((prev) => prev.filter((e) => e.id !== id))
+        setSelectedIds((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
         setEditingId(null)
         toast.success("Expense archived")
         loadData()
+      } else {
+        toast.error("Failed to archive expense")
       }
     } catch {
       toast.error("Failed to archive expense")
+    } finally {
+      setDeletingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
     }
   }
 
@@ -886,6 +1027,7 @@ export default function ExpensesPage() {
   const deleteSelected = async () => {
     const ids = [...selectedIds]
     if (ids.length === 0) return
+    setBatchDeleting(true)
     try {
       const res = await fetch("/api/expenses/batch-delete", {
         method: "POST",
@@ -896,9 +1038,14 @@ export default function ExpensesPage() {
         setSelectedIds(new Set())
         toast.success(`${ids.length} expense${ids.length > 1 ? "s" : ""} archived`)
         loadData()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || "Batch archive failed")
       }
     } catch {
       toast.error("Batch archive failed")
+    } finally {
+      setBatchDeleting(false)
     }
   }
 
@@ -906,6 +1053,31 @@ export default function ExpensesPage() {
     const ids = [...selectedIds]
     if (ids.length === 0) return
     setConfirmDelete({ open: true, ids })
+  }
+
+  const doRangeDelete = async () => {
+    setRangeDeleting(true)
+    try {
+      const res = await fetch("/api/expenses/bulk-delete-range", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope: confirmRangeDelete.scope }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || "Delete failed")
+        return
+      }
+      toast.success(`Hard-deleted ${data.count} expenses (${confirmRangeDelete.scope})`)
+      setSelectedIds(new Set())
+      setPage(1)
+      loadData()
+    } catch {
+      toast.error("Delete failed")
+    } finally {
+      setRangeDeleting(false)
+      setConfirmRangeDelete({ open: false, scope: "all" })
+    }
   }
 
   const toggleSort = (field: SortField) => {
@@ -1008,12 +1180,11 @@ export default function ExpensesPage() {
             </Button>
           )}
 
-          <label className="cursor-pointer">
-            <Button variant="outline" size="sm" asChild>
-              <span><Upload className="mr-2 h-4 w-4" /> File</span>
+          {isAdmin && (
+            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setConfirmRangeDelete({ open: true, scope: "all" })}>
+              <X className="mr-2 h-4 w-4" /> Delete Range
             </Button>
-            <input type="file" accept=".xlsx,.xls,.csv,.json,.zip,.htm,.html" className="hidden" onChange={handleFileUpload} />
-          </label>
+          )}
 
           <Button variant="outline" size="sm" onClick={() => loadData()}>
             <RefreshCw className="mr-2 h-4 w-4" /> Refresh
@@ -1025,7 +1196,7 @@ export default function ExpensesPage() {
 
           <Button size="sm" className="h-7 text-xs gap-1" onClick={() => { setIsAddingNew(true); setTimeout(() => { document.querySelector('.overflow-x-auto')?.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }, 100) }}>
             <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
-            Add
+            Add Expense
           </Button>
         </div>
       </div>
@@ -1058,20 +1229,16 @@ export default function ExpensesPage() {
         </Card>
       )}
 
-      {importing && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="flex items-center gap-2 py-1 text-xs">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Importing expenses...
-          </CardContent>
-        </Card>
-      )}
-
       {gpayPendingFileId && (
         <Card className="border-amber-500/30 bg-amber-500/5">
           <CardContent className="flex items-center gap-3 py-2 text-xs">
             <Cloud className="h-4 w-4 text-amber-500 shrink-0" />
-            <span className="flex-1">New GPay data file detected in Drive. Import now?</span>
+            <span className="flex-1">
+              New GPay data file detected in Drive
+              {gpayPendingFileCreated
+                ? <> — created {new Date(gpayPendingFileCreated).toLocaleString()}</>
+                : ""}. Import now?
+            </span>
             <Button size="sm" className="h-7 text-xs" onClick={confirmImportGpayFile}>
               Yes, Import
             </Button>
@@ -1149,7 +1316,7 @@ export default function ExpensesPage() {
               <SelectItem value="">All Imports</SelectItem>
               {importSessions.map((s) => (
                 <SelectItem key={s.id} value={String(s.id)}>
-                  {s.fileName || s.source} ({s.totalRows})
+                  {s.fileName || s.source} · {s.status === "imported" ? "imported" : s.status} · {formatDate(s.createdAt)} {new Date(s.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1161,8 +1328,9 @@ export default function ExpensesPage() {
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-2 py-1">
           <span className="text-xs text-muted-foreground">{selectedIds.size} selected</span>
-          <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={promptDeleteSelected}>
-            Archive Selected
+          <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={promptDeleteSelected} disabled={batchDeleting}>
+            {batchDeleting ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : null}
+            {batchDeleting ? "Archiving..." : "Archive Selected"}
           </Button>
           <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedIds(new Set())}>
             Clear
@@ -1217,6 +1385,9 @@ export default function ExpensesPage() {
                       onDateFromChange={(val) => { setDateFrom(val); setPage(1) }}
                       onDateToChange={(val) => { setDateTo(val); setPage(1) }}
                       sortField="date" currentSort={sortField} sortDir={sortDir} onSort={() => toggleSort("date")} />
+                    <ColumnFilter label="Description" type="text"
+                      value={[]} onChange={() => {}}
+                      textValue={descriptionFilter} onTextChange={(val) => { setDescriptionFilter(val); setPage(1) }} />
                     <ColumnFilter label="Vendor" type="multiselect-with-mode"
                       options={distinctVendors.map((v) => ({ label: v, value: v }))}
                       value={vendorFilter} onChange={(vals) => { setVendorFilter(vals); setPage(1) }}
@@ -1272,6 +1443,10 @@ export default function ExpensesPage() {
                       </td>
                       <td className="px-1.5 py-1">
                         <input list="vendor-edit" className="h-6 text-[10px] px-1 rounded border border-input bg-transparent w-24 focus:outline-none focus:ring-1 focus:ring-primary"
+                          value={newForm.description} onChange={(e) => setNewForm({ ...newForm, description: e.target.value })} placeholder="Desc" />
+                      </td>
+                      <td className="px-1.5 py-1">
+                        <input list="vendor-edit" className="h-6 text-[10px] px-1 rounded border border-input bg-transparent w-24 focus:outline-none focus:ring-1 focus:ring-primary"
                           value={newForm.vendor} onChange={(e) => setNewForm({ ...newForm, vendor: e.target.value })} placeholder="Vendor" />
                       </td>
                       <td className="px-1.5 py-1">
@@ -1320,8 +1495,18 @@ export default function ExpensesPage() {
                             <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
                           </Button>
                           <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-foreground"
-                            onClick={() => { setIsAddingNew(false); setNewForm(newFormDefault) }} aria-label="Cancel">
+                            onClick={() => { setIsAddingNew(false); setNewForm(newFormDefault); setRepeatOpen(false); setRepeatCount("") }} aria-label="Cancel">
                             <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-5 w-5 ${repeatOpen ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                            onClick={() => setRepeatOpen(prev => !prev)}
+                            title="Repeat monthly"
+                            aria-label="Repeat monthly"
+                          >
+                            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
                           </Button>
                         </div>
                       </td>
@@ -1329,22 +1514,67 @@ export default function ExpensesPage() {
                       <td className="px-1.5 py-1"></td>
                     </tr>
                   )}
+                  {isAddingNew && repeatOpen && (
+                    <tr className="border-b text-xs bg-primary/5">
+                      <td className="px-1.5 py-1"></td>
+                      <td colSpan={13} className="px-1.5 py-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[10px] text-muted-foreground">Repeat monthly:</span>
+                          <label className="flex items-center gap-1 text-[10px]">
+                            Day
+                            <input type="number" min={1} max={31}
+                              className="h-5 w-12 text-[10px] px-1 rounded border border-input bg-transparent"
+                              value={repeatDay} onChange={(e) => setRepeatDay(e.target.value)} />
+                          </label>
+                          <label className="flex items-center gap-1 text-[10px]">
+                            Direction
+                            <select
+                              className="h-5 text-[10px] px-1 rounded border border-input bg-transparent"
+                              value={repeatDirection} onChange={(e) => setRepeatDirection(e.target.value as "forward" | "backward")}>
+                              <option value="forward">Forward</option>
+                              <option value="backward">Backward</option>
+                            </select>
+                          </label>
+                          <label className="flex items-center gap-1 text-[10px]">
+                            Count
+                            <input type="number" min={1} max={120}
+                              className="h-5 w-12 text-[10px] px-1 rounded border border-input bg-transparent"
+                              value={repeatCount} onChange={(e) => setRepeatCount(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") handleAddNew() }} placeholder="0" />
+                          </label>
+                          <span className="text-[10px] text-muted-foreground">
+                            Creates {repeatCount || "N"} monthly entries on day {repeatDay || 1} ({repeatDirection === "forward" ? "future" : "past"} months), skipping months already entered.
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                   {expenses.length === 0 ? (
                     <tr>
-                      <td colSpan={13} className="py-12 text-center text-muted-foreground text-sm">
+                      <td colSpan={14} className="py-12 text-center text-muted-foreground text-sm">
                         {search ? "No matching expenses" : "No expenses yet. Add one or bulk import!"}
                       </td>
                     </tr>
                   ) : (
                     expenses.map((expense) => {
                       const isEditing = editingId === expense.id
-                      const ef = editForm[expense.id] || { categoryId: String(expense.categoryId), subCategory: expense.subCategory || "", person: expense.person || "", vendor: expense.vendor || "" }
+                      const ef = editForm[expense.id] || { categoryId: String(expense.categoryId), subCategory: expense.subCategory || "", person: expense.person || "", vendor: expense.vendor || "", description: expense.description || "" }
                       return (
-                      <tr key={expense.id} className={`border-b transition-colors text-xs ${isEditing ? "bg-muted/20" : "hover:bg-muted/30"} ${selectedIds.has(expense.id) ? "bg-primary/5" : ""}`}><td className="px-1.5 py-1 w-8">
+                      <tr key={expense.id} className={`border-b transition-colors text-xs ${isEditing ? "bg-muted/20" : "hover:bg-muted/30"} ${selectedIds.has(expense.id) ? "bg-primary/5" : ""} ${highlightId === expense.id ? "bg-emerald-500/10 font-semibold" : ""}`}><td className="px-1.5 py-1 w-8">
                           <input type="checkbox" className="h-3 w-3" checked={selectedIds.has(expense.id)}
                             onChange={() => toggleSelect(expense.id)} />
                         </td>
                         <td className="px-1.5 py-1 whitespace-nowrap" title={(() => { const d = new Date(expense.date); return d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0 ? formatDate(expense.date) + " (no time recorded)" : d.toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) })()}>{formatDate(expense.date)}</td>
+                        <td className="px-1.5 py-1 max-w-[150px] truncate">
+                          {isEditing ? (
+                            <input list="vendor-edit" className="w-24 h-6 text-[10px] px-1 rounded border border-input bg-transparent focus:outline-none focus:ring-1 focus:ring-primary"
+                              value={ef.description} onChange={(e) => setEditForm((prev) => ({ ...prev, [expense.id]: { ...prev[expense.id], description: e.target.value } }))} />
+                          ) : (
+                            <p className="text-[10px] text-muted-foreground truncate leading-tight" title={expense.description || ""}>
+                              {expense.description || "-"}
+                            </p>
+                          )}
+                        </td>
                         <td className="px-1.5 py-1 max-w-[150px] truncate">
                           {isEditing ? (
                             <input list="vendor-edit" className="w-24 h-6 text-[10px] px-1 rounded border border-input bg-transparent focus:outline-none focus:ring-1 focus:ring-primary"
@@ -1357,9 +1587,6 @@ export default function ExpensesPage() {
                                 )}
                                 {expense.vendor || "-"}
                               </p>
-                              {expense.description && (
-                                <p className="text-[10px] text-muted-foreground truncate leading-tight">{expense.description}</p>
-                              )}
                             </>
                           )}
                         </td>
@@ -1400,7 +1627,9 @@ export default function ExpensesPage() {
                         <td className="px-1.5 py-1 text-right font-semibold whitespace-nowrap text-xs">{formatCurrency(expense.amount)}</td>
                         <td className="px-1.5 py-1 text-[10px] text-muted-foreground max-w-[100px] truncate leading-tight" title={expense.notes || ""}>{expense.notes || "-"}</td>
                         <td className="px-1.5 py-1 text-right whitespace-nowrap">
-                          {isEditing ? (
+                          {deletingIds.has(expense.id) ? (
+                            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground ml-auto" />
+                          ) : isEditing ? (
                             <div className="flex gap-0.5">
                               <Button variant="ghost" size="icon" className="h-5 w-5 text-emerald-500 hover:text-emerald-600"
                                 onClick={() => saveInlineEdit(expense)} aria-label="Save">
@@ -1428,12 +1657,12 @@ export default function ExpensesPage() {
                     )})
                   )}
                   {!isAddingNew && (
-                    <tr className="border-t text-xs text-muted-foreground hover:bg-muted/20 cursor-pointer"
+                    <tr className="border-t bg-primary/5 hover:bg-primary/10 cursor-pointer transition-colors"
                       onClick={() => { setIsAddingNew(true); setTimeout(() => { document.querySelector('.overflow-x-auto')?.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }, 100) }}>
-                      <td colSpan={13} className="py-2 text-center">
-                        <span className="flex items-center justify-center gap-1">
-                          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
-                          Add expense
+                      <td colSpan={14} className="py-2 text-center">
+                        <span className="flex items-center justify-center gap-1.5 font-bold text-primary">
+                          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                          Add Expense
                         </span>
                       </td>
                     </tr>
@@ -1469,13 +1698,13 @@ export default function ExpensesPage() {
 
       {/* Shared datalists for inline edit */}
       <datalist id="subcat-edit">
-        {distinctSubCategories.map((s) => <option key={s} value={s} />)}
+        {[...new Set([...savedVendorSubCats, ...distinctSubCategories])].map((s) => <option key={s} value={s} />)}
       </datalist>
       <datalist id="person-edit">
-        {distinctPersons.map((p) => <option key={p} value={p} />)}
+        {[...new Set([...savedVendorPersons, ...distinctPersons])].map((p) => <option key={p} value={p} />)}
       </datalist>
       <datalist id="vendor-edit">
-        {distinctVendors.map((v) => <option key={v} value={v} />)}
+        {[...new Set([...savedVendors, ...distinctVendors])].map((v) => <option key={v} value={v} />)}
       </datalist>
       <datalist id="bank-edit">
         {distinctBankAccounts.filter(Boolean).map((v) => <option key={v} value={v} />)}
@@ -1546,6 +1775,11 @@ export default function ExpensesPage() {
                 <p className="text-sm text-muted-foreground">
                   Waiting for GPay export file to appear in your Google Drive...
                 </p>
+                {gpayStaleInProgressRef.current && (
+                  <p className="text-xs text-amber-600">
+                    Google reports an export already in progress — this is often a <strong>stale</strong> entry from an earlier attempt that will never create a new file. Click <strong>Scan Drive</strong> to import any existing file, or <strong>Force New Export</strong> to start fresh.
+                  </p>
+                )}
                 {gpayAutoModeRef.current ? (
                   <p className="text-xs text-muted-foreground">
                     The export was created automatically. It should arrive in Drive shortly.
@@ -1560,11 +1794,17 @@ export default function ExpensesPage() {
                 )}
                 <p className="text-xs text-amber-500">This page will auto-detect the file and import it.</p>
                 <div className="flex justify-center gap-2 pt-2">
+                  <Button size="sm" variant="outline" onClick={async () => {
+                    const found = await checkAndImportPendingGpayFile()
+                    if (!found) setGpayError("No new GPay file in Drive yet. Keep waiting, or use Force New Export.")
+                  }}>
+                    <Search className="mr-1.5 h-4 w-4" /> Scan Drive
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => { resetGpayState(); setGpayDialogOpen(false) }}>
                     <X className="mr-1.5 h-4 w-4" /> Cancel
                   </Button>
                   <Button size="sm" onClick={() => { resetGpayState(); setGpayDialogOpen(false); startFreshExport() }}>
-                    <RefreshCw className="mr-1.5 h-4 w-4" /> Restart
+                    <RefreshCw className="mr-1.5 h-4 w-4" /> Force New Export
                   </Button>
                 </div>
               </div>
@@ -1623,6 +1863,9 @@ export default function ExpensesPage() {
                 <p className="text-xs text-muted-foreground">
                   If no window appears within 30 seconds, the automation may need to be reset.
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  If Google shows an error like &quot;unable to sign in&quot;, use <strong>Reset &amp; Re-authenticate</strong> from the error screen — it clears the stored Google profile and starts a fresh session.
+                </p>
                 <Button size="sm" variant="outline" onClick={() => {
                   if (reauthPollRef.current) clearInterval(reauthPollRef.current)
                   setReauthStatus("idle")
@@ -1645,7 +1888,7 @@ export default function ExpensesPage() {
                       A new export was created during re-authentication. The file should appear in Drive shortly.
                     </p>
                     <div className="flex justify-center gap-3">
-                      <Button size="sm" onClick={async () => { setReauthStatus("idle"); setGpayDialogOpen(false); gpayAutoModeRef.current = true; setGpayStep("waiting_drive"); const found = await checkAndImportPendingGpayFile(); if (!found) startGpayDrivePolling() }}>
+                      <Button size="sm" onClick={async () => { setReauthStatus("idle"); setGpayDialogOpen(false); gpayAutoModeRef.current = true; setGpayStep("waiting_drive"); const found = await checkAndImportPendingGpayFile(); if (!found && gpayStep !== "error") startGpayDrivePolling() }}>
                         <Cloud className="mr-1.5 h-4 w-4" /> Wait for File
                       </Button>
                     </div>
@@ -1685,10 +1928,16 @@ export default function ExpensesPage() {
                   <Button size="sm" onClick={() => { setReauthStatus("idle"); startReauth() }}>
                     <RefreshCw className="mr-1.5 h-4 w-4" /> Try Again
                   </Button>
+                  <Button size="sm" variant="outline" onClick={() => { setReauthStatus("idle"); startReauth(true) }}>
+                    <Trash2 className="mr-1.5 h-4 w-4" /> Reset & Re-authenticate
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => { setReauthStatus("idle"); setGpayDialogOpen(false) }}>
                     <X className="mr-1.5 h-4 w-4" /> Cancel
                   </Button>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  If Google still blocks sign-in after a reset, export manually from takeout.google.com and upload the file.
+                </p>
               </div>
             )}
             {gpayStep === "error" && reauthStatus === "idle" && (
@@ -1734,8 +1983,8 @@ export default function ExpensesPage() {
         amount={Number.parseFloat(confirmTx.pendingForm.amount || "0")}
         actionLabel="Add Expense"
         onConfirm={async () => {
-          await doAddExpense(confirmTx.pendingForm)
-          setConfirmTx({ open: false, pendingForm: newFormDefault })
+          await doAddExpense(confirmTx.pendingForm, confirmTx.repeat)
+          setConfirmTx({ open: false, pendingForm: newFormDefault, repeat: null })
         }}
       />
 
@@ -1759,6 +2008,41 @@ export default function ExpensesPage() {
           setConfirmDelete((prev) => ({ ...prev, open: false }))
         }}
       />
+
+      <ConfirmDialog
+        open={confirmRangeDelete.open}
+        onOpenChange={(open) => setConfirmRangeDelete((prev) => ({ ...prev, open }))}
+        title="Hard-delete expenses?"
+        description="This PERMANENTLY deletes expenses for this profile (no restore). Select a range:"
+        confirmLabel={rangeDeleting ? "Deleting..." : "Delete"}
+        variant="destructive"
+        onConfirm={doRangeDelete}
+        confirmDisabled={rangeDeleting}
+      >
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          {[
+            { scope: "all", label: "All records" },
+            { scope: "1", label: "Last 1 month" },
+            { scope: "2", label: "Last 2 months" },
+            { scope: "3", label: "Last 3 months" },
+            { scope: "6", label: "Last 6 months" },
+            { scope: "12", label: "Last 12 months" },
+          ].map((opt) => (
+            <button
+              key={opt.scope}
+              type="button"
+              onClick={() => setConfirmRangeDelete((prev) => ({ ...prev, scope: opt.scope }))}
+              className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                confirmRangeDelete.scope === opt.scope
+                  ? "border-destructive bg-destructive/10 text-destructive"
+                  : "border-border text-muted-foreground hover:bg-muted/40"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </ConfirmDialog>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getAuthContext, handleAuthError } from "@/lib/with-auth"
-import { shouldAutoMap, getExistingMappingKeys } from "@/shared/merchant-mapping"
+import { shouldAutoMap, getExistingVendorKeys } from "@/shared/vendor-mapping"
 import { parseGpayTakeoutEntry, parseGpayTakeoutJson, parseGpayTakeoutHtml } from "@/shared/gpay-parser"
 
 interface ZipFile {
@@ -10,9 +10,11 @@ interface ZipFile {
 
 export async function POST(req: Request) {
   let profileId: number
+  let userId: number
   try {
     const ctx = await getAuthContext()
     profileId = ctx.profileId
+    userId = ctx.userId
   } catch (e) {
     return handleAuthError(e)
   }
@@ -27,7 +29,7 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(await file.arrayBuffer())
     const fileName = file.name.toLowerCase()
 
-    let transactions: { date: Date; amount: number; vendor: string }[] = []
+    let transactions: { date: Date; amount: number; vendor: string; note?: string }[] = []
     let source = ""
 
     if (fileName.endsWith(".json")) {
@@ -104,7 +106,7 @@ const maxDate = await prisma.expense.aggregate({ where: { profileId }, _max: { d
     }
 
     const totalVendors = vendorSet.size
-    const existingKeys = await getExistingMappingKeys()
+    const existingKeys = await getExistingVendorKeys(userId)
     const autoMappable = [...vendorSet].filter((k) => shouldAutoMap(k, k, existingKeys)).length
 
     // Build sample (first 5)

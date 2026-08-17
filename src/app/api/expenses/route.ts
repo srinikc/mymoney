@@ -336,6 +336,16 @@ export async function POST(req: Request) {
     }
   }
 
+  // A blank/invalid categoryId (e.g. inline add-row with no category picked)
+  // must not crash the create: default to a real "Other" category.
+  const numericCatId = Number(categoryId)
+  if (!Number.isInteger(numericCatId) || numericCatId <= 0) {
+    const other = await prisma.category.findFirst({ where: { name: { equals: "Other", mode: "insensitive" } } })
+    categoryId = (other ?? await prisma.category.create({
+      data: { name: "Other", type: "expense", icon: "more-horizontal", color: "#a1a1aa" },
+    })).id
+  }
+
   const baseData = {
     date: new Date(body.date),
     amount: body.amount,

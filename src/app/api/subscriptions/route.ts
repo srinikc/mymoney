@@ -2,7 +2,6 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { validateBody } from "@/shared/validate"
 import { SubscriptionCreateSchema, SubscriptionUpdateSchema } from "@/shared/validation"
-import { withAuth } from "@/lib/with-auth"
 
 export async function GET() {
   const subscriptions = await prisma.subscription.findMany({

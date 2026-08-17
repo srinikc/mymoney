@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { getAuthContext } from "@/lib/with-auth"
 import { prisma } from "@/lib/prisma"
 import { buildFinancialPrompt, type FinancialContext } from "@/lib/prompt-builder"
 import { queryLLM } from "@/lib/llm"

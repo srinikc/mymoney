@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string; fdId: string }> }) {
   try {
-    const { profileId, userId, role } = await getAuthContext()
-    // userId auto-checked by getAuthContext
     const { fdId } = await params
     const body = await req.json()
 
@@ -35,8 +32,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string; fdId: string }> }) {
   try {
-    const { profileId, userId, role } = await getAuthContext()
-    // userId auto-checked by getAuthContext
     const { fdId } = await params
     await prisma.fixedDeposit.delete({ where: { id: Number(fdId) } })
     return NextResponse.json({ ok: true })

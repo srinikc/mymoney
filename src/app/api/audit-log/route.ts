@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError , withAuth } from "@/lib/with-auth"
+import { withAuth } from "@/lib/with-auth"
 
 export async function GET(req: Request) {
   const auth = await withAuth()
   if (auth.error) return auth.error
-  const { profileId, userId, role } = auth
+  const { profileId, role } = auth
   // userId auto-checked by getAuthContext
 
   const isAdmin = role === "admin" || role === "manager"
@@ -35,8 +35,8 @@ export async function GET(req: Request) {
 
   if (search) {
     where.OR = [
-      { metadata: { contains: search } },
-      { entity: { contains: search } },
+      { metadata: { contains: search, mode: "insensitive" } },
+      { entity: { contains: search, mode: "insensitive" } },
     ]
   }
 

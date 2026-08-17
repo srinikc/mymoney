@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError , withAuth } from "@/lib/with-auth"
+import { withAuth } from "@/lib/with-auth"
 import { sendPushToUser } from "@/lib/expo-push"
 import { validateBody } from "@/shared/validate"
 import { BudgetCreateSchema } from "@/shared/validation"
@@ -99,7 +99,7 @@ export async function POST(req: Request) {
   if (error) return error
   const auth = await withAuth()
   if (auth.error) return auth.error
-  const { profileId, userId, role } = auth
+  const { profileId, userId } = auth
   const budget = await prisma.budget.create({
     data: {
       categoryId: body.categoryId,
@@ -124,7 +124,7 @@ export async function PUT(req: Request) {
   if (!body.id) return NextResponse.json({ error: "id required" }, { status: 400 })
   const auth = await withAuth()
   if (auth.error) return auth.error
-  const { profileId, userId, role } = auth
+  const { profileId, userId } = auth
   const budget = await prisma.budget.update({
     where: { id: Number.parseInt(body.id) },
     data: { amount: Number.parseFloat(body.amount) },

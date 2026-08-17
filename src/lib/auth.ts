@@ -159,8 +159,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     async session({ session, token }) {
       if (!token.id) {
-        // Token expired or invalid — return empty session (forces re-login on client)
-        return { ...session, user: { ...session.user, id: undefined as unknown as number } }
+        // Token expired or invalid — return null so the client reports
+        // "unauthenticated" instead of a fake session with an undefined id
+        // (which caused redirect loops between / and /login).
+        return null as unknown as typeof session
       }
       const sUser = session.user as unknown as {
         id: number

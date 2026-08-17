@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from "next/server"
-import { getAuthContext, handleAuthError , withAuth } from "@/lib/with-auth"
+import { withAuth } from "@/lib/with-auth"
 import { prisma } from "@/lib/prisma"
 
 export async function POST() {

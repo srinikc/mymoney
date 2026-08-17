@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError , withAuth } from "@/lib/with-auth"
+import { withAuth } from "@/lib/with-auth"
 
 /**
  * GET /api/onboarding/status — Check if user completed onboarding
@@ -8,7 +8,7 @@ import { getAuthContext, handleAuthError , withAuth } from "@/lib/with-auth"
 export async function GET(_req: Request) {
   const auth = await withAuth()
   if (auth.error) return auth.error
-  const { profileId, userId, role } = auth
+  const { userId } = auth
   // userId auto-checked by getAuthContext
 
   const user = await prisma.user.findUnique({
@@ -44,7 +44,7 @@ export async function GET(_req: Request) {
 export async function POST(req: Request) {
   const auth = await withAuth()
   if (auth.error) return auth.error
-  const { profileId, userId, role } = auth
+  const { userId } = auth
   // userId auto-checked by getAuthContext
 
   let body: { name?: string; profileName?: string; currency?: string }

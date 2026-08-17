@@ -8,6 +8,8 @@ import type { Prisma } from "@prisma/client"
 /**
  * Build a Prisma filter condition for a multi-select field.
  * Supports comma-separated values, `__blank__` for null/empty, and mode (contains/not-contains).
+ * Matching is case-insensitive (Prisma `in`/`notIn` don't support `mode`, so each
+ * value becomes an `equals`/`not` with `mode: "insensitive"`).
  */
 function buildMultiSelectFilter(
   field: keyof Prisma.ExpenseWhereInput,
@@ -26,9 +28,15 @@ function buildMultiSelectFilter(
 
   if (actualValues.length > 0) {
     if (mode === "not-contains") {
-      conditions.push({ [field]: { notIn: actualValues } } as Prisma.ExpenseWhereInput)
+      // Exclude rows whose field matches ANY selected value (case-insensitive)
+      conditions.push({
+        AND: actualValues.map((v) => ({ [field]: { not: { equals: v, mode: "insensitive" } } }) as Prisma.ExpenseWhereInput),
+      })
     } else {
-      conditions.push({ [field]: { in: actualValues } } as Prisma.ExpenseWhereInput)
+      // Include rows whose field matches ANY selected value (case-insensitive)
+      conditions.push({
+        OR: actualValues.map((v) => ({ [field]: { equals: v, mode: "insensitive" } }) as Prisma.ExpenseWhereInput),
+      })
     }
   }
 
@@ -91,6 +99,7 @@ export async function GET(req: Request) {
   const amountMin = searchParams.get("amountMin")
   const amountMax = searchParams.get("amountMax")
   const notes = searchParams.get("notes")
+  const description = searchParams.get("description")
   const otherType = searchParams.get("otherType")
   const page = Math.max(1, Number.parseInt(searchParams.get("page") || "1"))
   const pageSize = Math.max(1, Math.min(200, Number.parseInt(searchParams.get("pageSize") || "100")))
@@ -159,6 +168,11 @@ export async function GET(req: Request) {
     andConditions.push({ notes: { contains: notes, mode: "insensitive" } })
   }
 
+  // Description filter
+  if (description) {
+    andConditions.push({ description: { contains: description, mode: "insensitive" } })
+  }
+
   // Other type filter
   if (otherType) {
     andConditions.push({ otherType: { contains: otherType, mode: "insensitive" } })
@@ -194,11 +208,11 @@ export async function GET(req: Request) {
     const s = search
     andConditions.push({
       OR: [
-        { vendor: { contains: s } },
-        { description: { contains: s } },
-        { person: { contains: s } },
-        { notes: { contains: s } },
-        { category: { name: { contains: s } } },
+        { vendor: { contains: s, mode: "insensitive" } },
+        { description: { contains: s, mode: "insensitive" } },
+        { person: { contains: s, mode: "insensitive" } },
+        { notes: { contains: s, mode: "insensitive" } },
+        { category: { name: { contains: s, mode: "insensitive" } } },
       ],
     })
   }
@@ -264,6 +278,21 @@ export async function GET(req: Request) {
     }),
   ])
 
+  // Collapse values that differ only by case (e.g. "Ice cream" vs "ice cream")
+  // keeping the first-seen spelling, so filter dropdowns show one canonical item.
+  const dedupeInsensitive = (values: (string | null)[]): string[] => {
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const v of values) {
+      if (!v) continue
+      const k = v.toLowerCase().trim()
+      if (seen.has(k)) continue
+      seen.add(k)
+      out.push(v)
+    }
+    return out
+  }
+
   return NextResponse.json({
     data: expenses,
     total,
@@ -271,20 +300,22 @@ export async function GET(req: Request) {
     pageSize,
     totalPages: Math.ceil(total / pageSize),
     totalAmount: totalAmountResult._sum.amount || 0,
-    distinctPersons: distinctPersons.map((p) => p.person).filter(Boolean),
-    distinctRecurrenceTypes: distinctRecurrenceTypes.map((r) => r.recurrenceType).filter(Boolean),
-    distinctPaymentModes: distinctPaymentModes.map((p) => p.paymentMode).filter(Boolean),
-    distinctVendors: distinctVendors.map((v) => v.vendor).filter(Boolean),
-    distinctSubCategories: distinctSubCategories.map((s) => s.subCategory).filter(Boolean),
-    distinctBankAccounts: distinctBankAccounts.map((b) => b.bankAccount).filter(Boolean),
+    distinctPersons: dedupeInsensitive(distinctPersons.map((p) => p.person)),
+    distinctRecurrenceTypes: dedupeInsensitive(distinctRecurrenceTypes.map((r) => r.recurrenceType)),
+    distinctPaymentModes: dedupeInsensitive(distinctPaymentModes.map((p) => p.paymentMode)),
+    distinctVendors: dedupeInsensitive(distinctVendors.map((v) => v.vendor)),
+    distinctSubCategories: dedupeInsensitive(distinctSubCategories.map((s) => s.subCategory)),
+    distinctBankAccounts: dedupeInsensitive(distinctBankAccounts.map((b) => b.bankAccount)),
   })
 }
 
 export async function POST(req: Request) {
   let profileId: number
+  let userId: number
   try {
     const ctx = await getAuthContext()
     profileId = ctx.profileId
+    userId = ctx.userId
   } catch (e) {
     return handleAuthError(e)
   }
@@ -305,23 +336,102 @@ export async function POST(req: Request) {
     }
   }
 
+  const baseData = {
+    date: new Date(body.date),
+    amount: body.amount,
+    categoryId: categoryId,
+    vendor: body.vendor || null,
+    description: body.description || null,
+    paymentMode: body.paymentMode || "UPI",
+    subCategory: body.subCategory || null,
+    person: body.person || null,
+    recurrenceType: body.recurrenceType || "onetime",
+    tags: body.tags || null,
+    notes: body.notes || null,
+    profileId,
+  }
+
+  // Recurring monthly batch: create one entry per month (forward or backward),
+  // skipping months that already have a matching entry (same category + amount
+  // + description/vendor in the same calendar month).
+  const repeatCount = body.repeat?.count
+  if (repeatCount && repeatCount > 1) {
+    const start = new Date(body.date)
+    const day = Math.min(Math.max(body.repeat?.day ?? 1, 1), 31)
+    const direction = body.repeat?.direction || "forward"
+    const maxCount = Math.min(Math.max(Math.round(repeatCount), 1), 120)
+
+    let created = 0
+    let skippedExisting = 0
+    const createdIds: number[] = []
+
+    for (let i = 0; i < maxCount; i++) {
+      const offset = direction === "backward" ? -i : i
+      const monthDate = new Date(start.getFullYear(), start.getMonth() + offset, 1)
+      // Clamp the day to the last day of the month (e.g. 31 -> Feb 28/29).
+      const lastDay = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate()
+      const entryDate = new Date(monthDate.getFullYear(), monthDate.getMonth(), Math.min(day, lastDay))
+      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1)
+      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1)
+
+      const desc = (body.description || "").trim()
+      const ven = (body.vendor || "").trim()
+      const dup = await prisma.expense.findFirst({
+        where: {
+          profileId,
+          deletedAt: null,
+          categoryId,
+          amount: body.amount,
+          date: { gte: monthStart, lt: monthEnd },
+          ...(desc
+            ? { description: { equals: desc, mode: "insensitive" } }
+            : ven
+              ? { vendor: { equals: ven, mode: "insensitive" } }
+              : {}),
+        },
+        select: { id: true },
+      })
+      if (dup) {
+        skippedExisting++
+        continue
+      }
+
+      const createdExpense = await prisma.expense.create({
+        data: { ...baseData, date: entryDate, recurrenceType: "recurring" },
+        include: { category: true },
+      })
+      created++
+      createdIds.push(createdExpense.id)
+    }
+
+    return NextResponse.json({ created, skippedExisting, createdIds, recurring: true }, { status: 201 })
+  }
+
   const expense = await prisma.expense.create({
-    data: {
-      date: new Date(body.date),
-      amount: body.amount,
-      categoryId: categoryId,
-      vendor: body.vendor || null,
-      description: body.description || null,
-      paymentMode: body.paymentMode || "UPI",
-      subCategory: body.subCategory || null,
-      person: body.person || null,
-      recurrenceType: body.recurrenceType || "onetime",
-      tags: body.tags || null,
-      notes: body.notes || null,
-      profileId,
-    },
+    data: baseData,
     include: { category: true },
   })
+
+  // Auto-learn the vendor for this user (dedup)
+  if (body.vendor && categoryId) {
+    const key = String(body.vendor).toLowerCase().trim()
+    if (key) {
+      const cat = await prisma.category.findUnique({ where: { id: categoryId } })
+      await prisma.vendorMapping.upsert({
+        where: { userId_vendorKey: { userId, vendorKey: key } },
+        update: { description: body.vendor },
+        create: {
+          userId,
+          vendorKey: key,
+          description: body.vendor,
+          category: cat?.name || "",
+          subCategory: body.subCategory || "",
+          person: body.person || "",
+          source: "manual",
+        },
+      })
+    }
+  }
 
   return NextResponse.json(expense, { status: 201 })
 }

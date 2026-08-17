@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server"
-import { getAuthContext, handleAuthError, withAuth } from "@/lib/with-auth"
+import { withAuth } from "@/lib/with-auth"
 import * as fs from "node:fs"
 import * as path from "node:path"
 
 export async function GET(_req: Request, { params }: { params: Promise<{ name: string }> }) {
   const auth = await withAuth()
   if (auth.error) return auth.error
-  const { profileId, userId, role } = auth
-
   const { name } = await params
 
   // Check private uploads first, then public

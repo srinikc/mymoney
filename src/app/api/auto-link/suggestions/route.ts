@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { getAuthContext } from "@/lib/with-auth"
 
 interface AutoLinkSuggestion {
   expenseId: number
@@ -15,7 +15,7 @@ interface AutoLinkSuggestion {
 
 export async function GET() {
   try {
-    const { profileId, userId, role } = await getAuthContext()
+    const { profileId } = await getAuthContext()
     // userId auto-checked by getAuthContext
     const where = profileId ? { profileId } : {}
 

@@ -58,7 +58,7 @@ export async function GET(req: Request) {
     const entry = grouped.get(type)!
     entry.count++
     entry.totalAmount += expense.amount
-    if (expense.vendor && !entry.vendors.includes(expense.vendor)) {
+    if (expense.vendor && !entry.vendors.some((v) => v.toLowerCase() === expense.vendor!.toLowerCase())) {
       entry.vendors.push(expense.vendor)
     }
   }

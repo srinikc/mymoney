@@ -2,7 +2,6 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { validateBody } from "@/shared/validate"
 import { DealCreateSchema } from "@/shared/validation"
-import { withAuth } from "@/lib/with-auth"
 
 export async function GET() {
   const deals = await prisma.deal.findMany({

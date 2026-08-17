@@ -11,7 +11,7 @@ const knownRoutes = [
   "/deals",
   "/expenses",
   "/expenses/import",
-  "/expenses/merchants",
+  "/expenses/vendors",
   "/expenses/review-duplicates",
   "/expenses/archive",
   "/family",

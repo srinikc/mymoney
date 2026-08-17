@@ -115,8 +115,8 @@ const helpContent: Record<string, HelpSection> = {
       { name: "Expenses", description: "Archived entries can be restored to the main view." },
     ],
   },
-  "/expenses/merchants": {
-    title: "Merchants",
+  "/expenses/vendors": {
+    title: "Vendors",
     summary: "Standardise vendor names so 'Starbucks' always looks the same.",
     details: "Merchant mapping lets you set a standard name and category for each vendor. When you import or add new expenses with matching vendor names, the app automatically uses the standard name and category. This keeps your data clean and your reports accurate.",
     controls: [

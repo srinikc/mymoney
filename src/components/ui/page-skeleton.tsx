@@ -102,6 +102,10 @@ export function MerchantsSkeleton() {
   )
 }
 
+export function VendorsSkeleton() {
+  return <MerchantsSkeleton />
+}
+
 export function ReviewDuplicatesSkeleton() {
   return (
     <div className="min-h-screen bg-background">

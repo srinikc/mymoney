@@ -3,8 +3,11 @@ import { prisma } from "./prisma"
 export type ConfigKey =
   | "OPENAI_API_KEY"
   | "ANTHROPIC_API_KEY"
+  | "OPENCODE_API_KEY"
   | "LLM_PROVIDER"
   | "LLM_MODEL"
+  | "LLM_BASE_URL"
+  | "LOCAL_LLM_ENDPOINT"
   | "AUTH_RESEND_KEY"
   | "ZERODHA_API_KEY"
   | "ZERODHA_API_SECRET"
@@ -19,8 +22,11 @@ export type ConfigKey =
 const ENV_FALLBACK: Record<string, string | undefined> = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+  OPENCODE_API_KEY: process.env.OPENCODE_API_KEY,
   LLM_PROVIDER: process.env.LLM_PROVIDER || "openai",
   LLM_MODEL: process.env.LLM_MODEL,
+  LLM_BASE_URL: process.env.LLM_BASE_URL,
+  LOCAL_LLM_ENDPOINT: process.env.LOCAL_LLM_ENDPOINT,
   AUTH_RESEND_KEY: process.env.AUTH_RESEND_KEY,
   ZERODHA_API_KEY: process.env.ZERODHA_API_KEY,
   ZERODHA_API_SECRET: process.env.ZERODHA_API_SECRET,
@@ -53,7 +59,7 @@ export async function getConfig(key: ConfigKey, userId?: number): Promise<string
 
 export async function getAllConfig(userId: number): Promise<Record<string, string | undefined>> {
   const keys: ConfigKey[] = [
-    "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "LLM_PROVIDER", "LLM_MODEL",
+    "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "OPENCODE_API_KEY", "LLM_PROVIDER", "LLM_MODEL", "LLM_BASE_URL", "LOCAL_LLM_ENDPOINT",
     "AUTH_RESEND_KEY",
     "ZERODHA_API_KEY", "ZERODHA_API_SECRET",
     "SHAREKHAN_API_KEY", "SHAREKHAN_API_SECRET",

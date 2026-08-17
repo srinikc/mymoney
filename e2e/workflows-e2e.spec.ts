@@ -32,7 +32,7 @@ test.describe("End-to-End Cross-Feature Workflows", () => {
   })
 
   test.describe("Budget → Expense linkage", () => {
-    test("SCENARIO: Create expense in a budgeted category updates budget spent", async ({ request, page }) => {
+    test("SCENARIO: Create expense in a budgeted category updates budget spent", async ({ request }) => {
       const budgetRes = await request.get("/api/budgets"); const budgets = await budgetRes.json()
       if (Array.isArray(budgets) && budgets.length > 0) {
         const budget = budgets[0]

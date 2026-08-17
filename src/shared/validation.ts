@@ -16,6 +16,11 @@ export const ExpenseCreateSchema = z.object({
   notes: z.string().optional().default(""),
   bankAccount: z.string().optional().default(""),
   paidThrough: z.string().optional().default(""),
+  repeat: z.object({
+    day: z.union([z.string(), z.number()]).optional().transform((v) => (v === undefined || v === "") ? undefined : Number(v)),
+    direction: z.enum(["forward", "backward"]).optional().default("forward"),
+    count: z.union([z.string(), z.number()]).optional().transform((v) => (v === undefined || v === "") ? undefined : Number(v)),
+  }).optional(),
 })
 
 export const ExpenseUpdateSchema = z.object({

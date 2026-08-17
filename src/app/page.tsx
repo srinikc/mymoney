@@ -36,9 +36,15 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetch("/api/expenses/years")
-      .then((r) => r.json())
+      .then((r) => {
+        if (r.status === 401 || r.status === 404) {
+          window.location.href = "/login"
+          throw new Error("unauthorized")
+        }
+        return r.json()
+      })
       .then((data) => {
-        setYears(data.years)
+        setYears(Array.isArray(data?.years) ? data.years : [])
       })
       .catch(() => setYears([]))
   }, [currentYear])
@@ -56,10 +62,17 @@ export default function DashboardPage() {
     if (selectedYear !== "all") params.set("year", selectedYear)
     if (selectedMonth) params.set("month", selectedMonth)
     if (selectedQuarter) params.set("quarter", selectedQuarter)
-    const res = await fetch(`/api/insights?${params.toString()}`)
-    const data = await res.json()
-    setInsights(data)
-    setLoading(false)
+    try {
+      const res = await fetch(`/api/insights?${params.toString()}`)
+      if (!res.ok) throw new Error(`insights ${res.status}`)
+      const data = await res.json()
+      if (!data || !Array.isArray(data.monthlyTrend)) throw new Error("bad insights payload")
+      setInsights(data)
+    } catch {
+      setInsights(null)
+    } finally {
+      setLoading(false)
+    }
   }, [selectedYear, selectedMonth, selectedQuarter])
 
   useEffect(() => {

@@ -19,3 +19,5 @@ e2e-results/
 .gpay-profile/
 data/
 .db-mode.json
+.graphify/
+AGENTS.md.bak-graphify

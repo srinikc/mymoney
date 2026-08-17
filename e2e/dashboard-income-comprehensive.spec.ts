@@ -33,7 +33,7 @@ test.describe("Dashboard & Reports Income — Comprehensive", () => {
     })
     test("SCENARIO: Reports income data changes with year filter", async ({ page }) => {
       await page.goto("/reports", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000)
-      const fySelect = page.locator("button").filter({ hasText: /FY|2026|2025/i }).first()
+      const fySelect = page.locator("button").filter({ hasText: /fy|2026|2025/i }).first()
       if (await fySelect.isVisible().catch(() => false)) { await fySelect.click(); await page.waitForTimeout(500); const option = page.getByText(/2025-26|2024-25/i).first(); if (await option.isVisible().catch(() => false)) { await option.click(); await page.waitForTimeout(1000) } }
     })
     test("SCENARIO: No income data shows empty state", async ({ page }) => {

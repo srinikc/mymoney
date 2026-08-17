@@ -37,6 +37,12 @@ test.describe("Expired session → login redirect", () => {
   })
 
   test("an action that gets a 401 redirects to /login", async ({ page }) => {
+    // Seed an unmapped vendor so the Dismiss All button is enabled (count > 0)
+    const seedRes = await page.request.post("/api/expenses", {
+      data: { date: "2026-08-17", amount: 100, vendor: `sessionexpiry-${Date.now()}`, description: "e2e session expiry", paymentMode: "UPI" },
+    })
+    expect(seedRes.ok()).toBe(true)
+
     await page.goto("/expenses/vendors", { waitUntil: "domcontentloaded", timeout: 30000 })
     await expect(page.getByRole("heading", { name: "Vendors", level: 1 })).toBeVisible({ timeout: 20000 })
 

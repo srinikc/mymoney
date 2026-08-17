@@ -71,19 +71,22 @@ test.describe("Vendors page — Dismiss + URL", () => {
   })
 
   test("dismissing a vendor removes it from Unmapped and not added to All Mappings", async ({ page }) => {
+    // Seed a unique unmapped vendor (no VendorMapping exists for it yet)
+    const vendorName = `dismisstest-${Date.now()}`
+    const createRes = await page.request.post("/api/expenses", {
+      data: { date: "2026-08-17", amount: 250, vendor: vendorName, description: "e2e dismiss", paymentMode: "UPI" },
+    })
+    expect(createRes.ok()).toBe(true)
+
     await page.goto("/expenses/vendors", { waitUntil: "domcontentloaded", timeout: 30000 })
     await expect(page.getByRole("button", { name: /Unmapped/ }).first()).toBeVisible({ timeout: 25000 })
 
-    // Wait for the unmapped table to load with at least one row
-    const rows = page.locator("table tbody tr")
-    await expect(rows.first()).toBeVisible({ timeout: 25000 })
+    // The seeded vendor should appear in the Unmapped table (name column = lowercase key)
+    const row = page.locator("table tbody tr", { hasText: vendorName })
+    await expect(row.first()).toBeVisible({ timeout: 25000 })
 
-    // Read the first vendor name (Vendor Name column = td index 1)
-    const vendorName = (await rows.first().locator("td").nth(1).textContent())?.trim() ?? ""
-    expect(vendorName.length).toBeGreaterThan(0)
-
-    // Select the first row via its checkbox
-    const checkbox = rows.first().locator('button[role="checkbox"], input[type="checkbox"]').first()
+    // Select the row via its checkbox
+    const checkbox = row.first().locator('button[role="checkbox"], input[type="checkbox"]').first()
     await checkbox.click({ force: true })
 
     // Click "Dismiss Selected"
@@ -91,9 +94,9 @@ test.describe("Vendors page — Dismiss + URL", () => {
     await expect(dismissBtn).toBeVisible()
     await dismissBtn.click()
 
-    // After reload, the dismissed vendor should no longer appear in the Unmapped table
-    await expect(rows.first()).toBeVisible({ timeout: 25000 }).catch(() => {})
-    await page.waitForTimeout(2500)
+    // After the reload, the dismissed vendor should no longer appear in the Unmapped table
+    await expect(row.first()).not.toBeVisible({ timeout: 25000 }).catch(() => {})
+    await page.waitForTimeout(1500)
     const bodyText = (await page.locator("body").textContent()) ?? ""
     expect(bodyText).not.toContain(vendorName)
 

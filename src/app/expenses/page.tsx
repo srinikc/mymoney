@@ -1442,11 +1442,11 @@ const handleImportFromDrive = async (fileId: string) => {
                         <DatePicker value={newForm.date} onChange={(d) => setNewForm({ ...newForm, date: d })} label="Date" />
                       </td>
                       <td className="px-1.5 py-1">
-                        <input list="vendor-edit" className="h-6 text-[10px] px-1 rounded border border-input bg-transparent w-24 focus:outline-none focus:ring-1 focus:ring-primary"
+                        <input name="description" list="vendor-edit" className="h-6 text-[10px] px-1 rounded border border-input bg-transparent w-24 focus:outline-none focus:ring-1 focus:ring-primary"
                           value={newForm.description} onChange={(e) => setNewForm({ ...newForm, description: e.target.value })} placeholder="Desc" />
                       </td>
                       <td className="px-1.5 py-1">
-                        <input list="vendor-edit" className="h-6 text-[10px] px-1 rounded border border-input bg-transparent w-24 focus:outline-none focus:ring-1 focus:ring-primary"
+                        <input name="vendor" list="vendor-edit" className="h-6 text-[10px] px-1 rounded border border-input bg-transparent w-24 focus:outline-none focus:ring-1 focus:ring-primary"
                           value={newForm.vendor} onChange={(e) => setNewForm({ ...newForm, vendor: e.target.value })} placeholder="Vendor" />
                       </td>
                       <td className="px-1.5 py-1">
@@ -1481,7 +1481,7 @@ const handleImportFromDrive = async (fileId: string) => {
                           value={newForm.bankAccount} onChange={(e) => setNewForm({ ...newForm, bankAccount: e.target.value })} placeholder="Bank" />
                       </td>
                       <td className="px-1.5 py-1 text-right">
-                        <input type="number" className="h-6 text-[10px] px-1 rounded border border-input bg-transparent w-20 text-right focus:outline-none focus:ring-1 focus:ring-primary"
+                        <input name="amount" type="number" className="h-6 text-[10px] px-1 rounded border border-input bg-transparent w-20 text-right focus:outline-none focus:ring-1 focus:ring-primary"
                           value={newForm.amount} onChange={(e) => setNewForm({ ...newForm, amount: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") handleAddNew() }} placeholder="0" />
                       </td>
                       <td className="px-1.5 py-1">

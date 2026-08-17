@@ -9,7 +9,7 @@ test.describe("End-to-End Cross-Feature Workflows", () => {
       await addBtn.click(); await page.waitForTimeout(500)
       const vendorName = `Lifecycle-${Date.now()}`
       await page.fill('input[name="vendor"]', vendorName); await page.fill('input[name="amount"]', "1500")
-      await page.getByRole("button", { name: /save|add|create/i }).first().click(); await page.waitForTimeout(2000)
+      await page.getByRole("button", { name: "Save" }).first().click(); await page.waitForTimeout(2000)
       await expect(page.getByText(vendorName).first()).toBeVisible({ timeout: 5000 })
     })
   })

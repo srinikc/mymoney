@@ -1,19 +1,42 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import * as XLSX from "xlsx"
-import { shouldAutoMap, getExistingMappingKeys, resetMappingCache } from "@/shared/merchant-mapping"
+import { getExistingVendorKeys, resetVendorKeyCache } from "@/shared/vendor-mapping"
 import { parseGpayTakeoutEntry, parseGpayTakeoutJson, parseGpayTakeoutHtml } from "@/shared/gpay-parser"
+import { titleCase } from "@/shared/title-case"
 import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+
+// Combine vendor + note into the description so both fields are sortable and
+// nothing is lost (matches the spreadsheet importer's behavior).
+function buildDescription(vendor: string, note?: string): string {
+  const v = String(vendor || "").trim()
+  const n = String(note || "").trim()
+  if (v && n && n !== v) return `${v} â€” ${n}`
+  if (n) return n
+  return v
+}
 
 // Cache categories to avoid N+1 queries
 let catCache: Map<string, number> | null = null
 let otherCatIdCache: number | null = null
 
+// Find-or-create a real "Other" category. The old `|| 13` fallback was a bug:
+// id 13 could be a user category (e.g. "house-monthly"), so unmapped imports
+// silently landed there.
+async function getOtherCatId(): Promise<number> {
+  if (otherCatIdCache) return otherCatIdCache
+  const existing = await prisma.category.findFirst({ where: { name: { equals: "Other", mode: "insensitive" } } })
+  if (existing) { otherCatIdCache = existing.id; return existing.id }
+  const created = await prisma.category.create({ data: { name: "Other", type: "expense", icon: "more-horizontal", color: "#a1a1aa" } })
+  otherCatIdCache = created.id
+  return created.id
+}
+
 async function getCatId(name: string): Promise<number> {
   if (!catCache) {
     const cats = await prisma.category.findMany()
     catCache = new Map(cats.map((c) => [c.name.toLowerCase(), c.id]))
-    otherCatIdCache = catCache.get("other") || 13
+    otherCatIdCache = await getOtherCatId()
   }
   return catCache.get(name.toLowerCase()) || otherCatIdCache!
 }
@@ -26,22 +49,25 @@ async function getMaxExpenseDate(profileId: number): Promise<Date | null> {
   return result._max.date || null
 }
 
-// Load existing merchant mappings as a lookup map: key -> { person, subCategory }
-let mappingsCache: Map<string, { person: string | null; subCategory: string | null }> | null = null
+// Load existing vendor mappings as a lookup map: key -> { person, subCategory }
+const lookupCacheByUser = new Map<number, Map<string, { person: string | null; subCategory: string | null }>>()
 
-async function getMappingsLookup(): Promise<Map<string, { person: string | null; subCategory: string | null }>> {
-  if (mappingsCache) return mappingsCache
-  const mappings = await prisma.merchantMapping.findMany({
-    where: { OR: [{ person: { not: null } }, { subCategory: { not: null } }] },
-    select: { merchantKey: true, person: true, subCategory: true },
+async function getMappingsLookup(userId: number): Promise<Map<string, { person: string | null; subCategory: string | null }>> {
+  const cached = lookupCacheByUser.get(userId)
+  if (cached) return cached
+  const mappings = await prisma.vendorMapping.findMany({
+    where: { userId, OR: [{ person: { not: null } }, { subCategory: { not: null } }] },
+    select: { vendorKey: true, person: true, subCategory: true },
   })
-  mappingsCache = new Map(mappings.map((m) => [m.merchantKey, { person: m.person, subCategory: m.subCategory }]))
-  return mappingsCache
+  const map = new Map(mappings.map((m) => [m.vendorKey, { person: m.person, subCategory: m.subCategory }]))
+  lookupCacheByUser.set(userId, map)
+  return map
 }
 
 // Helper: insert expense, flag if duplicate
 async function upsertExpense(date: Date, amount: number, vendor: string, categoryId: number, importSessionId?: number, extra?: { person?: string; subCategory?: string; bankAccount?: string; profileId?: number }): Promise<{ flagged: boolean }> {
   let flagged = false
+  vendor = titleCase(String(vendor || "").trim())
   if (vendor) {
     const existing = await prisma.expense.findFirst({
       where: { date, amount, vendor, profileId: extra?.profileId ?? null },
@@ -67,9 +93,11 @@ async function upsertExpense(date: Date, amount: number, vendor: string, categor
 
 export async function POST(req: Request) {
   let profileId: number
+  let userId: number
   try {
     const ctx = await getAuthContext()
     profileId = ctx.profileId
+    userId = ctx.userId
   } catch (e) {
     return handleAuthError(e)
   }
@@ -87,6 +115,8 @@ export async function POST(req: Request) {
 
     const session = await prisma.importSession.create({
       data: {
+        userId,
+        profileId,
         source: fileName.endsWith(".json") ? "gpay-takeout" : fileName.endsWith(".zip") ? "gpay-takeout-zip" : fileName.endsWith(".html") || fileName.endsWith(".htm") ? "gpay-takeout-html" : "file-upload",
         fileName: file.name,
         status: "importing",
@@ -116,7 +146,7 @@ export async function POST(req: Request) {
         }, { status: 400 })
       }
 
-      const jsonMappings = await getMappingsLookup()
+      const jsonMappings = await getMappingsLookup(userId)
       for (const txn of validTxns) {
         if (txn.vendor) {
           const dupCheck = await prisma.expense.findFirst({
@@ -129,7 +159,7 @@ export async function POST(req: Request) {
         await prisma.expense.create({
           data: {
             date: txn.date, amount: txn.amount, categoryId: catId,
-            vendor: txn.vendor || null, description: txn.vendor || null,
+            vendor: txn.vendor || null, description: buildDescription(txn.vendor, txn.note),
             paymentMode: "UPI",
             person: mapping?.person || null,
             subCategory: mapping?.subCategory || null,
@@ -140,7 +170,7 @@ export async function POST(req: Request) {
         imported++
       }
 
-      const gpayMappingsCount = await autoCreateMappings(validTxns.map((t) => t.vendor).filter(Boolean))
+      const gpayMappingsCount = await autoCreateMappings(validTxns.map((t) => t.vendor).filter(Boolean), userId)
 
       await prisma.importSession.update({
         where: { id: session.id },
@@ -175,7 +205,7 @@ export async function POST(req: Request) {
 
       let totalParsed = 0
       const zipVendors: string[] = []
-      const zipMappings = await getMappingsLookup()
+      const zipMappings = await getMappingsLookup(userId)
 
       if (htmlEntry) {
         const content = htmlEntry.getData().toString("utf-8")
@@ -199,7 +229,7 @@ export async function POST(req: Request) {
           await prisma.expense.create({
             data: {
               date: txn.date, amount: txn.amount, categoryId: catId,
-              vendor: txn.vendor || null, description: txn.vendor || null,
+              vendor: txn.vendor || null, description: buildDescription(txn.vendor, txn.note),
               paymentMode: "UPI",
               person: mapping?.person || null,
               subCategory: mapping?.subCategory || null,
@@ -238,7 +268,7 @@ export async function POST(req: Request) {
               await prisma.expense.create({
                 data: {
                   date: parsed.date, amount: parsed.amount, categoryId: catId,
-                  vendor: parsed.vendor || null, description: parsed.vendor || null,
+                  vendor: parsed.vendor || null, description: buildDescription(parsed.vendor, parsed.note),
                   paymentMode: "UPI",
                   person: mapping?.person || null,
                   subCategory: mapping?.subCategory || null,
@@ -262,16 +292,16 @@ export async function POST(req: Request) {
         }, { status: 400 })
       }
 
-      const zipMappingsCount = await autoCreateMappings(zipVendors)
+      const zipMappingsCount = await autoCreateMappings(zipVendors, userId)
       // Create placeholder mappings for remaining new vendors (so they don't appear in Unmapped)
       if (imported > 0) {
-        const allKeys = await getExistingMappingKeys()
+        const allKeys = await getExistingVendorKeys(userId)
         const newKeys = [...new Set(zipVendors.map((v) => v.toLowerCase().trim()))].filter((k) => !allKeys.has(k))
         if (newKeys.length > 0) {
-          await prisma.merchantMapping.createMany({
-            data: newKeys.map((key) => ({ merchantKey: key, source: "gpay-import" })),
+          await prisma.vendorMapping.createMany({
+            data: newKeys.map((key) => ({ userId, vendorKey: key, source: "gpay-import" })),
           })
-          resetMappingCache()
+          resetVendorKeyCache(userId)
         }
       }
 
@@ -310,7 +340,7 @@ export async function POST(req: Request) {
         }, { status: 400 })
       }
 
-      const htmlMappingsLookup = await getMappingsLookup()
+      const htmlMappingsLookup = await getMappingsLookup(userId)
       for (const txn of htmlTxns) {
         if (txn.vendor) {
           const dupCheck = await prisma.expense.findFirst({
@@ -323,7 +353,7 @@ export async function POST(req: Request) {
         await prisma.expense.create({
           data: {
             date: txn.date, amount: txn.amount, categoryId: catId,
-            vendor: txn.vendor || null, description: txn.vendor || null,
+            vendor: txn.vendor || null, description: buildDescription(txn.vendor, txn.note),
             paymentMode: "UPI",
             person: mapping?.person || null,
             subCategory: mapping?.subCategory || null,
@@ -335,16 +365,16 @@ export async function POST(req: Request) {
         imported++
       }
 
-      const htmlMappings = await autoCreateMappings(htmlTxns.map((t) => t.vendor).filter(Boolean))
+      const htmlMappings = await autoCreateMappings(htmlTxns.map((t) => t.vendor).filter(Boolean), userId)
       if (imported > 0) {
-        const allKeys = await getExistingMappingKeys()
+        const allKeys = await getExistingVendorKeys(userId)
         const htmlVendorKeys = [...new Set(htmlTxns.map((t) => t.vendor.toLowerCase().trim()).filter(Boolean))]
         const newKeys = htmlVendorKeys.filter((k) => !allKeys.has(k))
         if (newKeys.length > 0) {
-          await prisma.merchantMapping.createMany({
-            data: newKeys.map((key) => ({ merchantKey: key, source: "gpay-import" })),
+          await prisma.vendorMapping.createMany({
+            data: newKeys.map((key) => ({ userId, vendorKey: key, source: "gpay-import" })),
           })
-          resetMappingCache()
+          resetVendorKeyCache(userId)
         }
       }
 
@@ -431,26 +461,27 @@ export async function POST(req: Request) {
   }
 }
 
-async function autoCreateMappings(vendors: string[]): Promise<number> {
-  const existingKeys = await getExistingMappingKeys()
+async function autoCreateMappings(vendors: string[], userId: number): Promise<number> {
+  const existingKeys = await getExistingVendorKeys(userId)
   const deduped = new Map<string, string>()
   for (const v of vendors) {
     if (!v) continue
-    if (!shouldAutoMap(v, v, existingKeys)) continue
-    const key = v.toLowerCase().trim()
-    if (!existingKeys.has(key) && !deduped.has(key)) deduped.set(key, v)
+    const display = titleCase(v.trim())
+    const key = display.toLowerCase().trim()
+    if (!existingKeys.has(key) && !deduped.has(key)) deduped.set(key, display)
   }
   if (deduped.size === 0) return 0
   const data = [...deduped.entries()].map(([key, original]) => ({
-    merchantKey: key,
+    userId,
+    vendorKey: key,
     description: original,
-    expenseType: "",
+    category: "",
     subCategory: "",
     person: "",
     source: "gpay-takeout",
   }))
-  await prisma.merchantMapping.createMany({ data })
-  resetMappingCache()
+  await prisma.vendorMapping.createMany({ data })
+  resetVendorKeyCache(userId)
   return data.length
 }
 

@@ -107,7 +107,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Sheet is empty" }, { status: 400 })
     }
 
-    // Find header row (same logic as kcexpenses import)
+    // Find header row (same logic as spreadsheet import)
     let headerRow = -1
     let dateCol = -1, typeCol = -1, subCol = -1, personCol = -1
     let descCol = -1, amountCol = -1, paidCol = -1, bankCol = -1, commentsCol = -1

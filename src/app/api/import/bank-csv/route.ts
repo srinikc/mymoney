@@ -1,8 +1,24 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import { autoDetectAndParse } from "@/shared/bank-csv-parser"
+import { parseBankDesc, buildDescription } from "@/shared/bank-desc-parser"
+import { getExistingVendorKeys, resetVendorKeyCache } from "@/shared/vendor-mapping"
+import { titleCase } from "@/shared/title-case"
+import { loadExistingData, alreadyInAppData } from "@/lib/gmail-scan"
+
 export async function POST(req: Request) {
   try {
+    let profileId: number
+    let userId: number
+    try {
+      const ctx = await getAuthContext()
+      profileId = ctx.profileId
+      userId = ctx.userId
+    } catch (e) {
+      return handleAuthError(e)
+    }
+
     const formData = await req.formData()
     const file = formData.get("file") as File
 
@@ -58,6 +74,8 @@ export async function POST(req: Request) {
     // Import mode — save to DB
     const session = await prisma.importSession.create({
       data: {
+        userId,
+        profileId,
         source: `bank-csv-${parsed.format}`,
         fileName: file.name,
         totalRows: parsed.rows.length,
@@ -67,6 +85,12 @@ export async function POST(req: Request) {
 
     let imported = 0
     let skipped = 0
+    let skippedExisting = 0
+    const learnedVendors = new Set<string>()
+
+    // Load existing app data once so we skip anything already imported via
+    // Gmail, another upload, etc. (same date + amount + vendor).
+    const existing = await loadExistingData(prisma, profileId)
 
     for (const row of parsed.rows) {
       const date = new Date(row.date)
@@ -81,30 +105,53 @@ export async function POST(req: Request) {
         continue
       }
 
-      // Check for duplicates
-      const existing = await prisma.expense.findFirst({
+      // Derive a clean vendor (merchant) + description from the bank narration,
+      // so the vendor column is a merchant name, not the full bank text.
+      const parsedDesc = parseBankDesc(parsed.format, row.description)
+      const vendor = titleCase((parsedDesc.merchant || row.description.slice(0, 120)).trim())
+      const description = buildDescription(parsedDesc.merchant, parsedDesc.context) || row.description.slice(0, 500)
+
+      const foundRow = await prisma.expense.findFirst({
         where: {
+          profileId,
           date,
           amount: row.amount,
-          vendor: row.description.slice(0, 200),
+          vendor,
         },
       })
 
-      if (existing) {
+      if (foundRow) {
+        skippedExisting++
         skipped++
         continue
       }
 
-      // Auto-categorize based on description
+      // Also dedupe against everything loaded for the profile (bank-csv rows
+      // use vendor for matching, so vendorMatches handles the comparisons).
+      const looksDuplicate = alreadyInAppData(existing, {
+        type: "expense",
+        date: row.date,
+        amount: row.amount,
+        vendor,
+        description,
+      })
+      if (looksDuplicate) {
+        skippedExisting++
+        skipped++
+        continue
+      }
+
+      // Auto-categorize based on the full narration
       const categoryId = await autoCategorize(row.description)
 
       await prisma.expense.create({
         data: {
+          profileId,
           date,
           amount: row.amount,
           categoryId,
-          vendor: row.description.slice(0, 200) || null,
-          description: row.description.slice(0, 500) || null,
+          vendor: vendor || null,
+          description: description || null,
           paymentMode: "Bank Transfer",
           bankAccount: bankAccount || null,
           importSessionId: session.id,
@@ -112,6 +159,23 @@ export async function POST(req: Request) {
         },
       })
       imported++
+      if (vendor) learnedVendors.add(vendor.toLowerCase().trim())
+    }
+
+    // Auto-learn vendors for this user (dedup by vendorKey)
+    if (learnedVendors.size > 0) {
+      const existingKeys = await getExistingVendorKeys(userId)
+      const newVendors = [...learnedVendors].filter((k) => !existingKeys.has(k))
+      if (newVendors.length > 0) {
+        await prisma.vendorMapping.createMany({
+          data: newVendors.map((key) => ({
+            userId,
+            vendorKey: key,
+            source: "bank-csv",
+          })),
+        })
+        resetVendorKeyCache(userId)
+      }
     }
 
     await prisma.importSession.update({
@@ -127,6 +191,7 @@ export async function POST(req: Request) {
       success: true,
       imported,
       skipped,
+      skippedExisting,
       total: parsed.rows.length,
       importSessionId: session.id,
       message: `Imported ${imported} bank transactions${skipped > 0 ? `, skipped ${skipped}` : ""}`,

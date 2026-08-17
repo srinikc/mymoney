@@ -1,10 +1,21 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { parseBankPdf } from "@/shared/bank-pdf-parser"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 
 const MAX_SIZE = 15 * 1024 * 1024 // 15MB
 
 export async function POST(req: Request) {
+  let profileId: number
+  let userId: number
+  try {
+    const ctx = await getAuthContext()
+    profileId = ctx.profileId
+    userId = ctx.userId
+  } catch (e) {
+    return handleAuthError(e)
+  }
+
   try {
     const formData = await req.formData()
     const file = formData.get("file") as File
@@ -63,6 +74,8 @@ export async function POST(req: Request) {
     // Import mode
     const session = await prisma.importSession.create({
       data: {
+        userId,
+        profileId,
         source: `bank-pdf-${parsed.format}`,
         fileName: file.name,
         totalRows: parsed.rows.length,

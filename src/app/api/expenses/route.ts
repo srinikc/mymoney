@@ -345,6 +345,7 @@ export async function POST(req: Request) {
       data: { name: "Other", type: "expense", icon: "more-horizontal", color: "#a1a1aa" },
     })).id
   }
+  categoryId = Number(categoryId)
 
   const baseData = {
     date: new Date(body.date),

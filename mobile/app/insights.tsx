@@ -171,7 +171,7 @@ export default function InsightsScreen() {
 
           {data.topMerchants && data.topMerchants.length > 0 && (
             <View style={[styles.card, { backgroundColor: theme.surface }]}>
-              <Text style={[styles.cardTitle, { color: theme.text }]}>Top Merchants</Text>
+              <Text style={[styles.cardTitle, { color: theme.text }]}>Top Vendors</Text>
               {data.topMerchants.map((m: TopMerchant) => (
                 <View key={m.name} style={styles.merchantRow}>
                   <Ionicons name="storefront-outline" size={16} color={theme.textTertiary} />

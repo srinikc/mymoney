@@ -1,7 +1,7 @@
-import { PrismaClient } from "@prisma/client"
+﻿import { PrismaClient } from "@prisma/client"
 const p = new PrismaClient()
 Promise.all([
-  p.merchantMapping.count(),
+  p.vendorMapping.count(),
   p.expense.count(),
   p.expense.count({ where: { flagged: true } }),
 ]).then(([mappings, expenses, flagged]) => {

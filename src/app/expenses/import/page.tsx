@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { redirectToLogin } from "@/lib/api"
 
 interface SampleRow {
   date: string; expenseType: string; amount: number; description: string
@@ -22,7 +23,7 @@ interface PreviewData {
   uniquePersons: number
   years: number[]
   sample: SampleRow[]
-  newMerchantCount: number
+  newVendorCount: number
   totalVendors: number
 }
 
@@ -50,11 +51,11 @@ interface GpayPreviewData {
 export default function ImportPage() {
   const [tab, setTab] = useState<"kcexpenses" | "gpay">("kcexpenses")
   const [preview, setPreview] = useState<PreviewData | null>(null)
+  const [previewing, setPreviewing] = useState(false)
   const [importing, setImporting] = useState(false)
   const [result, setResult] = useState<ImportResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [createMappings, setCreateMappings] = useState(false)
   const [gpayPreview, setGpayPreview] = useState<GpayPreviewData | null>(null)
   const [gpayImporting, setGpayImporting] = useState(false)
   const [gpayResult, setGpayResult] = useState<{ message: string; imported: number; total: number; skipped: number; importSessionId?: number } | null>(null)
@@ -68,33 +69,38 @@ export default function ImportPage() {
     setResult(null)
     setPreview(null)
     setSelectedFile(file)
+    setPreviewing(true)
 
     const formData = new FormData()
     formData.append("file", file)
-    formData.append("createMappings", String(createMappings))
 
     try {
       const res = await fetch("/api/import/kcexpenses", { method: "POST", body: formData })
+      if (res.status === 401) { redirectToLogin(); return }
       const data = await res.json()
       if (!res.ok) { setError(data.error || "Preview failed"); return }
       setPreview(data)
     } catch (error_) {
       setError("Failed to preview: " + String(error_))
+    } finally {
+      setPreviewing(false)
+      e.target.value = ""
     }
   }
 
   const handleImport = async () => {
     if (!preview || !selectedFile) return
+    if (importing) return
     setImporting(true)
     setError(null)
 
     const formData = new FormData()
     formData.append("file", selectedFile)
     formData.append("confirm", "true")
-    formData.append("createMappings", String(createMappings))
 
     try {
       const res = await fetch("/api/import/kcexpenses", { method: "POST", body: formData })
+      if (res.status === 401) { redirectToLogin(); return }
       const data = await res.json()
       if (!res.ok) { setError(data.error || "Import failed"); setImporting(false); return }
       setResult(data)
@@ -117,6 +123,7 @@ export default function ImportPage() {
     formData.append("file", file)
     try {
       const res = await fetch("/api/import/gpay-preview", { method: "POST", body: formData })
+      if (res.status === 401) { redirectToLogin(); return }
       const data = await res.json()
       if (!res.ok) { setError(data.error || "Preview failed"); setGpayPreviews(false); return }
       setGpayPreview(data)
@@ -136,6 +143,7 @@ export default function ImportPage() {
     formData.append("file", gpayFile)
     try {
       const res = await fetch("/api/import", { method: "POST", body: formData })
+      if (res.status === 401) { redirectToLogin(); return }
       const data = await res.json()
       if (res.ok) {
         setGpayResult({ message: data.message || "", imported: data.imported || 0, total: data.total || 0, skipped: data.skipped || 0, importSessionId: data.importSessionId })
@@ -158,17 +166,17 @@ export default function ImportPage() {
         </Link>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Import</h1>
-          <p className="text-muted-foreground">Bulk import expenses from KCExpenses spreadsheet or GPay Takeout</p>
+          <p className="text-muted-foreground">Bulk import expenses from a spreadsheet or GPay Takeout</p>
         </div>
       </div>
 
       {/* Import type tabs */}
-      {!preview && !result && !importing && !gpayPreview && !gpayResult && !gpayImporting && !gpayPreviews && (
+      {!preview && !result && !importing && !previewing && !gpayPreview && !gpayResult && !gpayImporting && !gpayPreviews && (
         <div className="space-y-4">
           <div className="flex gap-1 border-b">
             <button onClick={() => setTab("kcexpenses")}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === "kcexpenses" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-              KCExpenses Spreadsheet
+              Upload Spreadsheet
             </button>
             <button onClick={() => setTab("gpay")}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === "gpay" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
@@ -180,7 +188,7 @@ export default function ImportPage() {
               <div className="flex flex-col items-center gap-3 text-center">
                 {tab === "kcexpenses" ? <FileSpreadsheet className="h-10 w-10 text-muted-foreground" /> : <Upload className="h-10 w-10 text-muted-foreground" />}
                 <div>
-                  <p className="text-base font-medium">{tab === "kcexpenses" ? "KCExpenses Spreadsheet" : "GPay Takeout"}</p>
+                  <p className="text-base font-medium">{tab === "kcexpenses" ? "Upload Spreadsheet" : "GPay Takeout"}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {tab === "kcexpenses" ? ".xlsx format with Date, Expense Type, Amount, Person columns" : "Upload takeout ZIP or My Activity.html from Google Takeout"}
                   </p>
@@ -204,6 +212,18 @@ export default function ImportPage() {
             <div>
               <p className="font-medium">Importing expenses...</p>
               <p className="text-sm text-muted-foreground">This may take a minute for large files</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {previewing && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="flex items-center gap-3 py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <div>
+              <p className="font-medium">Analysing spreadsheet...</p>
+              <p className="text-sm text-muted-foreground">Parsing rows and deriving vendors — please wait</p>
             </div>
           </CardContent>
         </Card>
@@ -246,9 +266,9 @@ export default function ImportPage() {
                   <p className="text-lg font-semibold">{preview.years.join(", ")}</p>
                 </div>
                 <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">Auto Mapped</p>
-                  <p className="text-lg font-semibold">{preview.newMerchantCount} <span className="text-sm font-normal text-muted-foreground">/ {preview.totalVendors} total vendors</span></p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">{preview.totalVendors - preview.newMerchantCount} go to Unmapped for manual review</p>
+                  <p className="text-xs text-muted-foreground">Vendors</p>
+                  <p className="text-lg font-semibold">{preview.newVendorCount} <span className="text-sm font-normal text-muted-foreground">/ {preview.totalVendors} new vendors learned</span></p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Auto-learned with their category, sub-category &amp; person (deduped).</p>
                 </div>
               </div>
             </CardContent>
@@ -295,17 +315,11 @@ export default function ImportPage() {
           </Card>
 
           <div className="flex items-center gap-3 flex-wrap">
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={createMappings}
-                onChange={(e) => setCreateMappings(e.target.checked)}
-                className="h-4 w-4 accent-primary"
-              />
-              Create merchant mappings ({preview.newMerchantCount} auto-detectable)
-            </label>
-            <Button size="lg" onClick={handleImport}>
-              <Upload className="mr-2 h-4 w-4" /> Import All {preview.total.toLocaleString()} Expenses
+            <p className="text-sm text-muted-foreground">
+              Vendors are auto-learned from this sheet (deduped) with their category, sub-category &amp; person.
+            </p>
+            <Button size="lg" onClick={handleImport} disabled={importing}>
+              {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />} Import All {preview.total.toLocaleString()} Expenses
             </Button>
             <Button variant="outline" size="lg" onClick={() => setPreview(null)}>
               Cancel
@@ -315,13 +329,15 @@ export default function ImportPage() {
       )}
 
       {result && (
-        <Card className="border-emerald-500/30 bg-emerald-500/5">
+        <Card className={result.imported === 0 ? "border-amber-500/30 bg-amber-500/5" : "border-emerald-500/30 bg-emerald-500/5"}>
           <CardContent className="py-6">
             <div className="flex items-start gap-4">
-              <CheckCircle2 className="h-6 w-6 text-emerald-500 mt-1" />
+              {result.imported === 0
+                ? <AlertCircle className="h-6 w-6 text-amber-500 mt-1" />
+                : <CheckCircle2 className="h-6 w-6 text-emerald-500 mt-1" />}
               <div>
-                <h3 className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
-                  Import Successful
+                <h3 className={`text-lg font-semibold ${result.imported === 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                  {result.imported === 0 ? "Nothing New to Import" : "Import Successful"}
                 </h3>
                 <p className="text-sm mt-1">{result.message}</p>
                 <div className="flex gap-6 mt-3 text-sm">
@@ -330,9 +346,15 @@ export default function ImportPage() {
                   <span>📦 <strong>{result.newMappings}</strong> merchant mappings created</span>
                 </div>
                 <div className="flex gap-3 mt-4">
-                  <Link href={`/expenses${result.importSessionId ? `?importSessionId=${result.importSessionId}` : ""}`}>
-                    <Button>View Imported</Button>
-                  </Link>
+                  {result.imported > 0 ? (
+                    <Link href={`/expenses${result.importSessionId ? `?importSessionId=${result.importSessionId}` : ""}`}>
+                      <Button>View Imported</Button>
+                    </Link>
+                  ) : (
+                    <Link href="/expenses">
+                      <Button>View All Expenses</Button>
+                    </Link>
+                  )}
                   <Link href="/expenses/import">
                     <Button variant="outline">Import Another</Button>
                   </Link>

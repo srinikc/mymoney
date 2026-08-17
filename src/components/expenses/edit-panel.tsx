@@ -33,7 +33,7 @@ export function EditPanel({ expense, open, onClose, onSave, categories }: EditPa
     saveMapping: false,
   })
   const [saving, setSaving] = useState(false)
-  const [merchantMappings, setMerchantMappings] = useState<Array<{ merchantKey: string; expenseType: string; subCategory: string; person: string }>>([])
+  const [vendorMappings, setVendorMappings] = useState<Array<{ vendorKey: string; category: string; subCategory: string; person: string }>>([])
 
   useEffect(() => {
     if (expense) {
@@ -56,13 +56,13 @@ export function EditPanel({ expense, open, onClose, onSave, categories }: EditPa
     }
   }, [expense])
 
-  // Fetch subcategories/persons suggestions from merchant mappings
+  // Fetch subcategories/persons suggestions from vendor mappings
   useEffect(() => {
     if (form.vendor) {
       const key = form.vendor.toLowerCase().trim()
-      fetch(`/api/merchants/search?q=${encodeURIComponent(key)}`)
+      fetch(`/api/vendors/search?q=${encodeURIComponent(key)}`)
         .then((r) => r.json())
-        .then((data) => setMerchantMappings(data.results || []))
+        .then((data) => setVendorMappings(data.results || []))
         .catch(() => {})
     }
   }, [form.vendor])
@@ -118,11 +118,11 @@ export function EditPanel({ expense, open, onClose, onSave, categories }: EditPa
           </div>
 
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Vendor / Merchant</label>
+            <label className="text-xs font-medium text-muted-foreground">Vendor</label>
             <Input value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })} />
-            {merchantMappings.length > 0 && form.vendor && (
+            {vendorMappings.length > 0 && form.vendor && (
               <div className="mt-1 rounded-md border bg-muted/30 p-2 text-xs text-muted-foreground">
-                Known mappings: {merchantMappings.map((m) => `${m.merchantKey} → ${m.expenseType}${m.subCategory ? "/" + m.subCategory : ""}`).join(", ")}
+                Known mappings: {vendorMappings.map((m) => `${m.vendorKey} → ${m.category}${m.subCategory ? "/" + m.subCategory : ""}`).join(", ")}
               </div>
             )}
           </div>
@@ -174,6 +174,7 @@ export function EditPanel({ expense, open, onClose, onSave, categories }: EditPa
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="onetime">One-time</SelectItem>
+                  <SelectItem value="recurring">Recurring</SelectItem>
                   <SelectItem value="monthly">Monthly</SelectItem>
                   <SelectItem value="yearly">Yearly</SelectItem>
                   <SelectItem value="weekly">Weekly</SelectItem>

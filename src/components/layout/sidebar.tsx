@@ -284,7 +284,7 @@ export function Sidebar() {
             { href: "/income", label: "Income", icon: IndianRupee },
             { href: "/expenses", label: "All Expenses", icon: Receipt },
             { href: "/expenses/import", label: "Bulk Import", icon: Upload },
-            { href: "/expenses/merchants", label: "Merchants", icon: Store },
+            { href: "/expenses/vendors", label: "Vendors", icon: Store },
             { href: "/expenses/review-duplicates", label: "Review", icon: Flag },
             { href: "/expenses/archive", label: "Archive", icon: Archive },
             { href: "/auto-link", label: "Auto-Link", icon: Link2 },

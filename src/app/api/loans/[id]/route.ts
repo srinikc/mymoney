@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { getAuthContext } from "@/lib/with-auth"
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const { profileId, userId, role } = await getAuthContext()
+    const { profileId } = await getAuthContext()
     if (!profileId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -27,7 +27,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const { profileId, userId, role } = await getAuthContext()
+    const { profileId } = await getAuthContext()
     if (!profileId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -73,7 +73,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const { profileId, userId, role } = await getAuthContext()
+    const { profileId } = await getAuthContext()
     if (!profileId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }

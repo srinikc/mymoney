@@ -39,7 +39,7 @@ test.describe("Bank Accounts — Comprehensive", () => {
 
     test("SCENARIO: Bank accounts API returns with expected shape", async ({ page }) => {
       await page.goto("/", { waitUntil: "domcontentloaded" })
-      await page.evaluate(async () => { const r = await fetch("/api/bank-accounts"); if (r.ok) { const data = await r.json(); const accounts = data.accounts || data; return Array.isArray(accounts) ? accounts.length : -1 }; return -1 })
+      await page.evaluate(async () => { const r = await fetch("/api/bank-accounts"); if (r.ok) { const data = await r.json(); const accounts = data.accounts || data; return Array.isArray(accounts) ? accounts.length : -1 } return -1 })
     })
   })
 

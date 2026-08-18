@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError, withAuth } from "@/lib/with-auth"
+import { withAuth } from "@/lib/with-auth"
 import * as fs from "node:fs"
 import * as path from "node:path"
 
@@ -19,7 +19,7 @@ function resolveFilePath(dbPath: string): string | null {
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await withAuth()
   if (auth.error) return auth.error
-  const { profileId, userId, role } = auth
+  const { profileId } = auth
 
   const { id } = await params
 

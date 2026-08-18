@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { getAuthContext } from "@/lib/with-auth"
 
 export async function GET(_req: Request) {
   try {
-    const { profileId, userId, role } = await getAuthContext()
+    const { profileId } = await getAuthContext()
     if (!profileId) {
       return NextResponse.json([], { status: 200 })
     }
@@ -20,7 +20,7 @@ export async function GET(_req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { profileId, userId, role } = await getAuthContext()
+    const { profileId } = await getAuthContext()
     if (!profileId) {
       return NextResponse.json({ error: "Internal server error" }, { status: 401 })
     }

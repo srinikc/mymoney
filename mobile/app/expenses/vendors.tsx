@@ -6,18 +6,17 @@ import { Colors } from '../../constants/Colors';
 import { formatCurrency, formatDate } from '../../utils/format';
 import api from '../../api/client';
 
-interface UnmappedMerchant {
-  merchantKey: string;
+interface UnmappedVendor {
+  key: string;
   count: number;
   totalAmount: number;
 }
 
-interface MappingItem {
+interface VendorItem {
   id: number;
-  merchantKey: string;
+  vendorKey: string;
   description?: string;
-  category?: { id?: number; name: string };
-  categoryId?: string;
+  category?: string;
   subCategory?: string;
   person?: string;
   source?: string;
@@ -37,7 +36,7 @@ interface DistinctValues {
 
 type Tab = 'unmapped' | 'mappings';
 
-export default function MerchantsScreen() {
+export default function VendorsScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
@@ -48,16 +47,20 @@ export default function MerchantsScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Unmapped
-  const [unmapped, setUnmapped] = useState<UnmappedMerchant[]>([]);
+  const [unmapped, setUnmapped] = useState<UnmappedVendor[]>([]);
+  const [totalUnmapped, setTotalUnmapped] = useState(0);
+  const [unmappedPage, setUnmappedPage] = useState(1);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [assignments, setAssignments] = useState<Record<string, { categoryId?: string; subCategory?: string; person?: string }>>({});
-  const [dismissedKeys] = useState<Set<string>>(new Set());
 
   // Mappings
-  const [mappings, setMappings] = useState<MappingItem[]>([]);
-  const [mapPage, setMapPage] = useState(1);
-  const [mapTotalPages, setMapTotalPages] = useState(1);
+  const [mappings, setMappings] = useState<VendorItem[]>([]);
+  const [totalMappings, setTotalMappings] = useState(0);
+  const [mappingsPage, setMappingsPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [selectAllMode, setSelectAllMode] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const PAGE_SIZE = 50;
 
   // Pickers
   const [categories, setCategories] = useState<CatItem[]>([]);
@@ -65,57 +68,68 @@ export default function MerchantsScreen() {
 
   // Edit modal
   const [editModal, setEditModal] = useState(false);
-  const [editMapping, setEditMapping] = useState<MappingItem | null>(null);
+  const [editMapping, setEditMapping] = useState<VendorItem | null>(null);
   const [editCategory, setEditCategory] = useState('');
   const [editSubCategory, setEditSubCategory] = useState('');
   const [editPerson, setEditPerson] = useState('');
 
   const [saveLoading, setSaveLoading] = useState(false);
+  const [applying, setApplying] = useState(false);
 
-  const fetchUnmapped = useCallback(async () => {
+  const fetchUnmapped = useCallback(async (page = 1, append = false, term = '') => {
     try {
-      const res = await api.get('/api/merchants/unmapped');
-      setUnmapped(res.data?.unmapped || res.data || []);
+      const params: Record<string, string | number> = { page, pageSize: PAGE_SIZE };
+      if (term) params.search = term;
+      const res = await api.get('/api/vendors/unmapped', { params });
+      const list = res.data?.merchants || res.data?.unmapped || [];
+      setTotalUnmapped(res.data?.total || list.length);
+      setUnmappedPage(page);
+      setUnmapped((prev) => (append ? [...prev, ...list.map((m: { key: string; count?: number; total?: number }) => ({ key: m.key, count: m.count || 0, totalAmount: m.total || 0 }))] : list.map((m: { key: string; count?: number; total?: number }) => ({ key: m.key, count: m.count || 0, totalAmount: m.total || 0 }))));
     } catch {
       // ignore
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
   }, []);
 
-  const fetchMappings = useCallback(async (targetPage = 1, append = false) => {
+  const fetchMappings = useCallback(async (page = 1, append = false, term = search) => {
     try {
-      const params: Record<string, string | undefined> = { page: String(targetPage), pageSize: '50' };
-      if (search) params.search = search;
-      const res = await api.get('/api/merchants/mappings', { params });
-      const d = res.data;
-      const items = d.data || d.mappings || [];
-      if (append) {
-        setMappings((prev) => [...prev, ...items]);
-      } else {
-        setMappings(items);
-      }
-      setMapTotalPages(d.totalPages || 1);
-      setMapPage(targetPage);
+      const params: Record<string, string | number> = { page, pageSize: PAGE_SIZE };
+      if (term) params.search = term;
+      const res = await api.get('/api/vendors/all', { params });
+      const items = res.data?.vendors || [];
+      setTotalMappings(res.data?.total || items.length);
+      setMappingsPage(page);
+      const mapped = items.map((m: { id: number; vendorKey: string; description?: string; category?: string; subCategory?: string; person?: string; source?: string; sourceLabel?: string; updatedAt?: string }) => ({
+        id: m.id,
+        vendorKey: m.vendorKey,
+        description: m.description,
+        category: m.category,
+        subCategory: m.subCategory,
+        person: m.person,
+        source: m.sourceLabel || m.source,
+        updatedAt: m.updatedAt,
+      }));
+      setMappings((prev) => (append ? [...prev, ...mapped] : mapped));
     } catch {
       // ignore
     } finally {
+      setLoading(false);
+      setRefreshing(false);
       setLoadingMore(false);
     }
   }, [search]);
 
   const fetchPickers = useCallback(async () => {
     try {
-      const [catRes, valRes] = await Promise.all([
-        api.get('/api/categories'),
-        api.get('/api/merchants/distinct-values'),
-      ]);
+      const catRes = await api.get('/api/categories');
       setCategories(Array.isArray(catRes.data) ? catRes.data : []);
-      const vals = valRes.data || {};
+      const expRes = await api.get('/api/expenses', { params: { pageSize: '1' } }).catch(() => ({ data: {} }));
       setDistinctValues({
-        subCategories: vals.subCategories || vals.subCategory || [],
-        persons: vals.persons || vals.person || [],
+        subCategories: expRes.data?.distinctSubCategories || [],
+        persons: expRes.data?.distinctPersons || [],
       });
     } catch {
       // ignore
@@ -127,19 +141,27 @@ export default function MerchantsScreen() {
   }, [fetchPickers]);
 
   useEffect(() => {
+    setLoading(true);
     if (tab === 'unmapped') {
-      fetchUnmapped();
+      fetchUnmapped(1, false, search);
     } else {
-      fetchMappings(1);
+      fetchMappings(1, false, search);
     }
   }, [tab, fetchUnmapped, fetchMappings]);
 
-  const loadMore = () => {
-    if (mapPage < mapTotalPages && !loadingMore) {
-      setLoadingMore(true);
-      fetchMappings(mapPage + 1, true);
-    }
-  };
+  // Debounced search (reset to page 1 on change) for whichever tab is active.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (tab === 'unmapped') {
+        setUnmappedPage(1);
+        fetchUnmapped(1, false, search);
+      } else {
+        setMappingsPage(1);
+        fetchMappings(1, false, search);
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search, tab, fetchUnmapped, fetchMappings]);
 
   const toggleExpand = (key: string) => {
     setExpandedKeys((prev) => {
@@ -155,19 +177,24 @@ export default function MerchantsScreen() {
   };
 
   const handleSaveAll = async () => {
-    const entries = Object.entries(assignments).filter(([, v]) => v.categoryId);
+    const entries = Object.entries(assignments).filter(([, v]) => v.categoryId || v.subCategory || v.person);
     if (entries.length === 0) {
       Alert.alert('Info', 'No assignments to save');
       return;
     }
     setSaveLoading(true);
     try {
-      await api.post('/api/merchants/assign', {
-        assignments: entries.map(([key, val]) => ({ merchantKey: key, ...val })),
+      await api.post('/api/vendors/batch', {
+        mappings: entries.map(([key, val]) => ({
+          merchantKey: key,
+          expenseType: val.categoryId || '',
+          subCategory: val.subCategory || '',
+          person: val.person || '',
+        })),
       });
       setAssignments({});
       setExpandedKeys(new Set());
-      fetchUnmapped();
+      fetchUnmapped(1, false, search);
       Alert.alert('Success', `${entries.length} mapping(s) saved`);
     } catch {
       Alert.alert('Error', 'Failed to save assignments');
@@ -176,11 +203,24 @@ export default function MerchantsScreen() {
     }
   };
 
+  const handleApplyMappings = async () => {
+    setApplying(true);
+    try {
+      await api.post('/api/vendors/apply-mappings');
+      Alert.alert('Update Expense Page', 'Vendor mappings applied to existing expenses.');
+    } catch {
+      Alert.alert('Error', 'Failed to apply mappings');
+    } finally {
+      setApplying(false);
+    }
+  };
+
   const handleDismiss = async (keys: string[]) => {
+    if (keys.length === 0) return;
     setSaveLoading(true);
     try {
-      await api.post('/api/merchants/dismiss', { merchantKeys: keys });
-      setUnmapped((prev) => prev.filter((u) => !keys.includes(u.merchantKey)));
+      await api.delete('/api/vendors/batch', { data: { keys } });
+      setUnmapped((prev) => prev.filter((u) => !keys.includes(u.key)));
     } catch {
       Alert.alert('Error', 'Failed to dismiss');
     } finally {
@@ -188,9 +228,9 @@ export default function MerchantsScreen() {
     }
   };
 
-  const openEditModal = (mapping: MappingItem) => {
+  const openEditModal = (mapping: VendorItem) => {
     setEditMapping(mapping);
-    setEditCategory(mapping.category ? String(mapping.category.id ?? mapping.category.name) : mapping.categoryId || '');
+    setEditCategory(mapping.category || '');
     setEditSubCategory(mapping.subCategory || '');
     setEditPerson(mapping.person || '');
     setEditModal(true);
@@ -200,14 +240,14 @@ export default function MerchantsScreen() {
     if (!editMapping) return;
     setSaveLoading(true);
     try {
-      await api.put(`/api/merchants/mappings/${editMapping.id}`, {
-        categoryId: editCategory,
+      await api.put(`/api/vendors/${editMapping.id}`, {
+        expenseType: editCategory,
         subCategory: editSubCategory,
         person: editPerson,
       });
       setEditModal(false);
       setEditMapping(null);
-      fetchMappings(1);
+      fetchMappings();
     } catch {
       Alert.alert('Error', 'Failed to update mapping');
     } finally {
@@ -215,25 +255,78 @@ export default function MerchantsScreen() {
     }
   };
 
-  const handleDeleteMapping = (mapping: MappingItem) => {
-    Alert.alert('Delete Mapping', `Delete mapping for "${mapping.merchantKey}"?`, [
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectAllMode) {
+      setSelectAllMode(false);
+      setSelectedIds(new Set());
+    } else {
+      setSelectAllMode(true);
+      setSelectedIds(new Set(filteredMappings.map((m) => m.id)));
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedIds.size === 0) return;
+    Alert.alert('Delete vendors', `Permanently delete ${selectedIds.size} vendor mapping(s)?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive',
         onPress: async () => {
+          setSaveLoading(true);
           try {
-            await api.delete(`/api/merchants/mappings/${mapping.id}`);
-            setMappings((prev) => prev.filter((m) => m.id !== mapping.id));
+            const res = await api.post('/api/vendors/bulk-delete', { ids: [...selectedIds] });
+            Alert.alert('Done', `Deleted ${res.data?.count ?? 0} vendor mapping(s)`);
+            setSelectedIds(new Set());
+            setSelectAllMode(false);
+            fetchMappings();
           } catch {
-            Alert.alert('Error', 'Failed to delete mapping');
+            Alert.alert('Error', 'Delete failed');
+          } finally {
+            setSaveLoading(false);
           }
         },
       },
     ]);
   };
 
-  const renderUnmapped = ({ item }: { item: UnmappedMerchant }) => {
-    const key = item.merchantKey;
+  const handleDeleteAll = () => {
+    if (mappings.length === 0) return;
+    Alert.alert('Delete all vendors', 'Permanently delete ALL vendor mappings for your account?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete All', style: 'destructive',
+        onPress: async () => {
+          setSaveLoading(true);
+          try {
+            const res = await api.post('/api/vendors/bulk-delete', { scope: 'all' });
+            Alert.alert('Done', `Deleted ${res.data?.count ?? 0} vendor mapping(s)`);
+            setSelectedIds(new Set());
+            setSelectAllMode(false);
+            fetchMappings();
+          } catch {
+            Alert.alert('Error', 'Delete failed');
+          } finally {
+            setSaveLoading(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  // Search is server-side now (both tabs); the list already reflects it.
+  const filteredMappings = mappings;
+
+  const renderUnmapped = ({ item }: { item: UnmappedVendor }) => {
+    const key = item.key;
     const expanded = expandedKeys.has(key);
     const assign = assignments[key] || {};
     return (
@@ -299,17 +392,29 @@ export default function MerchantsScreen() {
     );
   };
 
-  const renderMapping = ({ item }: { item: MappingItem }) => (
-    <TouchableOpacity onPress={() => openEditModal(item)} onLongPress={() => handleDeleteMapping(item)} activeOpacity={0.7}>
-      <View style={[styles.card, { backgroundColor: theme.surface }]}>
+  const renderMapping = ({ item }: { item: VendorItem }) => {
+    const selected = selectedIds.has(item.id);
+    return (
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: theme.surface }]}
+        onPress={() => openEditModal(item)}
+        activeOpacity={0.7}
+      >
         <View style={styles.mappingRow}>
+          <TouchableOpacity onPress={() => toggleSelect(item.id)} style={{ padding: 2 }}>
+            <Ionicons
+              name={selected ? 'checkbox' : 'square-outline'}
+              size={20}
+              color={selected ? theme.primary : theme.textTertiary}
+            />
+          </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.cardTitle, { color: theme.text }]}>{item.merchantKey}</Text>
-            {item.description ? <Text style={[styles.cardSubtext, { color: theme.textTertiary }]}>{item.description}</Text> : null}
+            <Text style={[styles.cardTitle, { color: theme.text }]}>{item.description || item.vendorKey}</Text>
+            {item.description ? <Text style={[styles.cardSubtext, { color: theme.textTertiary }]}>{item.vendorKey}</Text> : null}
             <View style={styles.mappingTags}>
               {item.category && (
                 <View style={[styles.tag, { backgroundColor: theme.primaryLight }]}>
-                  <Text style={[styles.tagText, { color: theme.primary }]}>{item.category?.name || ''}</Text>
+                  <Text style={[styles.tagText, { color: theme.primary }]}>{item.category}</Text>
                 </View>
               )}
               {item.subCategory && (
@@ -327,12 +432,23 @@ export default function MerchantsScreen() {
           <Text style={[styles.mappingSource, { color: theme.textTertiary }]}>{item.source || ''}</Text>
         </View>
         {item.updatedAt && <Text style={[styles.cardSubtext, { color: theme.textTertiary, marginTop: 4 }]}>Updated {formatDate(item.updatedAt)}</Text>}
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
-  const unmappedKeys = unmapped.filter((u) => !dismissedKeys.has(u.merchantKey));
   const hasAssignments = Object.keys(assignments).length > 0;
+
+  const loadMoreUnmapped = () => {
+    if (loadingMore || unmapped.length >= totalUnmapped) return;
+    setLoadingMore(true);
+    fetchUnmapped(unmappedPage + 1, true, search);
+  };
+
+  const loadMoreMappings = () => {
+    if (loadingMore || mappings.length >= totalMappings) return;
+    setLoadingMore(true);
+    fetchMappings(mappingsPage + 1, true, search);
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -341,7 +457,7 @@ export default function MerchantsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Merchant Mapping</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Vendors</Text>
       </View>
 
       <View style={styles.tabRow}>
@@ -352,7 +468,9 @@ export default function MerchantsScreen() {
             style={[styles.tab, { backgroundColor: tab === t.key ? theme.primary : theme.surface, borderColor: tab === t.key ? theme.primary : theme.border }]}
           >
             <Text style={{ color: tab === t.key ? '#fff' : theme.text, fontSize: 13, fontWeight: '600' }}>
-              {t.label}{tab === 'unmapped' && unmappedKeys.length > 0 ? ` (${unmappedKeys.length})` : ''}
+              {t.label}
+              {tab === 'unmapped' && totalUnmapped > 0 ? ` (${totalUnmapped})` : ''}
+              {tab === 'mappings' && totalMappings > 0 ? ` (${totalMappings})` : ''}
             </Text>
           </TouchableOpacity>
         ))}
@@ -363,11 +481,20 @@ export default function MerchantsScreen() {
         <TextInput
           style={[styles.searchInput, { color: theme.text }]}
           value={search}
-          onChangeText={(v) => { setSearch(v); if (tab === 'mappings') { setMapPage(1); } }}
-          placeholder="Search merchants..."
+          onChangeText={setSearch}
+          placeholder="Search vendors..."
           placeholderTextColor={theme.textTertiary}
         />
       </View>
+
+      <TouchableOpacity
+        onPress={handleApplyMappings}
+        disabled={applying}
+        style={[styles.applyBtn, { backgroundColor: theme.primaryLight, borderColor: theme.primary }]}
+      >
+        {applying ? <ActivityIndicator size="small" color={theme.primary} /> : <Ionicons name="refresh" size={16} color={theme.primary} />}
+        <Text style={[styles.applyBtnText, { color: theme.primary }]}>Update Expense Page</Text>
+      </TouchableOpacity>
 
       {tab === 'unmapped' && hasAssignments && (
         <View style={[styles.batchBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -384,36 +511,55 @@ export default function MerchantsScreen() {
         </View>
       )}
 
+      {tab === 'mappings' && mappings.length > 0 && (
+        <View style={[styles.batchBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <TouchableOpacity onPress={toggleSelectAll} style={[styles.batchBtn, { backgroundColor: theme.primaryLight }]}>
+            <Text style={{ color: theme.primary, fontWeight: '600', fontSize: 13 }}>
+              {selectAllMode ? 'Deselect All' : `Select All (${filteredMappings.length})`}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleDeleteSelected} disabled={saveLoading || selectedIds.size === 0} style={[styles.batchBtn, { backgroundColor: theme.expenseLight }]}>
+            <Text style={{ color: theme.expense, fontWeight: '600', fontSize: 13 }}>Delete ({selectedIds.size})</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleDeleteAll} disabled={saveLoading} style={[styles.batchBtn, { backgroundColor: theme.expenseLight }]}>
+            <Text style={{ color: theme.expense, fontWeight: '600', fontSize: 13 }}>Delete All</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View>
       ) : tab === 'unmapped' ? (
         <FlatList
-          data={unmappedKeys}
-          keyExtractor={(item) => item.merchantKey}
+          data={unmapped}
+          keyExtractor={(item) => item.key}
           renderItem={renderUnmapped}
-          contentContainerStyle={[styles.listContent, unmappedKeys.length === 0 && styles.listEmpty]}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchUnmapped(); }} tintColor={theme.primary} />}
+          contentContainerStyle={[styles.listContent, unmapped.length === 0 && styles.listEmpty]}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchUnmapped(1, false, search); }} tintColor={theme.primary} />}
+          onEndReached={loadMoreUnmapped}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={loadingMore ? <ActivityIndicator style={{ padding: 16 }} color={theme.primary} /> : null}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="checkmark-circle" size={48} color={theme.income} />
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>All merchants mapped</Text>
+              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>All vendors mapped</Text>
             </View>
           }
         />
       ) : (
         <FlatList
-          data={mappings}
+          data={filteredMappings}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderMapping}
-          contentContainerStyle={[styles.listContent, mappings.length === 0 && styles.listEmpty]}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchMappings(1); }} tintColor={theme.primary} />}
-          onEndReached={loadMore}
+          contentContainerStyle={[styles.listContent, filteredMappings.length === 0 && styles.listEmpty]}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchMappings(1, false, search); }} tintColor={theme.primary} />}
+          onEndReached={loadMoreMappings}
           onEndReachedThreshold={0.3}
           ListFooterComponent={loadingMore ? <ActivityIndicator style={{ padding: 16 }} color={theme.primary} /> : null}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Ionicons name="map-outline" size={48} color={theme.textTertiary} />
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No mappings found</Text>
+              <Ionicons name="storefront-outline" size={48} color={theme.textTertiary} />
+              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No vendors found</Text>
             </View>
           }
         />
@@ -424,17 +570,17 @@ export default function MerchantsScreen() {
           <ScrollView style={[styles.modalContent, { backgroundColor: theme.surface }]}>
             <Text style={[styles.modalTitle, { color: theme.text }]}>Edit Mapping</Text>
             {editMapping && (
-              <Text style={[styles.modalSubtitle, { color: theme.textTertiary }]}>{editMapping.merchantKey}</Text>
+              <Text style={[styles.modalSubtitle, { color: theme.textTertiary }]}>{editMapping.vendorKey}</Text>
             )}
             <Text style={[styles.assignLabel, { color: theme.textSecondary }]}>Category</Text>
             <View style={styles.pickerGrid}>
               {categories.map((cat) => (
                 <TouchableOpacity
                   key={cat.id || cat.name}
-                  onPress={() => setEditCategory(String(cat.id || cat.name))}
-                  style={[styles.gridBtn, { backgroundColor: editCategory === String(cat.id || cat.name) ? theme.primary : theme.background }]}
+                  onPress={() => setEditCategory(cat.name)}
+                  style={[styles.gridBtn, { backgroundColor: editCategory === cat.name ? theme.primary : theme.background }]}
                 >
-                  <Text style={{ color: editCategory === String(cat.id || cat.name) ? '#fff' : theme.text, fontSize: 12, fontWeight: '500' }}>{cat.name}</Text>
+                  <Text style={{ color: editCategory === cat.name ? '#fff' : theme.text, fontSize: 12, fontWeight: '500' }}>{cat.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -486,6 +632,8 @@ const styles = StyleSheet.create({
   tab: { flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, paddingHorizontal: 12, height: 42, borderWidth: 1, marginHorizontal: 16, marginBottom: 8 },
   searchInput: { flex: 1, fontSize: 14, height: '100%' },
+  applyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 10, borderWidth: 1, marginHorizontal: 16, marginBottom: 8, paddingVertical: 10 },
+  applyBtnText: { fontSize: 14, fontWeight: '700' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   batchBar: { flexDirection: 'row', gap: 8, marginHorizontal: 16, marginBottom: 8, padding: 8, borderRadius: 12, borderWidth: 1 },
   batchBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },

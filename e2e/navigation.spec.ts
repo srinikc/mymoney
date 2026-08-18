@@ -20,7 +20,7 @@ test.describe("Sidebar Navigation", () => {
     { href: "/settings", label: "Settings" },
     { href: "/expenses", label: "All Expenses" },
     { href: "/expenses/import", label: "Bulk Import" },
-    { href: "/expenses/merchants", label: "Merchants" },
+    { href: "/expenses/vendors", label: "Vendors" },
     { href: "/expenses/review-duplicates", label: "Review" },
     { href: "/assets", label: "Assets" },
     { href: "/subscriptions", label: "Subscriptions" },

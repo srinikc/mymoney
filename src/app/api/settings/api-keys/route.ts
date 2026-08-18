@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
 import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import { getAllConfig, setConfig, type ConfigKey } from "@/lib/get-config"
+import { LLM_PROVIDERS } from "@/lib/llm-catalog"
 
 const EDITABLE_API_KEYS = [
-  "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "LLM_PROVIDER", "LLM_MODEL",
+  "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "OPENCODE_API_KEY", "LLM_PROVIDER", "LLM_MODEL", "LLM_BASE_URL", "LOCAL_LLM_ENDPOINT",
   "AUTH_RESEND_KEY",
   "ZERODHA_API_KEY", "ZERODHA_API_SECRET",
   "SHAREKHAN_API_KEY", "SHAREKHAN_API_SECRET",
@@ -11,23 +12,22 @@ const EDITABLE_API_KEYS = [
 
 export async function GET() {
   try {
-    const { profileId, userId, role } = await getAuthContext()
+    const { userId } = await getAuthContext()
     // userId auto-checked by getAuthContext
 
     const config = await getAllConfig(userId)
     const keys: Record<string, string | undefined> = {}
     for (const k of EDITABLE_API_KEYS) keys[k] = config[k]
 
-    return NextResponse.json({ keys })
+    return NextResponse.json({ keys, catalog: { providers: LLM_PROVIDERS } })
   } catch (error) {
-    console.error("API keys GET error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return handleAuthError(error)
   }
 }
 
 export async function PUT(req: Request) {
   try {
-    const { profileId, userId, role } = await getAuthContext()
+    const { userId } = await getAuthContext()
     // userId auto-checked by getAuthContext
 
     const body = await req.json()
@@ -40,7 +40,6 @@ export async function PUT(req: Request) {
 
     return NextResponse.json({ ok: true })
   } catch (error) {
-    console.error("API keys PUT error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return handleAuthError(error)
   }
 }

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import { getAuthContext } from "@/lib/with-auth"
-import { getAccessToken } from "@/lib/gmail"
 import { driveGetRaw } from "@/lib/oauth"
 
 interface DriveFile {

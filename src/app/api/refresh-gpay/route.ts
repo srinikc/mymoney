@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { spawn } from "node:child_process"
 import path from "node:path"
-import { existsSync } from "node:fs"
+import { existsSync, rmSync } from "node:fs"
 import { setGpayJob, getGpayJob, getGpayJobs, deleteGpayJob } from "@/lib/gpay-job-store"
 import { getAuthContext } from "@/lib/with-auth"
 
@@ -118,13 +118,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Playwright not available" }, { status: 500 })
   }
 
-  if (action === "reauth") {
+  if (action === "reauth" || action === "reset") {
+    if (action === "reset") {
+      // Delete the persisted Chrome profile so Google gets a fresh session.
+      const profileDir = path.join(process.cwd(), ".gpay-profile")
+      try {
+        if (existsSync(profileDir)) {
+          rmSync(profileDir, { recursive: true, force: true })
+          console.log(`[refresh-gpay] Deleted stale GPay Chrome profile at ${profileDir}`)
+        }
+      } catch (err) {
+        console.error("[refresh-gpay] Failed to reset GPay profile:", err)
+      }
+    }
+
     const token = crypto.randomUUID()
     const startedAt = new Date().toISOString()
     setGpayJob(token, {
       status: "reauth_started",
       startedAt,
-      message: "A browser window will open. Log into your Google account, then close the browser.",
+      message: action === "reset"
+        ? "Resetting Google session and opening a fresh browser window. Log in, then close the browser."
+        : "A browser window will open. Log into your Google account, then close the browser.",
     })
 
     const child = spawn("node", [scriptPath, "--setup"], {

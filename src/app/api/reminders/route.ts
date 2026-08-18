@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError , withAuth } from "@/lib/with-auth"
+import { withAuth } from "@/lib/with-auth"
 import { sendPushToUser } from "@/lib/expo-push"
 import { validateBody } from "@/shared/validate"
 import { ReminderCreateSchema, ReminderUpdateSchema } from "@/shared/validation"
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
   if (error) return error
   const auth = await withAuth()
   if (auth.error) return auth.error
-  const { profileId, userId, role } = auth
+  const { userId } = auth
   const reminder = await prisma.reminder.create({
     data: {
       title: body.title,

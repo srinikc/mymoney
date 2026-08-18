@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { getAuthContext } from "@/lib/with-auth"
 import { DEFAULT_KEYWORDS } from "@/lib/gmail-parser"
 import type { ParserKeywords } from "@/lib/gmail-parser"
 
@@ -8,7 +8,7 @@ const SETTINGS_KEY = "gmail_parser_keywords"
 
 export async function GET() {
   try {
-    const { profileId, userId, role } = await getAuthContext()
+    const { userId } = await getAuthContext()
     // userId auto-checked by getAuthContext
 
     const setting = await prisma.userSetting.findUnique({
@@ -24,7 +24,7 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   try {
-    const { profileId, userId, role } = await getAuthContext()
+    const { userId } = await getAuthContext()
     // userId auto-checked by getAuthContext
 
     const body = await req.json()

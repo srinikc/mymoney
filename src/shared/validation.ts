@@ -3,7 +3,7 @@ import { z } from "zod"
 export const ExpenseCreateSchema = z.object({
   date: z.string().min(1, "Date is required"),
   amount: z.union([z.string(), z.number()]).transform((v) => typeof v === "string" ? Number.parseFloat(v) : v),
-  categoryId: z.union([z.string(), z.number()]).transform((v) => typeof v === "string" ? Number.parseInt(v) : v),
+  categoryId: z.union([z.string(), z.number()]).optional().transform((v) => typeof v === "string" ? Number.parseInt(v) : v),
   categoryName: z.string().optional(),
   vendor: z.string().max(200).optional().default(""),
   description: z.string().max(500).optional().default(""),
@@ -16,6 +16,11 @@ export const ExpenseCreateSchema = z.object({
   notes: z.string().optional().default(""),
   bankAccount: z.string().optional().default(""),
   paidThrough: z.string().optional().default(""),
+  repeat: z.object({
+    day: z.union([z.string(), z.number()]).optional().transform((v) => (v === undefined || v === "") ? undefined : Number(v)),
+    direction: z.enum(["forward", "backward"]).optional().default("forward"),
+    count: z.union([z.string(), z.number()]).optional().transform((v) => (v === undefined || v === "") ? undefined : Number(v)),
+  }).optional(),
 })
 
 export const ExpenseUpdateSchema = z.object({

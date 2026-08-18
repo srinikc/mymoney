@@ -26,10 +26,30 @@ export async function GET(req: Request) {
     const tokenData = await tokenRes.json()
 
     if (userId) {
+      // Fetch the real Google account id so we upsert against the account the
+      // user actually logs in with (which may already exist via NextAuth).
+      let googleId: string | null = null
+      try {
+        const infoRes = await fetch("https://www.googleapis.com/oauth2/v1/userinfo?alt=json", {
+          headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        })
+        if (infoRes.ok) {
+          const info = await infoRes.json()
+          googleId = String(info.id || "")
+        }
+      } catch {
+        // fall back to userId-based upsert
+      }
+
       const existing = await prisma.account.findFirst({
-        where: { userId, provider: "google" },
-        select: { id: true, providerAccountId: true },
+        where: {
+          userId,
+          provider: "google",
+          ...(googleId ? { providerAccountId: googleId } : {}),
+        },
+        select: { id: true },
       })
+
       if (existing) {
         await prisma.account.update({
           where: { id: existing.id },
@@ -37,7 +57,15 @@ export async function GET(req: Request) {
         })
       } else {
         await prisma.account.create({
-          data: { userId, provider: "google", providerAccountId: String(userId), type: "oauth", access_token: tokenData.access_token, refresh_token: tokenData.refresh_token || "", expires_at: Math.floor(Date.now() / 1000) + tokenData.expires_in },
+          data: { userId, provider: "google", providerAccountId: googleId || String(userId), type: "oauth", access_token: tokenData.access_token, refresh_token: tokenData.refresh_token || "", expires_at: Math.floor(Date.now() / 1000) + tokenData.expires_in },
+        })
+      }
+
+      // Remove stale google accounts for this user that we didn't just refresh
+      // (e.g. old tokens from a different OAuth client with no refresh token).
+      if (googleId) {
+        await prisma.account.deleteMany({
+          where: { userId, provider: "google", NOT: { providerAccountId: googleId } },
         })
       }
     }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError , withAuth } from "@/lib/with-auth"
+import { withAuth } from "@/lib/with-auth"
 import { writeFile, mkdir, unlink } from "node:fs/promises"
 import path from "node:path"
 import type { Prisma } from "@prisma/client"

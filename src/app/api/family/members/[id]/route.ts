@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError , withAuth } from "@/lib/with-auth"
+import { withAuth } from "@/lib/with-auth"
 
 export async function DELETE(
   _req: Request,
@@ -8,7 +8,7 @@ export async function DELETE(
 ) {
   const auth = await withAuth()
   if (auth.error) return auth.error
-  const { profileId, userId, role } = auth
+  const { userId } = auth
   // userId auto-checked by getAuthContext
 
   const { id } = await params

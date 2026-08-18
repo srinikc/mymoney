@@ -17,7 +17,7 @@ test.describe("Expenses CRUD", () => {
     await addBtn.click(); await page.waitForTimeout(500)
     const uniqueVendor = `Vendor-${Date.now()}`
     await page.fill('input[name="vendor"]', uniqueVendor); await page.fill('input[name="amount"]', "750")
-    await page.getByRole("button", { name: /save|add|create/i }).first().click(); await page.waitForTimeout(2000)
+    await page.getByRole("button", { name: "Save" }).first().click(); await page.waitForTimeout(2000)
     await expect(page.getByText(uniqueVendor).first()).toBeVisible({ timeout: 5000 })
   })
 

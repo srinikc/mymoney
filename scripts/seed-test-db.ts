@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client"
+﻿import { PrismaClient } from "@prisma/client"
 import bcrypt from "bcryptjs"
 
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL
@@ -35,7 +35,7 @@ async function main() {
   await prisma.alertRule.deleteMany()
   await prisma.auditLog.deleteMany()
   await prisma.expenseLink.deleteMany()
-  await prisma.merchantMapping.deleteMany()
+  await prisma.vendorMapping.deleteMany()
   await prisma.importSession.deleteMany()
   await prisma.taxDocument.deleteMany()
   await prisma.iTRRecord.deleteMany()

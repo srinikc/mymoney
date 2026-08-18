@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Stack, SplashScreen, usePathname, useRouter } from 'expo-router';
+import { Stack, SplashScreen, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme, View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { useAuthStore } from '../store/auth';
@@ -18,7 +18,6 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const biometricPrompted = useRef(false);
   const pathname = usePathname();
-  const router = useRouter();
 
   useEffect(() => {
     async function init() {

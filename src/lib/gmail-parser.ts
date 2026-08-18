@@ -15,17 +15,95 @@ export interface ParserKeywords {
 }
 
 export const DEFAULT_KEYWORDS: ParserKeywords = {
-  purchase: ["order", "placed", "shipped", "delivered", "purchase", "receipt", "invoice", "amazon", "flipkart", "myntra", "ajio", "meesho", "nykaa", "tatacliq"],
-  gold: ["gold", "24k", "22k", "916", "sovereign gold", "gold coin", "gold bar", "tanishq", "mmtc", "pamp", "caratlane", "gold loan", "digital gold"],
-  silver: ["silver", "silver coin", "silver bar", "silver biscuit", "999 silver"],
-  upi: ["upi", "paid", "payment", "debited", "transaction"],
-  bank: ["debited", "credited", "transaction", "withdrawal", "deposit", "trf", "imps", "neft", "rtgs"],
-  salary: ["salary", "payslip", "payroll", "wage", "salary credit"],
-  mutualFund: ["mutual fund", "folio", "nav", "sip", "redemption", "dividend", "cams", "kfintech"],
-  insurance: ["insurance", "premium", "policy", "renewal", "cover"],
-  subscription: ["subscription", "renewal", "billed", "monthly", "annual"],
-  tax: ["form 16", "itr", "income tax", "tax return", "26as", "ais", "tax credit"],
-  trade: ["bought", "sold", "trade", "order", "executed", "zerodha", "groww", "upstox"],
+  purchase: ["order", "placed", "shipped", "delivered", "purchase", "receipt", "invoice", "amazon", "flipkart", "myntra", "ajio", "meesho", "nykaa", "tatacliq", "swiggy", "zomato", "blinkit", "bigbasket", "dmart", "jiomart", "reliance", "amazonpay", "shop", "store", "retail", "e-receipt", "gst invoice", "order confirmed", "your order", "payment received", "thank you for your order", "placed on", "your receipt"],
+  gold: ["gold", "24k", "22k", "916", "sovereign gold", "gold coin", "gold bar", "tanishq", "mmtc", "pamp", "caratlane", "gold loan", "digital gold", "gold price", "18k", "14k", "jewellery", "jewelry"],
+  silver: ["silver", "silver coin", "silver bar", "silver biscuit", "999 silver", "925", "sterling silver", "silver price"],
+  upi: ["upi", "paid", "payment", "debited", "ref", "gpay", "google pay", "phonepe", "paytm", "bhimp", "trxn", "txn id", "transaction id", "ref no", "money sent", "money received", "paid to", "received from", "bank transfer", "bhim"],
+  bank: ["debited", "credited", "withdrawal", "deposit", "trf", "imps", "neft", "rtgs", "available balance", "a/c debited", "a/c credited", "withdrawn", "deposited", "transferred", "transfer", "balance", "avail bal", "bank alert", "account statement", "mini statement", "salary credited", "cash deposit", "cheque", "pos", "card swipe", "auto debit"],
+  salary: ["salary", "payslip", "payroll", "wage", "salary credit", "hra", "ctc", "stipend", "salary credited", "salary paid", "payslip for"],
+  mutualFund: ["mutual fund", "folio", "nav", "sip", "redemption", "dividend", "cams", "kfintech", "mfcentral", "switch", "lumpsum", "folio number", "mutual fund statement", "nav statement"],
+  insurance: ["insurance", "premium", "policy", "renewal", "policy renewal", "premium paid", "sum assured", "claim", "maturity", "insurer", "policyholder", "insurance premium", "policy document"],
+  subscription: ["subscription", "renewal", "billed", "monthly", "annual", "membership", "plan", "auto-renew", "recurring", "billing", "bill", "due", "payment", "charged", "auto renewal"],
+  tax: ["form 16", "itr", "income tax", "tax return", "26as", "ais", "tax credit", "advance tax", "tds", "gst", "tax invoice", "salary certificate", "15g", "15h", "capital gains", "income tax statement", "investment declaration"],
+  trade: ["bought", "sold", "trade", "order", "executed", "zerodha", "groww", "upstox", "shares", "equity", "nse", "bse", "dp", "holdings", "broker", "dematerialized", "stock", "contract note"],
+}
+
+const NOISE_SENDERS = [
+  "indeed.com",
+  "linkedin.com",
+  "naukri.com",
+  "glassdoor.com",
+  "monster.com",
+  "timesjobs.com",
+  "shine.com",
+  "foundit.in",
+  "topcv.com",
+  "careers360.com",
+  "greatlearning",
+  "coursera.org",
+  "udemy.com",
+  "upgrad.com",
+  "newsletter",
+  "no-reply@facebook",
+  "facebookmail.com",
+  "instagram.com",
+  "twitter.com",
+  "x.com",
+  "youtube.com",
+  "googleplay",
+]
+
+function isNoiseEmail(email: ParsedEmail): boolean {
+  const from = email.from.toLowerCase()
+  return NOISE_SENDERS.some((d) => from.includes(d))
+}
+
+// Phrases that indicate a promotional/news/update email rather than a real
+// transaction. Bank "news", "updates", "offers" and similar get matched by
+// keyword searches but must NOT become expenses.
+const MARKETING_NOISE = [
+  "newsletter",
+  "subscribe",
+  "unsubscribe",
+  "view this email",
+  "view in browser",
+  "you are receiving this email",
+  "you're receiving this",
+  "offers",
+  "exclusive offer",
+  "special offer",
+  "promotional",
+  "marketing",
+  "festive offer",
+  "new feature",
+  "new product",
+  "we are excited",
+  "we're excited",
+  "introducing",
+  "important update",
+  "service update",
+  "system maintenance",
+  "scheduled maintenance",
+  "fraud awareness",
+  "tips to protect",
+  "never share your",
+  "secure your account",
+  "update your kyc",
+  "kyc update",
+  "account upgrade",
+  "upgrade your",
+  "new look",
+  "recently launched",
+  "read our blog",
+  "follow us on",
+  "connect with us",
+  "happy new year",
+  "diwali offers",
+]
+
+function isMarketingNoise(email: ParsedEmail): boolean {
+  const text = (email.bodyText || "").toLowerCase() + " " + (email.subject || "").toLowerCase()
+  return MARKETING_NOISE.some((p) => text.includes(p))
 }
 
 export interface ParsedTransaction {
@@ -37,6 +115,7 @@ export interface ParsedTransaction {
   category?: string
   balance?: number          // extracted from "Available Balance" in bank alerts
   accountNumber?: string    // extracted from "A/c XX1234" in bank alerts
+  source?: "upi" | "bank" | "purchase" | "salary" | "insurance" | "subscription" | "investment" | "asset" | "tax"
   metadata?: Record<string, unknown>
 }
 
@@ -62,13 +141,23 @@ export function parseUPIPayment(email: ParsedEmail, kw?: ParserKeywords): Parsed
   const text = email.bodyText || email.subject
   if (!contains(text, kw?.upi || DEFAULT_KEYWORDS.upi!)) return null
 
+  // Real UPI alerts contain a transaction id/ref or "via UPI"/"using UPI"
+  const isUpiAlert = /\bupi\b|ref\s*[#:]|transaction\s*(?:id|ref)\s*[#:]|trxn\b|upto|paytm|phonepe|google\s*pay|gpay|bhimp/i.test(text)
+  if (!isUpiAlert) return null
+
   const amount = extractAmount(text)
   if (!amount) return null
+
+  // Money received (credit/refund) is NOT an expense — it's income
+  const isCredit = contains(text, ["received", "credited", "credited to", "refund", "money added", "added to", "received from", "paid into"])
+  if (isCredit) {
+    return { type: "income", date: email.date, amount, description: email.subject || `UPI credit`, vendor: email.from, category: "Income", source: "upi", metadata: { source: "email", upi: true } }
+  }
 
   const vendorMatch = text.match(/paid\s+(?:rs|₹|inr)?\s*[\d,]+(?:\.\d{1,2})?\s*(?:to|at|for)?\s*([\d\sa-z]+?)\s+(?:using|via|on|from|.|$)/i)
   const vendor = vendorMatch?.[1]?.trim() || email.from
 
-  return { type: "expense", date: email.date, amount, description: email.subject || `UPI payment to ${vendor}`, vendor, category: "Other" }
+  return { type: "expense", date: email.date, amount, description: email.subject || `UPI payment to ${vendor}`, vendor, category: "Other", source: "upi", metadata: { source: "email", upi: true } }
 }
 
 function extractBalance(text: string): number | null {
@@ -99,10 +188,16 @@ export function parseBankTransaction(email: ParsedEmail, kw?: ParserKeywords): P
   const text = email.bodyText || email.subject
   if (!contains(text, kw?.bank || DEFAULT_KEYWORDS.bank!)) return null
 
+  // Real bank transaction alerts have an account number and/or available
+  // balance, plus a debit/credit verb. Pure news/update emails don't.
+  const hasVerb = contains(text, ["debited", "credited", "withdrawn", "deposited", "trf", "imps", "neft", "rtgs"])
+  const hasAccountOrBalance = Boolean(extractAccountNumber(text)) || Boolean(extractBalance(text))
+  if (!hasVerb || !hasAccountOrBalance) return null
+
   const amount = extractAmount(text)
   if (!amount) return null
 
-  const isCredit = contains(text, ["credited", "deposit", "cr"])
+  const isCredit = contains(text, ["credited", "deposited", "cr"])
   const vendorMatch = text.match(/(?:to|from|at|for)\s*([\d\sa-z-]+?)\s+(?:on|ref|by|via|.|$)/i)
   const vendor = vendorMatch?.[1]?.trim() || email.from
 
@@ -113,6 +208,7 @@ export function parseBankTransaction(email: ParsedEmail, kw?: ParserKeywords): P
     description: email.subject || `Bank ${isCredit ? "credit" : "debit"}`,
     vendor,
     category: isCredit ? "Income" : "Other",
+    source: "bank",
     balance: extractBalance(text) ?? undefined,
     accountNumber: extractAccountNumber(text) ?? undefined,
   }
@@ -148,12 +244,21 @@ export function parseInsuranceEmail(email: ParsedEmail, kw?: ParserKeywords): Pa
   const amount = extractAmount(text)
   if (!amount) return null
 
+  const insurerLike = contains(text, ["premium", "policy", "renewal", "sum assured", "insurance cover"])
+    && !contains(text, ["cover letter", "cover story", "job", "career", "vacancy"])
+  if (!insurerLike && !/insurance|premium/i.test(email.subject)) return null
+
   return { type: "insurance", date: email.date, amount, description: email.subject || "Insurance premium", vendor: email.from, category: "Insurance", metadata: { source: "email" } }
 }
 
 export function parseSubscriptionEmail(email: ParsedEmail, kw?: ParserKeywords): ParsedTransaction | null {
   const text = email.bodyText || email.subject
   if (!contains(text, kw?.subscription || DEFAULT_KEYWORDS.subscription!)) return null
+
+  // A real subscription email names the plan/service; generic "renewal/billed"
+  // on its own is too loose and catches bank/news mail.
+  const namesService = /(?:your|the)\s+([\d\sa-z]+?)\s*(?:subscription|renewal|plan|membership)|(?:netflix|amazon\s*prime|spotify|youtube\s*premium|hotstar|disney|hbo|audible|linkedin|figma|canva|notion|adobe|microsoft\s*365|office|apple\s*(?:one|music|tv)|google\s*one|dropbox|zoom)/i.test(text)
+  if (!namesService) return null
 
   const amount = extractAmount(text)
   if (!amount) return null
@@ -188,6 +293,13 @@ export function parsePurchaseEmail(email: ParsedEmail, kw?: ParserKeywords): Par
   const text = email.bodyText || email.subject
   if (!contains(text, kw?.purchase || DEFAULT_KEYWORDS.purchase!)) return null
 
+  // Real purchase confirmations come from a store/brand and/or mention
+  // order/invoice numbers. Generic "invoice"/"receipt" in news is filtered out.
+  const senderLooksLikeShop = /amazon|flipkart|myntra|ajio|meesho|nykaa|tatacliq|swiggy|zomato|blinkit|dmart|bigbasket|jiomart|reliance|snapdeal|paytm|phonepe|uber|ola|irctc|makemytrip|goibibo|yatra|amazonpay|shop|store|mart|retail/i.test(email.from)
+  const hasOrderContext = /order\s*(?:no|#|id|number)?\s*[#:]?\s*[\w-]+|invoice\s*(?:no|#|id)?\s*[#:]?\s*[\w-]+|receipt\s*(?:no|#|id)?\s*[#:]?\s*[\w-]+/i.test(text)
+  const hasPurchaseVerb = contains(text, ["you ordered", "order placed", "order confirmed", "order summary", "thank you for your order", "your order", "purchase confirmed", "order details", "placed on", "your receipt", "payment received"])
+  if (!senderLooksLikeShop && !hasOrderContext && !hasPurchaseVerb) return null
+
   const amount = extractAmount(text)
   if (!amount) return null
 
@@ -218,6 +330,8 @@ export function parseSilverEmail(email: ParsedEmail, kw?: ParserKeywords): Parse
 }
 
 export function parseEmail(email: ParsedEmail, customKeywords?: ParserKeywords): ParsedTransaction | null {
+  if (isNoiseEmail(email)) return null
+  if (isMarketingNoise(email)) return null
   const kw = customKeywords || DEFAULT_KEYWORDS
   const parsers = [
     parseSalaryEmail, parseUPIPayment, parseBankTransaction,

@@ -2,18 +2,18 @@ import { test, expect } from "@playwright/test"
 import * as fs from "node:fs"
 import * as path from "node:path"
 
-const FIXTURE_DIR = path.join(__dirname, "fixtures")
+const FIXTURE_DIR = path.join(process.cwd(), "e2e", "fixtures")
 
 test.describe("Tax Section — Comprehensive", () => {
   test.describe("Tab navigation", () => {
     test("SCENARIO: FY selector offers correct range", async ({ page }) => {
       await page.goto("/tax", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000)
-      const fyBtn = page.locator("button").filter({ hasText: /FY/i }).first()
+      const fyBtn = page.locator("button").filter({ hasText: /fy/i }).first()
       if (await fyBtn.isVisible().catch(() => false)) { await fyBtn.click(); await page.waitForTimeout(500); expect(await page.locator('[role="option"], [class*="select-item"], li').count()).toBeGreaterThanOrEqual(3); await page.keyboard.press("Escape") }
     })
     test("SCENARIO: FY selector changes all tabs", async ({ page }) => {
       await page.goto("/tax", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000)
-      const fyBtn = page.locator("button").filter({ hasText: /FY|2025-26|2026-27/i }).first()
+      const fyBtn = page.locator("button").filter({ hasText: /fy|2025-26|2026-27/i }).first()
       if (await fyBtn.isVisible().catch(() => false)) {
         await fyBtn.click().catch(() => {})
         await page.waitForTimeout(500)
@@ -26,7 +26,7 @@ test.describe("Tax Section — Comprehensive", () => {
   test.describe("Income & Deductions tab", () => {
     test("SCENARIO: Deduction sections are displayed", async ({ page }) => {
       await page.goto("/tax", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000)
-      const deduction = page.getByText(/80C|80D|HRA|NPS|deduction/i).first()
+      const deduction = page.getByText(/80c|80d|hra|nps|deduction/i).first()
       if (await deduction.isVisible().catch(() => false)) await expect(deduction).toBeVisible()
     })
     test("SCENARIO: Regime comparison section", async ({ page }) => {
@@ -51,7 +51,7 @@ test.describe("Tax Section — Comprehensive", () => {
       await page.goto("/tax", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000)
       await page.getByRole("button", { name: "Documents" }).click(); await page.waitForTimeout(500)
       const uploadBtn = page.getByRole("button", { name: /upload document/i })
-      if (await uploadBtn.isVisible().catch(() => false)) { await uploadBtn.click(); await page.waitForTimeout(500); const fileInput = page.locator('input[type="file"]'); if (await fileInput.isVisible().catch(() => false)) { await fileInput.setInputFiles(path.join(FIXTURE_DIR, "test-form16.pdf")); await page.waitForTimeout(500) }; const cancelBtn = page.getByRole("button", { name: /cancel/i }); if (await cancelBtn.isVisible().catch(() => false)) { await cancelBtn.click(); await page.waitForTimeout(500) } }
+      if (await uploadBtn.isVisible().catch(() => false)) { await uploadBtn.click(); await page.waitForTimeout(500); const fileInput = page.locator('input[type="file"]'); if (await fileInput.isVisible().catch(() => false)) { await fileInput.setInputFiles(path.join(FIXTURE_DIR, "test-form16.pdf")); await page.waitForTimeout(500) } const cancelBtn = page.getByRole("button", { name: /cancel/i }); if (await cancelBtn.isVisible().catch(() => false)) { await cancelBtn.click(); await page.waitForTimeout(500) } }
     })
     test("SCENARIO: Unsupported file type shows error", async ({ page }) => {
       await page.goto("/tax", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000)

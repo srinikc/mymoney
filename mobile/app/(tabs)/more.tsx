@@ -6,6 +6,10 @@ import { useAuthStore } from '../../store/auth';
 import { Colors } from '../../constants/Colors';
 import api from '../../api/client';
 
+// Known Drive file IDs already imported/seen this session, so a sync that is
+// interrupted and retried does not re-import the same export.
+const knownGpayFileIds = new Set<string>();
+
 interface MenuItem {
   title: string;
   icon: keyof typeof Ionicons.glyphMap;
@@ -31,7 +35,7 @@ const MENU_SECTIONS: MenuSection[] = [
       { title: 'Expenses', icon: 'receipt-outline', route: '/expenses' },
       { title: 'Expenses — Archive', icon: 'archive-outline', route: '/expenses/archive' },
       { title: 'Expenses — Import', icon: 'cloud-upload-outline', route: '/expenses/import' },
-      { title: 'Expenses — Merchants', icon: 'storefront-outline', route: '/expenses/merchants' },
+      { title: 'Expenses — Vendors', icon: 'storefront-outline', route: '/expenses/vendors' },
       { title: 'Expenses — Duplicates', icon: 'copy-outline', route: '/expenses/review-duplicates' },
       { title: 'Deals', icon: 'pricetag-outline', route: '/deals' },
     ],
@@ -98,7 +102,7 @@ export default function MoreScreen() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  const [gpayLoading, setGpayLoading] = useState(false);
+  const [, setGpayLoading] = useState(false);
 
   const handleGpaySync = async () => {
     setGpayLoading(true);
@@ -111,16 +115,14 @@ export default function MoreScreen() {
       }
       // Poll the job until it settles, matching the web app behavior.
       const maxAttempts = 60;
+      let autoCreated = false;
       for (let i = 0; i < maxAttempts; i++) {
         await new Promise((r) => setTimeout(r, 5000));
         const statusRes = await api.get(`/api/refresh-gpay?jobId=${jobId}`);
         const status = statusRes.data?.job?.status;
         if (status === 'export_created' || status === 'already_in_progress') {
-          Alert.alert(
-            'GPay Sync',
-            'Google is creating the export. It will be delivered to your Google Drive and auto-imported shortly. Open the web app (Expenses → Refresh GPay) to watch progress.'
-          );
-          return;
+          autoCreated = status === 'export_created';
+          break;
         }
         if (status === 'auth_required') {
           Alert.alert(
@@ -134,12 +136,107 @@ export default function MoreScreen() {
           return;
         }
       }
-      Alert.alert('GPay Sync', 'Timed out while waiting for the export. Check the web app for details.');
+      if (!autoCreated) {
+        Alert.alert('GPay Sync', 'Timed out while waiting for the export. Check the web app for details.');
+        return;
+      }
+      // Export created — watch Drive for the file and import it, like the web app.
+      const imported = await pollDriveForImport();
+      if (imported) return;
+      Alert.alert(
+        'GPay Sync',
+        'Google is creating the export. It will be delivered to your Google Drive and auto-imported shortly. Open the web app (Expenses → Refresh GPay) to watch progress.'
+      );
     } catch {
       Alert.alert('GPay Sync', 'Please export from Google Takeout and import via the web app.');
     } finally {
       setGpayLoading(false);
     }
+  };
+
+  // Google Takeout delivers TWO zips per export: a small index zip (only
+  // archive_browser.html, NO GPay data) and the real data zip (contains
+  // My Activity.html with the transactions). Picking the first .zip often
+  // grabs the empty index file, so choose the candidate with the most bytes —
+  // the real data zip is always much larger than the index zip.
+  const pickBestGpayFile = (
+    files: { id: string; name: string; size?: string; createdTime?: string }[]
+  ): { id: string; name: string; size?: string; createdTime?: string } | null => {
+    // Only treat files created recently (fresh exports from a just-triggered
+    // Takeout request) as import candidates. Older exports were already
+    // imported and must not be re-flagged after an app restart.
+    const cutoff = Date.now() - 3 * 60 * 60 * 1000;
+    const candidates = files.filter(
+      (f) =>
+        (f.name === 'MyActivity.html' || f.name.endsWith('.zip')) &&
+        !knownGpayFileIds.has(f.id) &&
+        (f.createdTime ? new Date(f.createdTime).getTime() > cutoff : true)
+    );
+    if (candidates.length === 0) return null;
+    return candidates.reduce((best, f) => {
+      const bestSize = Number(best.size) || 0;
+      const size = Number(f.size) || 0;
+      if (size > bestSize) return f;
+      if (size === bestSize && (f.name === 'MyActivity.html' || best.name !== 'MyActivity.html')) return f;
+      return best;
+    });
+  };
+
+  // Poll Drive every 15s (up to ~15 min) for a new GPay file and import it.
+  const pollDriveForImport = async (): Promise<boolean> => {
+    const maxAttempts = 60;
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise((r) => setTimeout(r, 15000));
+      let attemptedId: string | null = null;
+      try {
+        const listRes = await api.get('/api/drive/list');
+        const files = listRes.data?.files || [];
+        const newFile = pickBestGpayFile(files);
+        if (newFile) {
+          attemptedId = newFile.id;
+          const importRes = await api.post('/api/drive/import', { fileId: newFile.id });
+          const result = importRes.data || {};
+          const importedCount = result.imported || 0;
+          const skippedCount = result.skipped || 0;
+          if (importedCount > 0) {
+            const created = newFile.createdTime
+              ? ` (export created ${new Date(newFile.createdTime).toLocaleString()})`
+              : '';
+            Alert.alert(
+              'GPay Sync',
+              `Imported ${importedCount} new GPay transaction${importedCount === 1 ? '' : 's'}${skippedCount > 0 ? ` (${skippedCount} duplicates skipped)` : ''}${created}.`
+            );
+            return true;
+          }
+          // No new records — the file may be the small index zip or an already
+          // imported export. Mark it known and keep polling for the real data zip.
+          knownGpayFileIds.add(newFile.id);
+        }
+      } catch (err) {
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        const respData = (err as { response?: { data?: Record<string, unknown> } })?.response?.data || {};
+        if (status === 401) {
+          Alert.alert(
+            'GPay Sync',
+            'Your Google Drive connection has expired. Reconnect it in the web app (Settings → Google Account), then try Refresh GPay again.'
+          );
+          return true;
+        }
+        if (status && status >= 500) {
+          // Real import failure — surface it, stop polling, and do NOT drop the
+          // file (keep it retryable instead of silently losing the import).
+          if (attemptedId) knownGpayFileIds.delete(attemptedId);
+          Alert.alert(
+            'GPay Sync',
+            `Import failed: ${String(respData.errorDetail || respData.error || 'Server error')}. Open the web app (Expenses → Refresh GPay) to see the details.`
+          );
+          return true;
+        }
+        if (status === 400 && // Unrecognized file (index zip) — skip it and keep polling.
+          attemptedId) knownGpayFileIds.add(attemptedId);
+      }
+    }
+    return false;
   };
 
   const handleLogout = () => {

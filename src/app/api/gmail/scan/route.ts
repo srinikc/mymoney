@@ -1,74 +1,54 @@
 import { NextResponse } from "next/server"
 import { getAuthContext, handleAuthError } from "@/lib/with-auth"
-import type { ParserKeywords } from "@/lib/gmail-parser"
 
-export async function POST() {
+export const maxDuration = 60
+
+const STALE_MS = 5 * 60 * 1000
+
+export async function POST(req: Request) {
   let userId: number
+  let profileId: number
   try {
     const ctx = await getAuthContext()
     userId = ctx.userId
+    profileId = ctx.profileId
   } catch (e) {
     return handleAuthError(e)
   }
 
   try {
-    const { getAccessToken, listMessages, getMessage, parseMessage } = await import("@/lib/gmail")
-    const { parseEmail, DEFAULT_KEYWORDS } = await import("@/lib/gmail-parser")
     const { prisma } = await import("@/lib/prisma")
-    const accessToken = await getAccessToken(userId)
+    const { range, from, to } = await req.json().catch(() => ({}))
 
-    // Load custom keywords if configured
-    const setting = await prisma.userSetting.findUnique({
-      where: { userId_key: { userId: userId, key: "gmail_parser_keywords" } },
-      select: { value: true },
+    // Reuse an in-progress scan so we never start a duplicate — unless the
+    // previous one is stale (e.g. the server restarted mid-scan).
+    const existing = await prisma.gmailScan.findFirst({
+      where: { userId, status: "running" },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, updatedAt: true },
     })
-    const kw = (setting?.value || DEFAULT_KEYWORDS) as ParserKeywords
-
-    const queries = [
-      `(${kw.upi?.join(" OR ") || "UPI OR payment OR paid"}) after:2024-01-01`,
-      `(${kw.bank?.join(" OR ") || "credited OR debited OR transaction OR salary OR deposit"}) after:2024-01-01`,
-      `(${kw.insurance?.join(" OR ") || "insurance OR premium OR policy"}) after:2024-01-01`,
-      `(${kw.subscription?.join(" OR ") || "subscription OR renewal OR billed"}) after:2024-01-01`,
-      `(${kw.tax?.join(" OR ") || "form 16 OR ITR OR income tax OR 26AS"}) after:2024-01-01`,
-      `(${kw.trade?.join(" OR ") || "zerodha OR groww"}) (trade OR buy OR sell) after:2024-01-01`,
-      `(${kw.mutualFund?.join(" OR ") || "cams OR kfintech"}) after:2024-01-01`,
-      `(${kw.purchase?.join(" OR ") || "order OR purchase OR invoice OR receipt"}) after:2024-01-01`,
-      `(${kw.gold?.join(" OR ") || "gold OR tanishq OR mmtc"}) after:2024-01-01`,
-      `(${kw.silver?.join(" OR ") || "silver"}) after:2024-01-01`,
-    ]
-
-    const allMessages = new Map<string, unknown>()
-    for (const query of queries) {
-      const msgs = await listMessages(accessToken, query, 10)
-      for (const m of msgs) {
-        if (!allMessages.has(m.id)) allMessages.set(m.id, m)
+    if (existing) {
+      const stale = Date.now() - new Date(existing.updatedAt).getTime() > STALE_MS
+      if (!stale) {
+        return NextResponse.json({ scanId: existing.id, resumed: true })
       }
+      await prisma.gmailScan.update({
+        where: { id: existing.id },
+        data: { status: "error", error: "Scan expired (server restarted?)" },
+      })
     }
 
-    const transactions: Record<string, unknown>[] = []
-    const errors: string[] = []
-
-    for (const [id] of allMessages) {
-      try {
-        const raw = await getMessage(accessToken, id)
-        const parsed = parseMessage(raw)
-        const result = parseEmail(parsed, kw)
-        if (result) {
-          transactions.push({ ...result, messageId: id })
-        }
-      } catch {
-        errors.push(`Failed to parse message ${id}`)
-      }
-    }
-
-    return NextResponse.json({
-      sessionId: Date.now(),
-      totalEmails: allMessages.size,
-      parsed: transactions.length,
-      errors: errors.length,
-      transactions,
-      errorDetails: errors.slice(0, 5),
+    const scan = await prisma.gmailScan.create({
+      data: { userId, status: "running" },
+      select: { id: true },
     })
+
+    // Fire-and-forget background scan. The user can navigate away;
+    // progress is tracked via /api/gmail/scan/status.
+    const { runGmailScan } = await import("@/lib/gmail-scan")
+    void runGmailScan(scan.id, userId, profileId, { range, from, to })
+
+    return NextResponse.json({ scanId: scan.id, resumed: false })
   } catch (error) {
     console.error("Gmail scan error:", error)
     const message = error instanceof Error ? error.message : "Internal server error"

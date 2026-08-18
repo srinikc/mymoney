@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 
 export async function GET(req: Request) {
+  let userId: number
+  try {
+    const ctx = await getAuthContext()
+    userId = ctx.userId
+  } catch (e) {
+    return handleAuthError(e)
+  }
+
   const { searchParams } = new URL(req.url)
   const q = searchParams.get("q") || ""
 
@@ -9,15 +18,16 @@ export async function GET(req: Request) {
     return NextResponse.json({ results: [] })
   }
 
-  const results = await prisma.merchantMapping.findMany({
+  const results = await prisma.vendorMapping.findMany({
     where: {
-      merchantKey: { contains: q.toLowerCase() },
+      userId,
+      vendorKey: { contains: q.toLowerCase() },
     },
     take: 10,
-    orderBy: { merchantKey: "asc" },
+    orderBy: { vendorKey: "asc" },
     select: {
-      merchantKey: true,
-      expenseType: true,
+      vendorKey: true,
+      category: true,
       subCategory: true,
       person: true,
     },

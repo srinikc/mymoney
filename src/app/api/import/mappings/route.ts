@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import * as XLSX from "xlsx"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { titleCase } from "@/shared/title-case"
 
 export async function POST(req: Request) {
+  let userId: number
+  try {
+    const ctx = await getAuthContext()
+    userId = ctx.userId
+  } catch (e) {
+    return handleAuthError(e)
+  }
+
   try {
     const formData = await req.formData()
     const file = formData.get("file") as File
@@ -39,7 +49,7 @@ export async function POST(req: Request) {
 
     if (!keyField) {
       return NextResponse.json({
-        error: "Could not identify merchant key column. Found: " + headers.join(", "),
+        error: "Could not identify vendor key column. Found: " + headers.join(", "),
       }, { status: 400 })
     }
 
@@ -50,15 +60,16 @@ export async function POST(req: Request) {
       const key = String(row[keyField] || "").toLowerCase().trim()
       if (!key) { skipped++; continue }
 
-      // Check if mapping already exists (unique constraint will also catch this)
-      const exists = await prisma.merchantMapping.findUnique({ where: { merchantKey: key } })
+      // Check if mapping already exists for this user (unique constraint also catches this)
+      const exists = await prisma.vendorMapping.findUnique({ where: { userId_vendorKey: { userId, vendorKey: key } } })
       if (exists) { skipped++; continue }
 
-      await prisma.merchantMapping.create({
+      await prisma.vendorMapping.create({
         data: {
-          merchantKey: key,
-          description: descField ? String(row[descField] || "").trim() || null : null,
-          expenseType: typeField ? String(row[typeField] || "").trim() || null : null,
+          userId,
+          vendorKey: key,
+          description: descField ? titleCase(String(row[descField] || "").trim()) || null : null,
+          category: typeField ? String(row[typeField] || "").trim() || null : null,
           subCategory: subField ? String(row[subField] || "").trim() || null : null,
           person: personField ? String(row[personField] || "").trim() || null : null,
           source: "mappings_sheet",
@@ -72,7 +83,7 @@ export async function POST(req: Request) {
       imported,
       skipped,
       total: rows.length,
-      message: `Imported ${imported} merchant mappings, skipped ${skipped} duplicates`,
+      message: `Imported ${imported} vendor mappings, skipped ${skipped} duplicates`,
     })
   } catch (error) {
     console.error("Mappings import error:", error)

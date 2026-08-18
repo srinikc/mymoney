@@ -16,8 +16,8 @@ export default function ImportScreen() {
   const options = [
     {
       icon: 'document-text' as const,
-      title: 'KC Expenses (.xlsx)',
-      subtitle: 'Import your KC Expenses workbook',
+      title: 'Upload Spreadsheet (.xlsx)',
+      subtitle: 'Import your expense workbook',
       path: '/expenses/import',
     },
     {

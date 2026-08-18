@@ -10,9 +10,11 @@ const ALLOWED_BANKS = new Set<BankName>(["yesbank", "axis", "hdfc", "icici", "sb
 // enrichments suggested for existing GPay-imported expenses (profile-scoped).
 export async function POST(req: Request) {
   let profileId: number
+  let userId: number
   try {
     const ctx = await getAuthContext()
     profileId = ctx.profileId
+    userId = ctx.userId
   } catch (e) {
     return handleAuthError(e)
   }
@@ -59,7 +61,7 @@ export async function POST(req: Request) {
 
     // Fetch candidate expenses for this profile: GPay-imported rows.
     const sessions = await prisma.importSession.findMany({
-      where: { source: { startsWith: "gpay" } },
+      where: { userId, source: { startsWith: "gpay" } },
       select: { id: true },
     })
     const sessionIds = sessions.map((s) => s.id)

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { withAuth } from "@/lib/with-auth"
 
 export async function POST() {
   // Auto-detect recurring expenses and create reminders

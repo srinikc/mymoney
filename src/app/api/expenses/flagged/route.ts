@@ -20,9 +20,9 @@ export async function GET(req: Request) {
   const where: Prisma.ExpenseWhereInput = { flagged: true, profileId }
   if (search) {
     where.OR = [
-      { vendor: { contains: search } },
-      { description: { contains: search } },
-      { person: { contains: search } },
+      { vendor: { contains: search, mode: "insensitive" } },
+      { description: { contains: search, mode: "insensitive" } },
+      { person: { contains: search, mode: "insensitive" } },
     ]
   }
 

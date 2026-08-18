@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { getAuthContext } from "@/lib/with-auth"
 import { prisma } from "@/lib/prisma"
 
 export async function POST(req: Request) {
   try {
-    const { profileId, userId, role } = await getAuthContext()
+    const { userId } = await getAuthContext()
     // userId auto-checked by getAuthContext
 
     const { token, platform } = await req.json()

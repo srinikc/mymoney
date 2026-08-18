@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Menu, LogOut, User, Moon, Sun, HelpCircle } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { HelpDrawer } from "@/components/help/HelpDrawer"
 import { getHelpForPath } from "@/components/help/help-content"
 import type { HelpSection } from "@/components/help/help-content"
@@ -27,7 +27,6 @@ const FALLBACK_HELP: HelpSection = {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const router = useRouter()
   const { sidebarOpen, setMobileSidebarOpen } = useUIStore()
   const { data: session } = useSession()
   const { theme, setTheme } = useTheme()

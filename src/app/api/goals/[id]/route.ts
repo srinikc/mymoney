@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError , withAuth } from "@/lib/with-auth"
+import { withAuth } from "@/lib/with-auth"
 import { validateBody } from "@/shared/validate"
 import { GoalUpdateSchema } from "@/shared/validation"
 
@@ -18,7 +18,7 @@ export async function GET(
   const { id } = await context.params
     const auth = await withAuth()
   if (auth.error) return auth.error
-  const { profileId, userId, role } = auth
+  const { profileId } = auth
   // userId auto-checked by getAuthContext
   const goal = await getOwnedGoal(Number(id), profileId)
   if (!goal) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -32,7 +32,7 @@ export async function PUT(
   const { id } = await context.params
     const auth = await withAuth()
   if (auth.error) return auth.error
-  const { profileId, userId, role } = auth
+  const { profileId } = auth
   // userId auto-checked by getAuthContext
   const goal = await getOwnedGoal(Number(id), profileId)
   if (!goal) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -68,7 +68,7 @@ export async function DELETE(
   const { id } = await context.params
     const auth = await withAuth()
   if (auth.error) return auth.error
-  const { profileId, userId, role } = auth
+  const { profileId } = auth
   // userId auto-checked by getAuthContext
   const goal = await getOwnedGoal(Number(id), profileId)
   if (!goal) return NextResponse.json({ error: "Not found" }, { status: 404 })

@@ -1,4 +1,4 @@
-const GMAIL_API = "https://gmail.googleapis.com/gmail/v1"
+const GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me"
 
 export interface GmailMessagePart {
   mimeType: string
@@ -29,10 +29,16 @@ export interface ParsedEmail {
 
 export async function getAccessToken(userId: number): Promise<string> {
   const { prisma } = await import("@/lib/prisma")
-  const account = await prisma.account.findFirst({
+  const accounts = await prisma.account.findMany({
     where: { userId, provider: "google" },
     select: { id: true, access_token: true, refresh_token: true, expires_at: true },
   })
+  // Prefer an account that can be refreshed (has a refresh token), then any
+  // account with a still-valid access token.
+  const account =
+    accounts.find((a) => a.refresh_token && a.access_token) ||
+    accounts.find((a) => a.access_token) ||
+    accounts[0]
   if (!account?.access_token) throw new Error("No Google token found")
 
   if (account.expires_at && account.expires_at * 1000 < Date.now() && account.refresh_token) {
@@ -54,7 +60,7 @@ export async function listMessages(
   maxResults = 20
 ): Promise<GmailMessage[]> {
   const params = new URLSearchParams({ q: query, maxResults: String(maxResults) })
-  const res = await fetch(`${GMAIL_API}/me/messages?${params}`, {
+  const res = await fetch(`${GMAIL_API}/messages?${params}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   })
   if (!res.ok) throw new Error(`Gmail list failed: ${await res.text()}`)
@@ -62,8 +68,30 @@ export async function listMessages(
   return data.messages || []
 }
 
+export async function listAllMessages(
+  accessToken: string,
+  query: string,
+  maxResults = 100
+): Promise<GmailMessage[]> {
+  const messages: GmailMessage[] = []
+  let pageToken: string | undefined
+  do {
+    const params = new URLSearchParams({ q: query, maxResults: String(Math.min(maxResults, 500)) })
+    if (pageToken) params.set("pageToken", pageToken)
+    const res = await fetch(`${GMAIL_API}/messages?${params}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    if (!res.ok) throw new Error(`Gmail list failed: ${await res.text()}`)
+    const data = await res.json()
+    messages.push(...(data.messages || []))
+    pageToken = data.nextPageToken
+    if (messages.length >= maxResults) break
+  } while (pageToken)
+  return messages
+}
+
 export async function getMessage(accessToken: string, messageId: string): Promise<GmailMessage> {
-  const res = await fetch(`${GMAIL_API}/me/messages/${messageId}?format=full`, {
+  const res = await fetch(`${GMAIL_API}/messages/${messageId}?format=full`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   })
   if (!res.ok) throw new Error(`Gmail get failed: ${await res.text()}`)

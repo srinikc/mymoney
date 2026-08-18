@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { getAuthContext } from "@/lib/with-auth"
 import type { PrismaClient } from "@prisma/client"
+import { loadExistingData, alreadyInAppData } from "@/lib/gmail-scan"
 
 interface ImportTransaction {
   type: string
@@ -10,28 +11,68 @@ interface ImportTransaction {
   vendor?: string
   category?: string
   messageId: string
+  emailSubject?: string
+  emailSnippet?: string
+  emailFrom?: string
+  source?: "upi" | "bank" | "purchase" | "salary" | "insurance" | "subscription" | "investment" | "asset" | "tax"
   metadata?: Record<string, unknown>
 }
 
 export async function POST(req: Request) {
   try {
-    const { profileId, userId, role } = await getAuthContext()
+    const { profileId, userId } = await getAuthContext()
     // userId auto-checked by getAuthContext
 
     const { prisma } = await import("@/lib/prisma")
     // profileId from getAuthContext
     const body = await req.json()
-    const { transactions } = body as { transactions: ImportTransaction[] }
+    const { transactions, scanId } = body as { transactions: ImportTransaction[]; scanId?: number }
 
     let imported = 0
+    let skippedExisting = 0
+    let skippedAlreadyImported = 0
+    const results: Record<string, unknown>[] = []
+
+    // Load existing app data once so we skip anything already in the app
+    const existing = await loadExistingData(prisma, profileId)
+
+    // Guard against re-importing the same email (e.g. when a scan was still
+    // running while an earlier batch was already imported).
+    const existingLogs = await prisma.gmailImportLog.findMany({
+      where: { userId, messageId: { in: transactions.map((t) => t.messageId) } },
+      select: { messageId: true },
+    })
+    const alreadyImported = new Set(existingLogs.map((l) => l.messageId))
+
+    const importedByType: Record<string, number> = {}
+    const skippedExistingByType: Record<string, number> = {}
 
     for (const t of transactions) {
+      if (alreadyImported.has(t.messageId)) {
+        skippedAlreadyImported++
+        continue
+      }
+      // Skip if an equivalent record already exists in the app (same day +
+      // amount + vendor), e.g. a transaction that arrived via bank-statement
+      // upload too, or a repeat monthly premium.
+      if (alreadyInAppData(existing, t)) {
+        skippedExisting++
+        skippedExistingByType[t.type] = (skippedExistingByType[t.type] || 0) + 1
+        // Still record the email as handled so future scans ignore it.
+        await prisma.gmailImportLog.upsert({
+          where: { userId_messageId: { userId, messageId: t.messageId } },
+          update: {},
+          create: { userId, messageId: t.messageId },
+        }).catch(() => {})
+        continue
+      }
       try {
+        let createdId: number | null = null
         switch (t.type) {
           case "expense": {
             const catMap = await getCategoryId(prisma, t.category || "Other")
             if (!catMap) break // skip if no category found
-            await prisma.expense.create({
+            const created = await prisma.expense.create({
               data: {
                 profileId: profileId || undefined,
                 date: new Date(t.date),
@@ -39,21 +80,22 @@ export async function POST(req: Request) {
                 vendor: t.vendor || null,
                 description: t.description,
                 categoryId: catMap.id,
-                paymentMode: "UPI",
+                paymentMode: t.source === "bank" ? "Bank Transfer" : "UPI",
                 notes: `[Gmail Import] ${t.messageId}`,
               },
             })
+            createdId = created.id
             imported++
             break
           }
           case "income":
           case "salary": {
             const existingSource = await prisma.incomeSource.findFirst({
-              where: { profileId, name: { contains: t.vendor || t.description } },
+              where: { profileId, name: { contains: t.vendor || t.description, mode: "insensitive" } },
             })
             if (!existingSource) {
               const incomeCategory = await getOrCreateCategory(prisma, t.category || "Salary", "income")
-              await prisma.incomeSource.create({
+              const created = await prisma.incomeSource.create({
                 data: {
                   profileId: profileId || undefined,
                   name: t.vendor || t.description,
@@ -65,12 +107,13 @@ export async function POST(req: Request) {
                   notes: `[Gmail Import] ${t.messageId}`,
                 },
               })
+              createdId = created.id
               imported++
             }
             break
           }
           case "investment": {
-            await prisma.investment.create({
+            const created = await prisma.investment.create({
               data: {
                 profileId: profileId || undefined,
                 name: t.vendor || t.description,
@@ -81,15 +124,16 @@ export async function POST(req: Request) {
                 notes: `[Gmail Import] ${t.messageId}`,
               },
             })
+            createdId = created.id
             imported++
             break
           }
           case "insurance": {
             const existingPolicy = await prisma.insurance.findFirst({
-              where: { profileId, provider: { contains: t.vendor } },
+              where: { profileId, provider: { contains: t.vendor, mode: "insensitive" } },
             })
             if (!existingPolicy) {
-              await prisma.insurance.create({
+              const created = await prisma.insurance.create({
                 data: {
                   profileId: profileId || undefined,
                   name: t.description,
@@ -101,12 +145,13 @@ export async function POST(req: Request) {
                   notes: `[Gmail Import] ${t.messageId}`,
                 },
               })
+              createdId = created.id
               imported++
             }
             break
           }
           case "subscription": {
-            await prisma.subscription.create({
+            const created = await prisma.subscription.create({
               data: {
                 profileId: profileId || undefined,
                 name: t.vendor || t.description,
@@ -119,11 +164,12 @@ export async function POST(req: Request) {
                 notes: `[Gmail Import] ${t.messageId}`,
               },
             })
+            createdId = created.id
             imported++
             break
           }
           case "asset": {
-            await prisma.asset.create({
+            const created = await prisma.asset.create({
               data: {
                 profileId: profileId || undefined,
                 name: t.description,
@@ -134,11 +180,12 @@ export async function POST(req: Request) {
                 notes: `[Gmail Import] ${t.messageId}`,
               },
             })
+            createdId = created.id
             imported++
             break
           }
           case "tax_document": {
-            await prisma.taxDocument.create({
+            const created = await prisma.taxDocument.create({
               data: {
                 profileId: profileId || undefined,
                 type: "other",
@@ -151,16 +198,65 @@ export async function POST(req: Request) {
                 notes: `Source: ${t.vendor}`,
               },
             })
+            createdId = created.id
             imported++
             break
           }
+        }
+        if (createdId) {
+          results.push({
+            id: createdId,
+            type: t.type,
+            amount: t.amount,
+            date: t.date,
+            description: t.description,
+            vendor: t.vendor,
+            category: t.category,
+            emailSubject: t.emailSubject,
+            emailSnippet: t.emailSnippet,
+          })
+          importedByType[t.type] = (importedByType[t.type] || 0) + 1
+          await prisma.gmailImportLog.upsert({
+            where: { userId_messageId: { userId, messageId: t.messageId } },
+            update: {},
+            create: { userId, messageId: t.messageId },
+          })
         }
       } catch {
         // skip individual failures
       }
     }
 
-    return NextResponse.json({ imported, total: transactions.length })
+    // Update the scan's journal so the UI can show "last scan imported X in
+    // category Y, skipped Z (already existed)".
+    if (scanId) {
+      try {
+        const scan = await prisma.gmailScan.findUnique({
+          where: { id: scanId },
+          select: { journal: true },
+        })
+        const journal = (scan?.journal || {}) as Record<string, { matched: number; alreadyExists: number; imported: number }>
+        for (const [type, count] of Object.entries(importedByType)) {
+          if (!journal[type]) journal[type] = { matched: 0, alreadyExists: 0, imported: 0 }
+          journal[type].imported += count
+        }
+        for (const [type, count] of Object.entries(skippedExistingByType)) {
+          if (!journal[type]) journal[type] = { matched: 0, alreadyExists: 0, imported: 0 }
+          journal[type].alreadyExists += count
+        }
+        await prisma.gmailScan.update({ where: { id: scanId }, data: { journal: journal as object } })
+      } catch {
+        // journal update is best-effort
+      }
+    }
+
+    return NextResponse.json({
+      imported,
+      skippedExisting,
+      skippedAlreadyImported,
+      total: transactions.length,
+      results,
+    })
   } catch (error) {
     console.error("Gmail import error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

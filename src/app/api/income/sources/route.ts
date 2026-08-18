@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { getAuthContext } from "@/lib/with-auth"
 import { validateBody } from "@/shared/validate"
 import { IncomeSourceCreateSchema } from "@/shared/income-validation"
 

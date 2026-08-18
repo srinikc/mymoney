@@ -1,4 +1,5 @@
-import { test, expect, Page } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+import { seedUnmappedExpense, deleteExpense } from "./helpers"
 
 /**
  * Feature: Vendors page — Dismiss + URL
@@ -8,7 +9,7 @@ import { test, expect, Page } from "@playwright/test"
  *   So that dismissed vendors disappear from Unmapped and are NOT added to All Mappings
  *
  *   Background:
- *     Given I am logged in
+ *     Given I am logged in (via the shared storage state, e.g. test@example.com)
  *     And the Vendors page is at /expenses/vendors
  *
  *   Scenario: Vendors page loads at the renamed URL
@@ -30,27 +31,12 @@ import { test, expect, Page } from "@playwright/test"
  *     Then the dismissed vendor is NOT listed there
  */
 
-const TEST_EMAIL = "vendor-1786719132192@test.dev"
-const TEST_PASSWORD = "test123"
-
-async function login(page: Page) {
-  await page.goto("/api/auth/csrf")
-  const body = await page.evaluate(() => document.body.textContent)
-  const csrfToken = JSON.parse(body || "{}").csrfToken
-  if (!csrfToken) throw new Error("Could not get CSRF token")
-  const res = await page.request.post("/api/auth/callback/credentials", {
-    form: { csrfToken, email: TEST_EMAIL, password: TEST_PASSWORD, callbackUrl: "/", json: "true" },
-  })
-  if (!res.ok() && !res.url().includes("/")) {
-    throw new Error("Login POST failed: " + res.status())
-  }
-  await page.goto("/")
-  await page.waitForLoadState("domcontentloaded")
-}
-
 test.describe("Vendors page — Dismiss + URL", () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page)
+  let seededExpenseId = 0
+
+  test.afterEach(async () => {
+    await deleteExpense(seededExpenseId)
+    seededExpenseId = 0
   })
 
   test("Vendors page loads at /expenses/vendors", async ({ page }) => {
@@ -71,12 +57,9 @@ test.describe("Vendors page — Dismiss + URL", () => {
   })
 
   test("dismissing a vendor removes it from Unmapped and not added to All Mappings", async ({ page }) => {
-    // Seed a unique unmapped vendor (no VendorMapping exists for it yet)
+    // Seed a unique unmapped vendor (no VendorMapping exists for it yet).
     const vendorName = `dismisstest-${Date.now()}`
-    const createRes = await page.request.post("/api/expenses", {
-      data: { date: "2026-08-17", amount: 250, vendor: vendorName, description: "e2e dismiss", paymentMode: "UPI" },
-    })
-    expect(createRes.ok()).toBe(true)
+    seededExpenseId = await seedUnmappedExpense(page, vendorName)
 
     await page.goto("/expenses/vendors", { waitUntil: "domcontentloaded", timeout: 30000 })
     await expect(page.getByRole("button", { name: /Unmapped/ }).first()).toBeVisible({ timeout: 25000 })

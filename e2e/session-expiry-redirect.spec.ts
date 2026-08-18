@@ -1,4 +1,5 @@
-import { test, expect, Page } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+import { seedUnmappedExpense, deleteExpense } from "./helpers"
 
 /**
  * Feature: Expired session redirects to login
@@ -8,7 +9,7 @@ import { test, expect, Page } from "@playwright/test"
  *   So that I don't see a bare "Unauthorized" error on an action
  *
  *   Background:
- *     Given I am logged in
+ *     Given I am logged in (via the shared storage state, e.g. test@example.com)
  *     And my session later expires while I'm on the Vendors page
  *
  *   Scenario: An action that gets a 401 redirects to /login
@@ -16,32 +17,18 @@ import { test, expect, Page } from "@playwright/test"
  *     Then I am taken to /login with a callbackUrl back to the Vendors page
  */
 
-const TEST_EMAIL = "vendor-1786719132192@test.dev"
-const TEST_PASSWORD = "test123"
-
-async function login(page: Page) {
-  await page.goto("/api/auth/csrf")
-  const body = await page.evaluate(() => document.body.textContent)
-  const csrfToken = JSON.parse(body || "{}").csrfToken
-  if (!csrfToken) throw new Error("Could not get CSRF token")
-  await page.request.post("/api/auth/callback/credentials", {
-    form: { csrfToken, email: TEST_EMAIL, password: TEST_PASSWORD, callbackUrl: "/", json: "true" },
-  })
-  await page.goto("/")
-  await page.waitForLoadState("domcontentloaded")
-}
-
 test.describe("Expired session → login redirect", () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page)
+  let seededExpenseId = 0
+
+  test.afterEach(async () => {
+    await deleteExpense(seededExpenseId)
+    seededExpenseId = 0
   })
 
   test("an action that gets a 401 redirects to /login", async ({ page }) => {
     // Seed an unmapped vendor so the Dismiss All button is enabled (count > 0)
-    const seedRes = await page.request.post("/api/expenses", {
-      data: { date: "2026-08-17", amount: 100, vendor: `sessionexpiry-${Date.now()}`, description: "e2e session expiry", paymentMode: "UPI" },
-    })
-    expect(seedRes.ok()).toBe(true)
+    const vendorName = `sessionexpiry-${Date.now()}`
+    seededExpenseId = await seedUnmappedExpense(page, vendorName)
 
     await page.goto("/expenses/vendors", { waitUntil: "domcontentloaded", timeout: 30000 })
     await expect(page.getByRole("heading", { name: "Vendors", level: 1 })).toBeVisible({ timeout: 20000 })

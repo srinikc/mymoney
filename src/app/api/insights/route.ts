@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { withAuth } from "@/lib/with-auth"
 
 export async function GET(request: Request) {
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
+
   const { searchParams } = new URL(request.url)
   const now = new Date()
   const currentYear = now.getFullYear()
@@ -18,11 +23,17 @@ export async function GET(request: Request) {
   const yearEnd = new Date(year + 1, 0, 1)
   const yearFilter = { gte: yearStart, lt: yearEnd }
 
-  const monthlyFilter = month === undefined
-    ? (quarter === undefined
-      ? yearFilter
-      : { gte: new Date(year, (quarter - 1) * 3, 1), lt: new Date(year, quarter * 3, 1) })
-    : { gte: new Date(year, month, 1), lt: new Date(year, month + 1, 1) }
+  // periodFilter: month -> quarter -> year (when a period is chosen) -> all-time (no filter)
+  const periodFilter = month !== undefined
+    ? { gte: new Date(year, month, 1), lt: new Date(year, month + 1, 1) }
+    : (quarter !== undefined
+      ? { gte: new Date(year, (quarter - 1) * 3, 1), lt: new Date(year, quarter * 3, 1) }
+      : (yearParam !== null ? yearFilter : undefined))
+
+  const profileWhere = { profileId }
+
+  const dateWhere = (f: { gte: Date; lt: Date } | undefined) =>
+    f ? { profileId, date: f } : { profileId }
 
   const [
     totalExpensesAgg,
@@ -37,34 +48,17 @@ export async function GET(request: Request) {
     loans,
     pfInvestments,
   ] = await Promise.all([
-    prisma.expense.aggregate({ where: { date: monthlyFilter }, _sum: { amount: true } }),
-    prisma.expense.aggregate({
-      where: { date: monthlyFilter },
-      _sum: { amount: true },
-    }),
-    prisma.expense.aggregate({
-      where: { date: yearFilter },
-      _sum: { amount: true },
-    }),
+    prisma.expense.aggregate({ where: dateWhere(periodFilter), _sum: { amount: true } }),
+    prisma.expense.aggregate({ where: dateWhere(periodFilter), _sum: { amount: true } }),
+    prisma.expense.aggregate({ where: { profileId, date: yearFilter }, _sum: { amount: true } }),
     prisma.category.findMany({ where: { type: "expense" } }),
-    prisma.budget.findMany({
-      where: { month: (month ?? 0) + 1, year },
-      include: { category: true },
-    }),
-    prisma.goal.findMany({ where: { status: "active" } }),
-    prisma.investment.findMany(),
-    prisma.expense.findMany({
-      where: { date: monthlyFilter },
-      include: { category: true },
-      orderBy: { date: "desc" },
-      take: 10,
-    }),
-    prisma.incomeSource.findMany(),
-    prisma.loan.findMany({ select: { principal: true } }),
-    prisma.investment.findMany({
-      where: { type: { in: ["ppf", "nps"] } },
-      select: { amount: true, currentValue: true },
-    }),
+    prisma.budget.findMany({ where: { profileId, month: (month ?? now.getMonth()) + 1, year }, include: { category: true } }),
+    prisma.goal.findMany({ where: { profileId, status: "active" } }),
+    prisma.investment.findMany({ where: profileWhere }),
+    prisma.expense.findMany({ where: dateWhere(periodFilter), include: { category: true }, orderBy: { date: "desc" }, take: 10 }),
+    prisma.incomeSource.findMany({ where: profileWhere }),
+    prisma.loan.findMany({ where: profileWhere, select: { principal: true } }),
+    prisma.investment.findMany({ where: { profileId, type: { in: ["ppf", "nps"] } }, select: { amount: true, currentValue: true } }),
   ])
 
   const totalExpenses = totalExpensesAgg._sum.amount || 0
@@ -80,9 +74,9 @@ export async function GET(request: Request) {
   const totalPF = pfInvestments.reduce((s, i) => s + (i.currentValue || i.amount), 0)
   const totalLoans = loans.reduce((s, l) => s + l.principal, 0)
 
-  const incomeStart = monthlyFilter.gte
-  const incomeEnd = monthlyFilter.lt
-  const isSpecificPeriod = month !== undefined || quarter !== undefined
+  const incomeStart = periodFilter?.gte
+  const incomeEnd = periodFilter?.lt
+  const isSpecificPeriod = periodFilter !== undefined
   const periodMultiplier = month !== undefined ? 1 : (quarter !== undefined ? 3 : 12)
   let totalIncome = 0
   for (const source of incomeSources) {
@@ -91,8 +85,7 @@ export async function GET(request: Request) {
     } else if (source.type === "variable") {
       totalIncome += (source.amount || 0) * periodMultiplier
     } else {
-      // yearly / onetime — only counted when the source start date falls in the selected period
-      if (!isSpecificPeriod || (source.startDate && new Date(source.startDate) >= incomeStart && new Date(source.startDate) < incomeEnd)) {
+      if (!isSpecificPeriod || (source.startDate && incomeStart && incomeEnd && new Date(source.startDate) >= incomeStart && new Date(source.startDate) < incomeEnd)) {
         totalIncome += source.amount
       }
     }
@@ -106,7 +99,7 @@ export async function GET(request: Request) {
   const categoryExpenses = await Promise.all(
     categories.map(async (cat) => {
       const agg = await prisma.expense.aggregate({
-        where: { categoryId: cat.id, date: monthlyFilter },
+        where: { categoryId: cat.id, ...dateWhere(periodFilter) },
         _sum: { amount: true },
       })
       return { name: cat.name, amount: agg._sum.amount || 0, color: cat.color }
@@ -124,7 +117,7 @@ export async function GET(request: Request) {
       const start = new Date(year, i, 1)
       const end = new Date(year, i + 1, 1)
       return prisma.expense.aggregate({
-        where: { date: { gte: start, lt: end } },
+        where: { profileId, date: { gte: start, lt: end } },
         _sum: { amount: true },
       }).then((agg) => ({
         month: start.toLocaleString("en-US", { month: "short" }),

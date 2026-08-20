@@ -5,7 +5,6 @@ test.describe("Import, Merchants, Insights, Onboarding — Comprehensive", () =>
 
   test.describe("Bulk Import page", () => { test("SCENARIO: Import page loads without error", async ({ page }) => { await page.goto("/expenses/import", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000); await ready(page) }) })
   test.describe("Merchants page", () => { test("SCENARIO: Merchants page loads without error", async ({ page }) => { await page.goto("/expenses/vendors", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000); await ready(page) }) })
-  test.describe("Review Duplicates page", () => { test("SCENARIO: Review duplicates page loads without error", async ({ page }) => { await page.goto("/expenses/review-duplicates", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000); await ready(page) }) })
   test.describe("Insights page", () => { test("SCENARIO: Insights page loads without error", async ({ page }) => { await page.goto("/insights", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000); await ready(page) }) })
 
   test.describe("Login flow", () => {
@@ -20,7 +19,7 @@ test.describe("Import, Merchants, Insights, Onboarding — Comprehensive", () =>
 
   test.describe("Anonymous access guard", () => {
     test.use({ storageState: { cookies: [], origins: [] } })
-    for (const route of ["/expenses/import", "/expenses/vendors", "/expenses/review-duplicates", "/insights"]) {
+    for (const route of ["/expenses/import", "/expenses/vendors", "/insights"]) {
       test(`SCENARIO: ${route} redirects to login when unauthenticated`, async ({ page }) => {
         await page.goto(route, { waitUntil: "domcontentloaded" }); await page.waitForTimeout(2000); expect(page.url()).toContain("/login")
       })

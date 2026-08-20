@@ -23,6 +23,7 @@ interface ExpenseItem {
   person?: string;
   bankAccount?: string;
   description?: string;
+  flagged?: boolean;
 }
 
 interface CatItem {
@@ -60,6 +61,8 @@ export default function ExpensesScreen() {
   const [filterDateTo] = useState('');
   const [bankAnalysisReady, setBankAnalysisReady] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [flaggedFilter, setFlaggedFilter] = useState(false);
+  const [flaggedCount, setFlaggedCount] = useState(0);
 
   const openEdit = (item: ExpenseItem) => {
     setEditingItem(item);
@@ -87,6 +90,7 @@ export default function ExpensesScreen() {
       if (search) params.search = search;
       if (filterDateFrom) params.dateFrom = filterDateFrom;
       if (filterDateTo) params.dateTo = filterDateTo;
+      if (flaggedFilter) params.flagged = 'true';
       const res = await api.get('/api/expenses', { params });
       const d = res.data;
       if (append) {
@@ -103,7 +107,7 @@ export default function ExpensesScreen() {
       setRefreshing(false);
       setLoadingMore(false);
     }
-  }, [search, filterDateFrom, filterDateTo]);
+  }, [search, filterDateFrom, filterDateTo, flaggedFilter]);
 
   useEffect(() => { fetchExpenses(); }, [fetchExpenses]);
 
@@ -111,6 +115,7 @@ export default function ExpensesScreen() {
     api.get('/api/categories').then((r) => setCategories(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     api.get('/api/bank-analysis/status').then((r) => setBankAnalysisReady(Boolean(r.data?.ready))).catch(() => {});
     api.get('/api/auth/status').then((r) => { if (r.data?.isAdmin) setIsAdmin(true); }).catch(() => {});
+    api.get('/api/expenses/flagged?pageSize=1').then((r) => setFlaggedCount(r.data?.total || 0)).catch(() => {});
   }, []);
 
   const loadMore = () => {
@@ -217,6 +222,17 @@ export default function ExpensesScreen() {
     ]);
   };
 
+  const markValid = async (id: number) => {
+    try {
+      await api.post('/api/expenses/flagged', { action: 'confirm', ids: [id] });
+      Alert.alert('Success', 'Marked as valid');
+      setFlaggedCount((c) => Math.max(0, c - 1));
+      fetchExpenses(1);
+    } catch {
+      Alert.alert('Error', 'Failed to mark as valid');
+    }
+  };
+
   const getCategoryColor = (cat: { color?: string } | undefined) => cat?.color || theme.primary;
 
   const handleBankAnalysis = () => {
@@ -262,6 +278,18 @@ export default function ExpensesScreen() {
           placeholder="Search expenses..."
           placeholderTextColor={theme.textTertiary}
         />
+        <TouchableOpacity
+          onPress={() => { setFlaggedFilter((v) => !v); setPage(1); }}
+          style={[styles.dupToggle, { backgroundColor: flaggedFilter ? theme.primary : theme.primaryLight }]}
+        >
+          <Ionicons name="alert-circle" size={14} color={flaggedFilter ? '#fff' : theme.primary} />
+          <Text style={[styles.dupToggleText, { color: flaggedFilter ? '#fff' : theme.primary }]}>Duplicates</Text>
+          {flaggedCount > 0 && (
+            <View style={styles.dupBadge}>
+              <Text style={styles.dupBadgeText}>{flaggedCount > 99 ? '99+' : flaggedCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -314,6 +342,15 @@ export default function ExpensesScreen() {
                     )}
                   </View>
                   {item.notes ? <Text style={[styles.cardNotes, { color: theme.textTertiary }]} numberOfLines={1}>{item.notes}</Text> : null}
+                    {item.flagged && (
+                      <TouchableOpacity
+                        onPress={() => markValid(item.id)}
+                        style={[styles.dupAction, { backgroundColor: theme.primaryLight }]}
+                      >
+                        <Ionicons name="checkmark-circle" size={18} color={theme.primary} />
+                        <Text style={[styles.dupActionText, { color: theme.primary }]}>Mark Valid</Text>
+                      </TouchableOpacity>
+                    )}
                 </View>
               </View>
             </TouchableOpacity>
@@ -326,7 +363,7 @@ export default function ExpensesScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="receipt-outline" size={48} color={theme.textTertiary} />
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No expenses found</Text>
+              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>{flaggedFilter ? 'No duplicates to review' : 'No expenses found'}</Text>
               <TouchableOpacity onPress={() => setShowForm(true)} style={[styles.emptyBtn, { backgroundColor: theme.primary }]}>
                 <Text style={styles.emptyBtnText}>Add Expense</Text>
               </TouchableOpacity>
@@ -425,6 +462,12 @@ const styles = StyleSheet.create({
   addBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   searchRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginTop: 12, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 2 },
   searchInput: { flex: 1, fontSize: 14, paddingVertical: 8 },
+  dupToggle: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 8, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  dupToggleText: { fontSize: 12, fontWeight: '600' },
+  dupBadge: { backgroundColor: '#f59e0b', borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1, marginLeft: 2 },
+  dupBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },
+  dupAction: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, marginTop: 6, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  dupActionText: { fontSize: 11, fontWeight: '600' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   errorText: { fontSize: 14, fontWeight: '500' },
   retryBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },

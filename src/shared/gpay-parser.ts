@@ -49,9 +49,11 @@ export function parseGpayTakeoutEntry(txn: Record<string, unknown>): { date: Dat
   if (isNaN(amount) || amount === 0) return null
 
   vendor = String(vendor).trim()
+  // Money received (credit) is income, not an expense — never import it.
+  if (/^received\b/i.test(vendor)) return null
   if (vendor.startsWith("Paid to ")) vendor = vendor.slice(8)
   if (vendor.startsWith("Paid via ")) vendor = ""
-  if (/^(sent|received|paid|recharge)/i.test(vendor)) vendor = ""
+  if (/^(sent|paid|recharge)/i.test(vendor)) vendor = ""
   vendor = cleanGpayVendor(vendor)
 
   // GPay Takeout omits the note field, so keep the raw description text as the
@@ -114,6 +116,9 @@ export function parseGpayTakeoutHtml(html: string): { date: Date; amount: number
   let match: RegExpExecArray | null
 
   while ((match = txnRegex.exec(text)) !== null) {
+    // Money received (credit) is income, not an expense — never import it.
+    if (/^received\b/i.test(match[1])) continue
+
     const amount = Number.parseFloat(match[2].replaceAll(',', ""))
     const vendor = cleanGpayVendor(match[3] ? match[3].trim() : "")
     const bankAccount = match[4]

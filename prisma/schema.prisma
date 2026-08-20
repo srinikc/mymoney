@@ -62,6 +62,7 @@ model Profile {
   expenseLinks ExpenseLink[]
   bankAccounts BankAccount[]
   fixedDeposits FixedDeposit[]
+  cashBalances CashBalance[]
   sharedProfiles SharedProfile[]
   alertRules AlertRule[]
   notificationConfigs NotificationConfig[]
@@ -691,6 +692,22 @@ model FixedDeposit {
   @@index([profileId])
   @@index([bankAccountId])
   @@index([status])
+}
+
+// -- Cash Balance -------------------------------------------------------
+
+model CashBalance {
+  id        Int      @id @default(autoincrement())
+  profileId Int?
+  profile   Profile? @relation(fields: [profileId], references: [id])
+
+  amount    Float    @default(0)
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId])
 }
 
 // ── Family Sharing ─────────────────────────────────────────────────────

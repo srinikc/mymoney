@@ -33,6 +33,7 @@ export default function LoansScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<LoanItem | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
@@ -56,8 +57,8 @@ export default function LoansScreen() {
   useEffect(() => { fetch(); }, [fetch]);
 
   const openAdd = () => {
-    setEditItem(null); setFormName(''); setFormType('Other'); setFormPrincipal(''); setFormInterest(''); setFormTenure(''); setFormLender(''); setFormStartDate(new Date().toISOString().split('T')[0]);
-    setFormError(null); setShowForm(true);
+    setFormName(''); setFormType('Other'); setFormPrincipal(''); setFormInterest(''); setFormTenure(''); setFormLender(''); setFormStartDate(new Date().toISOString().split('T')[0]);
+    setFormError(null); setShowAdd(true);
   };
 
   const openEdit = (item: LoanItem) => {
@@ -66,13 +67,25 @@ export default function LoansScreen() {
     setFormStartDate(item.startDate?.split('T')[0] || new Date().toISOString().split('T')[0]); setFormError(null); setShowForm(true);
   };
 
+  const handleAddInline = async () => {
+    if (!formName.trim() || !formPrincipal || isNaN(parseFloat(formPrincipal))) { setFormError('Name and principal are required'); return; }
+    setFormLoading(true); setFormError(null);
+    try {
+      const payload = { name: formName.trim(), type: formType, principal: parseFloat(formPrincipal), interestRate: parseFloat(formInterest || '0'), tenureMonths: parseInt(formTenure || '1'), lender: formLender.trim(), startDate: formStartDate };
+      await api.post('/api/loans', payload);
+      setShowAdd(false); setFormName(''); setFormPrincipal(''); setFormInterest(''); setFormTenure(''); setFormLender(''); fetch();
+    } catch (err) { const apiErr = err as { response?: { data?: { error?: string } }; message?: string }; setFormError(apiErr?.response?.data?.error || 'Failed to save'); }
+    finally { setFormLoading(false); }
+  };
+
+  const cancelAdd = () => { setShowAdd(false); setFormName(''); setFormPrincipal(''); setFormInterest(''); setFormTenure(''); setFormLender(''); setFormError(null); };
+
   const handleSave = async () => {
     if (!formName.trim() || !formPrincipal || isNaN(parseFloat(formPrincipal))) { setFormError('Name and principal are required'); return; }
     setFormLoading(true); setFormError(null);
     try {
       const payload = { name: formName.trim(), type: formType, principal: parseFloat(formPrincipal), interestRate: parseFloat(formInterest || '0'), tenureMonths: parseInt(formTenure || '1'), lender: formLender.trim(), startDate: formStartDate };
       if (editItem) { await api.put(`/api/loans/${editItem.id}`, payload); }
-      else { await api.post('/api/loans', payload); }
       setShowForm(false); fetch();
     } catch (err) { const apiErr = err as { response?: { data?: { error?: string } }; message?: string }; setFormError(apiErr?.response?.data?.error || 'Failed to save'); }
     finally { setFormLoading(false); }
@@ -100,7 +113,30 @@ export default function LoansScreen() {
       : error ? <View style={styles.center}><Ionicons name="alert-circle" size={40} color={theme.expense} /><Text style={{ color: theme.expense, fontSize: 14 }}>{error}</Text></View>
       : (
         <FlatList data={data} keyExtractor={(i, idx) => String(i.id ?? idx)}
-          ListHeaderComponent={totalOutstanding > 0 ? <View style={[styles.summaryCard, { backgroundColor: theme.expense }]}><Text style={{ color: '#fff', opacity: 0.7, fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 }}>Total Outstanding</Text><Text style={{ color: '#fff', fontSize: 28, fontWeight: '800', marginTop: 4 }}>{formatCurrency(totalOutstanding)}</Text></View> : null}
+          ListHeaderComponent={<>
+            {showAdd ? (
+              <View style={[styles.card, { backgroundColor: theme.surface }]}>
+                {formError && <Text style={{ color: theme.expense, fontSize: 13, marginBottom: 12 }}>{formError}</Text>}
+                <Text style={styles.label}>Loan Name</Text><TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formName} onChangeText={setFormName} placeholder="e.g. Home Loan" placeholderTextColor={theme.textTertiary} />
+                <Text style={styles.label}>Type</Text>
+                <View style={styles.typeRow}>{LOAN_TYPES.map((t) => (
+                  <TouchableOpacity key={t} onPress={() => setFormType(t)} style={[styles.typeBtn, { backgroundColor: formType === t ? theme.primary : theme.background }]}>
+                    <Text style={{ color: formType === t ? '#fff' : theme.text, fontSize: 12 }}>{t}</Text>
+                  </TouchableOpacity>
+                ))}</View>
+                <Text style={styles.label}>Principal (₹)</Text><TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formPrincipal} onChangeText={setFormPrincipal} keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textTertiary} />
+                <Text style={styles.label}>Interest Rate (%)</Text><TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formInterest} onChangeText={setFormInterest} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={theme.textTertiary} />
+                <Text style={styles.label}>Tenure (months)</Text><TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formTenure} onChangeText={setFormTenure} keyboardType="number-pad" placeholder="12" placeholderTextColor={theme.textTertiary} />
+                <Text style={styles.label}>Lender</Text><TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formLender} onChangeText={setFormLender} placeholder="Bank name" placeholderTextColor={theme.textTertiary} />
+                <Text style={styles.label}>Start Date</Text><TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formStartDate} onChangeText={setFormStartDate} placeholder="YYYY-MM-DD" placeholderTextColor={theme.textTertiary} />
+                <View style={styles.modalActions}>
+                  <TouchableOpacity onPress={cancelAdd} style={styles.cancelBtn}><Text style={{ color: theme.textSecondary, fontWeight: '600' }}>Cancel</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={handleAddInline} disabled={formLoading} style={[styles.saveBtn, { backgroundColor: theme.primary }]}>{formLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>Add</Text>}</TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
+            {totalOutstanding > 0 ? <View style={[styles.summaryCard, { backgroundColor: theme.expense }]}><Text style={{ color: '#fff', opacity: 0.7, fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 }}>Total Outstanding</Text><Text style={{ color: '#fff', fontSize: 28, fontWeight: '800', marginTop: 4 }}>{formatCurrency(totalOutstanding)}</Text></View> : null}
+          </>}
           renderItem={({ item }) => {
             const outstanding = item.outstanding || item.remaining || item.balance || 0;
             const total = item.principal || item.amount || 0;

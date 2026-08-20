@@ -1,30 +1,35 @@
 import { test, expect } from "@playwright/test"
 
-async function openBudgetDialog(page: import("@playwright/test").Page): Promise<boolean> {
+async function openBudgetPage(page: import("@playwright/test").Page): Promise<boolean> {
   await page.goto("/budgets", { waitUntil: "domcontentloaded" })
-  try { const btn = page.locator("button:has-text('Add Budget')"); await btn.waitFor({ state: "visible", timeout: 10000 }); await btn.click(); await page.waitForTimeout(500); return true }
-  catch { return false }
+  await page.waitForTimeout(1500)
+  try {
+    const btn = page.locator("button:has-text('Add Category')")
+    await btn.waitFor({ state: "visible", timeout: 10000 })
+    return true
+  } catch {
+    return false
+  }
 }
 
-test.describe("Budget Features — Sub-category & Custom Entries", () => {
-  test("SCENARIO: Budget dialog has category and sub-category fields", async ({ page }) => {
-    if (!(await openBudgetDialog(page))) { test.skip(true, "Add Budget button not visible"); return }
-    await expect(page.getByText("Category").first()).toBeVisible()
-    await expect(page.getByText("Sub-category").first()).toBeVisible()
-    await expect(page.getByText("Monthly Limit").first()).toBeVisible()
-    await page.keyboard.press("Escape")
+test.describe("Budget Features — Planner, Common Categories & Repeat", () => {
+  test("SCENARIO: Budgets page shows income, totals and planner sections", async ({ page }) => {
+    if (!(await openBudgetPage(page))) { test.skip(true, "Budgets page not accessible"); return }
+    await expect(page.getByText(/Income/).first()).toBeVisible()
+    await expect(page.getByText("Budget Planner")).toBeVisible()
+    await expect(page.getByRole("button", { name: /Add Category/ })).toBeVisible()
+    await expect(page.getByRole("button", { name: /Save All/ })).toBeVisible()
+    await expect(page.getByRole("button", { name: /Repeat to/ })).toBeVisible()
+    await expect(page.getByRole("columnheader", { name: /Budget/ }).first()).toBeVisible()
+    await expect(page.getByRole("columnheader", { name: /spent/ }).first()).toBeVisible()
   })
 
-  test("SCENARIO: Category dropdown has 'Add custom category' option", async ({ page }) => {
-    if (!(await openBudgetDialog(page))) { test.skip(true, "Add Budget button not visible"); return }
-    const catSelect = page.locator("text=Category").first().locator("..").locator("select, [role='combobox']").first()
-    if (await catSelect.isVisible().catch(() => false)) {
-      await catSelect.click(); await page.waitForTimeout(300)
-      const customOption = page.getByText(/add custom category/i).first()
-      if (await customOption.isVisible().catch(() => false)) await expect(customOption).toBeVisible()
-      await page.keyboard.press("Escape")
-    }
-    await page.keyboard.press("Escape")
+  test("SCENARIO: Repeat month checkboxes are shown inline", async ({ page }) => {
+    if (!(await openBudgetPage(page))) { test.skip(true, "Budgets page not accessible"); return }
+    await expect(page.getByText(/Repeat budget to:/)).toBeVisible()
+    // At least the current month's checkbox should be present
+    const currentMonth = new Date().toLocaleString("en-US", { month: "long" })
+    await expect(page.getByText(currentMonth).first()).toBeVisible()
   })
 
   test("SCENARIO: POST /api/categories creates a new category globally", async ({ request }) => {
@@ -51,5 +56,66 @@ test.describe("Budget Features — Sub-category & Custom Entries", () => {
     const res = await request.get("/api/categories?include=subCategories")
     expect(res.ok()).toBe(true); const data = await res.json()
     expect(Array.isArray(data.categories)).toBe(true); expect(Array.isArray(data.subCategories)).toBe(true)
+  })
+
+  test("SCENARIO: Budget overview returns common categories, income and totals", async ({ request }) => {
+    const now = new Date()
+    const res = await request.get(`/api/budgets/overview?month=${now.getMonth() + 1}&year=${now.getFullYear()}`)
+    expect(res.ok()).toBe(true)
+    const data = await res.json()
+    expect(data.overview).toBe(true)
+    expect(Array.isArray(data.commonCategories)).toBe(true)
+    expect(data.totals).toBeDefined()
+    expect(data.totals.current).toBeDefined()
+    expect(data.totals.lastMonth).toBeDefined()
+    expect(typeof data.income).toBe("number")
+    for (const row of data.commonCategories) {
+      expect(row.categoryId).toBeDefined()
+      expect(row.category?.name).toBeDefined()
+      expect(typeof row.lastMonthSpend).toBe("number")
+    }
+  })
+
+  test("SCENARIO: Income summary accepts month/year params", async ({ request }) => {
+    const res = await request.get(`/api/income/summary?month=6&year=2026`)
+    expect(res.ok()).toBe(true)
+    const data = await res.json()
+    expect(data.month).toBe(6)
+    expect(data.year).toBe(2026)
+  })
+
+  test("SCENARIO: Budget repeat creates budgets and skips existing ones", async ({ request }) => {
+    // Create a fresh category so the repeat test is deterministic and never
+    // collides with pre-existing budgets for the same (category, month, year).
+    const uniqueCat = `RepeatCat-${Date.now()}`
+    const catRes = await request.post("/api/categories", { data: { name: uniqueCat, type: "expense" } })
+    expect(catRes.ok()).toBe(true)
+    const expenseCat = await catRes.json()
+
+    const year = 2026
+    const months = [9, 10]
+    const body = { year, entries: [{ categoryId: expenseCat.id, subCategory: null, amount: 1500, months }] }
+
+    const first = await request.post("/api/budgets/repeat", { data: body })
+    expect(first.ok()).toBe(true)
+    const firstData = await first.json()
+    expect(firstData.created).toBe(months.length)
+    expect(firstData.skipped).toBe(0)
+
+    // Second call should skip all (existing)
+    const second = await request.post("/api/budgets/repeat", { data: body })
+    expect(second.ok()).toBe(true)
+    const secondData = await second.json()
+    expect(secondData.created).toBe(0)
+    expect(secondData.skipped).toBe(months.length)
+
+    // Cleanup budgets (leave the category row; it is a unique test artifact)
+    for (const m of months) {
+      const list = await request.get(`/api/budgets?month=${m}&year=${year}`)
+      const budgets = await list.json()
+      for (const b of budgets) {
+        if (b.categoryId === expenseCat.id) await request.delete(`/api/budgets?id=${b.id}`)
+      }
+    }
   })
 })

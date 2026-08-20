@@ -50,15 +50,23 @@ export default function HomeScreen() {
   const [recentExpenses, setRecentExpenses] = useState<RecentExpense[]>([]);
   const [healthScore, setHealthScore] = useState<number | null>(null);
   const [quickStats, setQuickStats] = useState<QuickStat[]>([]);
+  const [budgetInfo, setBudgetInfo] = useState<{ budget: number; spent: number; pct: number } | null>(null);
+  const [netWorth, setNetWorth] = useState<{ netWorth: number; totalAssets: number; totalLoans: number } | null>(null);
+  const [totalPF, setTotalPF] = useState(0);
+  const [accounts, setAccounts] = useState<{ id: number; bankName: string; name: string; balance: number }[]>([]);
+  const [cashBalance, setCashBalance] = useState<{ amount: number; notes?: string | null } | null>(null);
   const balanceScaleAnim = useRef(new Animated.Value(0)).current;
 
   const fetchData = useCallback(async () => {
     setError(null);
     try {
-      const [insightsRes, healthRes, expensesRes] = await Promise.allSettled([
+      const [insightsRes, healthRes, expensesRes, netWorthRes, bankRes, cashRes] = await Promise.allSettled([
         api.get('/api/insights'),
         api.get('/api/health-score'),
         api.get('/api/expenses', { params: { limit: 5 } }),
+        api.get('/api/net-worth'),
+        api.get('/api/bank-accounts'),
+        api.get('/api/cash-balance'),
       ]);
 
       if (insightsRes.status === 'fulfilled') {
@@ -71,6 +79,10 @@ export default function HomeScreen() {
           { label: 'Income MTD', amount: d.incomeMTD || d.totalIncome || 0, type: 'income' },
           { label: 'Saved', amount: (d.totalIncome || d.income || 0) - (d.totalExpenses || d.expenses || 0), type: 'saved' },
         ]);
+        const budget = d.monthlyBudget || 0;
+        const spent = d.monthlyExpense || 0;
+        setBudgetInfo({ budget, spent, pct: budget > 0 ? (spent / budget) * 100 : 0 });
+        setTotalPF(d.totalPF || 0);
       }
       if (insightsRes.status === 'rejected' && !error) setError('Failed to load dashboard data');
 
@@ -83,6 +95,21 @@ export default function HomeScreen() {
         const e = expensesRes.value.data;
         const list = Array.isArray(e?.expenses) ? e.expenses : Array.isArray(e) ? e : [];
         setRecentExpenses(list.slice(0, 5));
+      }
+
+      if (netWorthRes.status === 'fulfilled') {
+        const nw = netWorthRes.value.data;
+        setNetWorth({ netWorth: nw.netWorth || 0, totalAssets: nw.totalAssets || 0, totalLoans: nw.totalLoans || 0 });
+      }
+
+      if (bankRes.status === 'fulfilled') {
+        const b = bankRes.value.data;
+        setAccounts(Array.isArray(b?.accounts) ? b.accounts : []);
+      }
+
+      if (cashRes.status === 'fulfilled') {
+        const c = cashRes.value.data;
+        setCashBalance(c?.cash || null);
       }
     } catch {
       setError('Something went wrong');
@@ -221,6 +248,97 @@ export default function HomeScreen() {
                 </View>
               ))}
             </View>
+
+            {budgetInfo && budgetInfo.budget > 0 && (
+              <TouchableOpacity
+                style={[styles.budgetCard, { backgroundColor: theme.surface }]}
+                onPress={() => router.push('/budgets')}
+              >
+                <View style={styles.budgetHeader}>
+                  <Text style={[styles.budgetTitle, { color: theme.text }]}>Monthly Budget</Text>
+                  <Text
+                    style={[
+                      styles.budgetStatus,
+                      {
+                        color:
+                          budgetInfo.pct > 100 ? theme.expense : budgetInfo.pct >= 80 ? theme.warning : theme.income,
+                      },
+                    ]}
+                  >
+                    {budgetInfo.pct > 100
+                      ? `Over by ${formatCurrency(budgetInfo.spent - budgetInfo.budget)}`
+                      : `${formatCurrency(budgetInfo.budget - budgetInfo.spent)} left`}
+                  </Text>
+                </View>
+                <View style={[styles.budgetBarBg, { backgroundColor: theme.borderLight }]}>
+                  <View
+                    style={[
+                      styles.budgetBarFill,
+                      {
+                        width: `${Math.min(100, budgetInfo.pct)}%`,
+                        backgroundColor:
+                          budgetInfo.pct > 100 ? theme.expense : budgetInfo.pct >= 80 ? theme.warning : theme.income,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.budgetSub, { color: theme.textTertiary }]}>
+                  {formatCurrency(budgetInfo.spent)} of {formatCurrency(budgetInfo.budget)} · {Math.round(budgetInfo.pct)}%
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <View style={styles.wealthRow}>
+              <TouchableOpacity style={[styles.wealthCard, { backgroundColor: theme.surface }]} onPress={() => router.push('/net-worth')}>
+                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Net Worth</Text>
+                <Text style={[styles.wealthValue, { color: theme.income }]}>{formatCurrency(netWorth?.netWorth || 0)}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.wealthCard, { backgroundColor: theme.surface }]} onPress={() => router.push('/assets')}>
+                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Assets</Text>
+                <Text style={[styles.wealthValue, { color: theme.primary }]}>{formatCurrency(netWorth?.totalAssets || 0)}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.wealthCard, { backgroundColor: theme.surface }]} onPress={() => router.push('/loans')}>
+                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Loans</Text>
+                <Text style={[styles.wealthValue, { color: theme.expense }]}>{formatCurrency(netWorth?.totalLoans || 0)}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.wealthCard, { backgroundColor: theme.surface }]} onPress={() => router.push('/investments')}>
+                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>PF</Text>
+                <Text style={[styles.wealthValue, { color: theme.warning }]}>{formatCurrency(totalPF)}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {(accounts.length > 0 || cashBalance) && (
+              <TouchableOpacity
+                style={[styles.bankCard, { backgroundColor: theme.surface }]}
+                onPress={() => router.push('/bank-accounts')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.bankHeader}>
+                  <Text style={[styles.sectionTitle, { color: theme.text }]}>Bank Accounts</Text>
+                  <Text style={[styles.seeAll, { color: theme.primary }]}>Manage</Text>
+                </View>
+                {accounts.slice(0, 4).map((acc) => (
+                  <View key={acc.id} style={styles.bankRow}>
+                    <Text style={[styles.bankName, { color: theme.text }]} numberOfLines={1}>{acc.bankName}</Text>
+                    <Text style={[styles.bankBalance, { color: theme.text }]}>{formatCurrency(acc.balance)}</Text>
+                  </View>
+                ))}
+                {cashBalance && (
+                  <View style={styles.bankRow}>
+                    <Text style={[styles.bankName, { color: theme.income }]} numberOfLines={1}>
+                      Cash{cashBalance.notes ? ` · ${cashBalance.notes}` : ''}
+                    </Text>
+                    <Text style={[styles.bankBalance, { color: theme.income }]}>{formatCurrency(cashBalance.amount)}</Text>
+                  </View>
+                )}
+                <View style={[styles.bankRow, styles.bankTotalRow, { borderTopColor: theme.borderLight }]}>
+                  <Text style={[styles.bankName, { color: theme.text, fontWeight: '700' }]}>Total</Text>
+                  <Text style={[styles.bankBalance, { color: theme.text, fontWeight: '800' }]}>
+                    {formatCurrency(accounts.reduce((s, a) => s + a.balance, 0) + (cashBalance?.amount || 0))}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
 
             {healthScore !== null && (
               <View style={[styles.healthCard, { backgroundColor: theme.surface }]}>
@@ -521,6 +639,99 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: '700',
+  },
+  budgetCard: {
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  budgetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  budgetTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  budgetStatus: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  budgetBarBg: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  budgetBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  budgetSub: {
+    fontSize: 12,
+    marginTop: 8,
+  },
+  wealthRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 20,
+  },
+  wealthCard: {
+    flex: 1,
+    borderRadius: 14,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  wealthValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  bankCard: {
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  bankHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  bankRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  bankTotalRow: {
+    marginTop: 6,
+    borderTopWidth: 1,
+    paddingTop: 10,
+  },
+  bankName: {
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
+  },
+  bankBalance: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   healthCard: {
     borderRadius: 14,

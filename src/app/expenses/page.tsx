@@ -20,7 +20,7 @@ import DatePicker from "@/components/ui/date-picker"
 import TransactionConfirm from "@/components/ui/transaction-confirm"
 import {
   Upload, Search, Download, FileSpreadsheet,
-  Loader2, Cloud, LogOut, Edit3, ChevronLeft, ChevronRight, RefreshCw, AlertCircle, CheckCircle2, X, Trash2,
+  Loader2, Cloud, LogOut, Edit3, ChevronLeft, ChevronRight, RefreshCw, AlertCircle, AlertTriangle, CheckCircle2, X, Trash2,
 } from "lucide-react"
 
 interface DriveFile {
@@ -56,6 +56,7 @@ export default function ExpensesPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [importSessions, setImportSessions] = useState<ImportSession[]>([])
   const [flaggedCount, setFlaggedCount] = useState(0)
+  const [flaggedFilter, setFlaggedFilter] = useState(false)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
 
@@ -205,6 +206,7 @@ export default function ExpensesPage() {
     if (notesFilter) params.set("notes", notesFilter)
     if (descriptionFilter) params.set("description", descriptionFilter)
     if (otherTypeFilter) params.set("otherType", otherTypeFilter)
+    if (flaggedFilter) params.set("flagged", "true")
 
     if (dateFrom) params.set("dateFrom", dateFrom)
     if (dateTo) params.set("dateTo", dateTo)
@@ -239,7 +241,7 @@ export default function ExpensesPage() {
       console.error("Failed to load expenses:", err)
     }
     setLoading(false)
-  }, [search, categoryFilter, sessionFilter, personFilter, recurrenceFilter, paymentModeFilter, vendorFilter, subCategoryFilter, bankFilter, notesFilter, descriptionFilter, otherTypeFilter, vendorFilterMode, subCategoryFilterMode, dateFrom, dateTo, amountMin, amountMax, sortField, sortDir, page])
+  }, [search, categoryFilter, sessionFilter, personFilter, recurrenceFilter, paymentModeFilter, vendorFilter, subCategoryFilter, bankFilter, notesFilter, descriptionFilter, otherTypeFilter, flaggedFilter, vendorFilterMode, subCategoryFilterMode, dateFrom, dateTo, amountMin, amountMax, sortField, sortDir, page])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -974,6 +976,37 @@ const handleImportFromDrive = async (fileId: string) => {
     }
   }
 
+  const refreshFlaggedCount = async () => {
+    try {
+      const d = await fetch("/api/expenses/flagged?pageSize=1").then((r) => r.json())
+      setFlaggedCount(d.total || 0)
+    } catch { /* ignore */ }
+  }
+
+  const markValid = async (ids: number[]) => {
+    if (ids.length === 0) return
+    try {
+      const res = await fetch("/api/expenses/flagged", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "confirm", ids }),
+      })
+      if (res.ok) {
+        toast.success(ids.length === 1 ? "Marked as valid" : `Marked ${ids.length} expenses as valid`)
+        setSelectedIds((prev) => {
+          const next = new Set(prev)
+          for (const id of ids) next.delete(id)
+          return next
+        })
+        await Promise.all([refreshFlaggedCount(), loadData()])
+      } else {
+        toast.error("Failed to mark as valid")
+      }
+    } catch {
+      toast.error("Failed to mark as valid")
+    }
+  }
+
   const deleteExpense = async (id: number) => {
     setDeletingIds((prev) => new Set(prev).add(id))
     try {
@@ -1137,17 +1170,6 @@ const handleImportFromDrive = async (fileId: string) => {
             </Button>
           </Link>
 
-          <Link href="/expenses/review-duplicates">
-            <Button variant="outline" size="sm" className="relative">
-              <FileSpreadsheet className="mr-2 h-4 w-4" /> Review
-              {flaggedCount > 0 && (
-                <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
-                  {flaggedCount > 99 ? "99+" : flaggedCount}
-                </span>
-              )}
-            </Button>
-          </Link>
-
           <Button variant="outline" size="sm" onClick={handleScanDrive} disabled={scanning}>
             {scanning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Cloud className="mr-2 h-4 w-4" />}
             {gdriveConnected ? "Drive" : "GDrive"}
@@ -1290,6 +1312,15 @@ const handleImportFromDrive = async (fileId: string) => {
           <Input placeholder="Search vendor, description, notes..." aria-label="Search expenses" className="pl-8 h-8 text-xs"
             value={search} onChange={(e) => handleSearchChange(e.target.value)} />
         </div>
+        <Button variant={flaggedFilter ? "default" : "outline"} size="sm" className="h-8 text-xs gap-1" onClick={() => { setFlaggedFilter((v) => !v); setPage(1) }} title="Show only potential duplicates">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          Duplicates
+          {flaggedCount > 0 && (
+            <span className="inline-flex items-center justify-center h-4 min-w-4 rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white">
+              {flaggedCount > 99 ? "99+" : flaggedCount}
+            </span>
+          )}
+        </Button>
         <Select value={datePreset} onValueChange={handleDatePreset}>
           <SelectTrigger className="h-8 text-xs w-28"><SelectValue placeholder="Date" /></SelectTrigger>
           <SelectContent>
@@ -1328,6 +1359,12 @@ const handleImportFromDrive = async (fileId: string) => {
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-2 py-1">
           <span className="text-xs text-muted-foreground">{selectedIds.size} selected</span>
+          {flaggedFilter && (
+            <Button variant="default" size="sm" className="h-7 text-xs" onClick={() => markValid([...selectedIds])}>
+              <CheckCircle2 className="mr-1.5 h-3 w-3" />
+              Mark Selected as Valid
+            </Button>
+          )}
           <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={promptDeleteSelected} disabled={batchDeleting}>
             {batchDeleting ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : null}
             {batchDeleting ? "Archiving..." : "Archive Selected"}
@@ -1552,7 +1589,7 @@ const handleImportFromDrive = async (fileId: string) => {
                   {expenses.length === 0 ? (
                     <tr>
                       <td colSpan={14} className="py-12 text-center text-muted-foreground text-sm">
-                        {search ? "No matching expenses" : "No expenses yet. Add one or bulk import!"}
+                        {flaggedFilter ? "No duplicates to review. All expenses are marked valid." : search ? "No matching expenses" : "No expenses yet. Add one or bulk import!"}
                       </td>
                     </tr>
                   ) : (
@@ -1645,10 +1682,18 @@ const handleImportFromDrive = async (fileId: string) => {
                               </Button>
                             </div>
                           ) : (
-                            <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-primary"
-                              onClick={() => startInlineEdit(expense)} aria-label="Edit expense">
-                              <Edit3 className="h-3 w-3" />
-                            </Button>
+                            <div className="flex gap-0.5 items-center">
+                              <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-primary"
+                                onClick={() => startInlineEdit(expense)} aria-label="Edit expense">
+                                <Edit3 className="h-3 w-3" />
+                              </Button>
+                              {expense.flagged && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
+                                  onClick={() => markValid([expense.id])} aria-label="Mark as valid" title="This expense was flagged as a potential duplicate. Click to mark it as valid and remove it from the duplicates review list.">
+                                  <CheckCircle2 className="h-5 w-5" />
+                                </Button>
+                              )}
+                            </div>
                           )}
                         </td>
                         <td className="px-1.5 py-1 text-[10px]">{expense.recurrenceType && expense.recurrenceType !== "onetime" ? expense.recurrenceType : "-"}</td>

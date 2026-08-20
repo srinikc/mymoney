@@ -30,6 +30,7 @@ export default function InsuranceScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<InsuranceItem | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
@@ -52,8 +53,8 @@ export default function InsuranceScreen() {
   useEffect(() => { fetch(); }, [fetch]);
 
   const openAdd = () => {
-    setEditItem(null); setFormName(''); setFormType('health'); setFormProvider(''); setFormPremium(''); setFormFrequency('yearly');
-    setFormStartDate(new Date().toISOString().split('T')[0]); setFormError(null); setShowForm(true);
+    setFormName(''); setFormType('health'); setFormProvider(''); setFormPremium(''); setFormFrequency('yearly');
+    setFormStartDate(new Date().toISOString().split('T')[0]); setFormError(null); setShowAdd(true);
   };
 
   const openEdit = (item: InsuranceItem) => {
@@ -62,13 +63,25 @@ export default function InsuranceScreen() {
     setFormStartDate(item.startDate?.split('T')[0] || new Date().toISOString().split('T')[0]); setFormError(null); setShowForm(true);
   };
 
+  const handleAddInline = async () => {
+    if (!formName.trim() || !formPremium || isNaN(parseFloat(formPremium))) { setFormError('Name and premium are required'); return; }
+    setFormLoading(true); setFormError(null);
+    try {
+      const payload = { name: formName.trim(), type: formType, provider: formProvider.trim(), premium: parseFloat(formPremium), premiumFrequency: formFrequency, startDate: formStartDate };
+      await api.post('/api/insurance', payload);
+      setShowAdd(false); setFormName(''); setFormProvider(''); setFormPremium(''); fetch();
+    } catch (err: unknown) { setFormError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to save'); }
+    finally { setFormLoading(false); }
+  };
+
+  const cancelAdd = () => { setShowAdd(false); setFormName(''); setFormProvider(''); setFormPremium(''); setFormError(null); };
+
   const handleSave = async () => {
     if (!formName.trim() || !formPremium || isNaN(parseFloat(formPremium))) { setFormError('Name and premium are required'); return; }
     setFormLoading(true); setFormError(null);
     try {
       const payload = { name: formName.trim(), type: formType, provider: formProvider.trim(), premium: parseFloat(formPremium), premiumFrequency: formFrequency, startDate: formStartDate };
       if (editItem) { await api.put(`/api/insurance/${editItem.id}`, payload); }
-      else { await api.post('/api/insurance', payload); }
       setShowForm(false); fetch();
     } catch (err: unknown) { setFormError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to save'); }
     finally { setFormLoading(false); }
@@ -94,6 +107,31 @@ export default function InsuranceScreen() {
       : error ? <View style={styles.center}><Ionicons name="alert-circle" size={40} color={theme.expense} /><Text style={{ color: theme.expense, fontSize: 14 }}>{error}</Text></View>
       : (
         <FlatList data={data} keyExtractor={(i, idx) => String(i.id ?? idx)}
+          ListHeaderComponent={showAdd ? (
+            <View style={[styles.card, { backgroundColor: theme.surface }]}>
+              {formError && <Text style={{ color: theme.expense, fontSize: 13, marginBottom: 12 }}>{formError}</Text>}
+              <Text style={styles.label}>Policy Name</Text><TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formName} onChangeText={setFormName} placeholder="e.g. Health Insurance" placeholderTextColor={theme.textTertiary} />
+              <Text style={styles.label}>Type</Text>
+              <View style={styles.typeRow}>{INSURANCE_TYPES.map((t) => (
+                <TouchableOpacity key={t} onPress={() => setFormType(t)} style={[styles.typeBtn, { backgroundColor: formType === t ? theme.primary : theme.background }]}>
+                  <Text style={{ color: formType === t ? '#fff' : theme.text, fontSize: 12 }}>{t.replace('_', ' ')}</Text>
+                </TouchableOpacity>
+              ))}</View>
+              <Text style={styles.label}>Provider</Text><TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formProvider} onChangeText={setFormProvider} placeholder="e.g. HDFC Ergo" placeholderTextColor={theme.textTertiary} />
+              <Text style={styles.label}>Premium (₹)</Text><TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formPremium} onChangeText={setFormPremium} keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textTertiary} />
+              <Text style={styles.label}>Frequency</Text>
+              <View style={styles.typeRow}>{FREQUENCIES.map((f) => (
+                <TouchableOpacity key={f} onPress={() => setFormFrequency(f)} style={[styles.typeBtn, { backgroundColor: formFrequency === f ? theme.primary : theme.background }]}>
+                  <Text style={{ color: formFrequency === f ? '#fff' : theme.text, fontSize: 11 }}>{f.replace('_', ' ')}</Text>
+                </TouchableOpacity>
+              ))}</View>
+              <Text style={styles.label}>Start Date</Text><TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formStartDate} onChangeText={setFormStartDate} placeholder="YYYY-MM-DD" placeholderTextColor={theme.textTertiary} />
+              <View style={styles.modalActions}>
+                <TouchableOpacity onPress={cancelAdd} style={styles.cancelBtn}><Text style={{ color: theme.textSecondary, fontWeight: '600' }}>Cancel</Text></TouchableOpacity>
+                <TouchableOpacity onPress={handleAddInline} disabled={formLoading} style={[styles.saveBtn, { backgroundColor: theme.primary }]}>{formLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>Add</Text>}</TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
           renderItem={({ item }) => (
             <TouchableOpacity onPress={() => openEdit(item)} onLongPress={() => handleDelete(item)}>
               <View style={[styles.card, { backgroundColor: theme.surface }]}>

@@ -105,6 +105,7 @@ export async function GET(req: Request) {
   const pageSize = Math.max(1, Math.min(200, Number.parseInt(searchParams.get("pageSize") || "100")))
   const sortField = searchParams.get("sortField") || "date"
   const sortDir = searchParams.get("sortDir") || "desc"
+  const flagged = searchParams.get("flagged") === "true"
 
   // Build filter conditions using AND array to support multiple filter types
   const andConditions: Prisma.ExpenseWhereInput[] = [{ profileId }]
@@ -115,6 +116,11 @@ export async function GET(req: Request) {
     andConditions.push({ deletedAt: { not: null } })
   } else {
     andConditions.push({ deletedAt: null })
+  }
+
+  // Show only flagged (potential duplicate) records when ?flagged=true
+  if (flagged) {
+    andConditions.push({ flagged: true })
   }
 
   // --- Backward compat single-value filters ---

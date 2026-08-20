@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme, RefreshControl, ActivityIndicator, Modal, TextInput, Alert,
+  View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme, RefreshControl, ActivityIndicator, TextInput, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
@@ -72,6 +72,28 @@ export default function AssetsScreen() {
         <TouchableOpacity onPress={() => { setFormName(''); setFormValue(''); setFormError(null); setShowForm(true); }} style={[styles.addBtn, { backgroundColor: theme.primaryLight }]}><Ionicons name="add" size={22} color={theme.primary} /></TouchableOpacity>
       </View>
 
+      {showForm && (
+        <View style={[styles.formCard, { backgroundColor: theme.surface }]}>
+          <View style={styles.formHeader}>
+            <Text style={[styles.formTitle, { color: theme.text }]}>Add Asset</Text>
+            <TouchableOpacity onPress={() => setShowForm(false)}><Ionicons name="close" size={22} color={theme.textTertiary} /></TouchableOpacity>
+          </View>
+          {formError ? <View style={[styles.formError, { backgroundColor: theme.expenseLight }]}><Text style={{ color: theme.expense, fontSize: 13 }}>{formError}</Text></View> : null}
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Name</Text>
+          <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formName} onChangeText={setFormName} placeholder="e.g. House" placeholderTextColor={theme.textTertiary} />
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Value</Text>
+          <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formValue} onChangeText={setFormValue} placeholder="0.00" placeholderTextColor={theme.textTertiary} keyboardType="decimal-pad" />
+          <View style={styles.formActions}>
+            <TouchableOpacity style={[styles.cancelBtn, { borderColor: theme.border }]} onPress={() => setShowForm(false)}>
+              <Text style={{ color: theme.textSecondary, fontSize: 15, fontWeight: '600' }}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.primary }]} onPress={handleSave} disabled={formLoading}>
+              {formLoading ? <ActivityIndicator color="white" /> : <Text style={styles.saveBtnText}>Save</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {loading ? <View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View>
       : error ? <View style={styles.center}><Ionicons name="alert-circle" size={40} color={theme.expense} /><Text style={{ color: theme.expense, fontSize: 14, fontWeight: '500' }}>{error}</Text></View>
       : <FlatList data={data} keyExtractor={(i, idx) => i.id || i._id || String(idx)}
@@ -91,19 +113,6 @@ export default function AssetsScreen() {
         />
       }
 
-      <Modal visible={showForm} transparent animationType="slide">
-        <View style={styles.modalOverlay}><View style={[styles.modalCard, { backgroundColor: theme.surface }]}>
-          <View style={styles.modalHeader}><Text style={[styles.modalTitle, { color: theme.text }]}>Add Asset</Text><TouchableOpacity onPress={() => setShowForm(false)}><Ionicons name="close" size={24} color={theme.textTertiary} /></TouchableOpacity></View>
-          {formError ? <View style={[styles.formError, { backgroundColor: theme.expenseLight }]}><Text style={{ color: theme.expense, fontSize: 13 }}>{formError}</Text></View> : null}
-          <Text style={[styles.label, { color: theme.textSecondary }]}>Name</Text>
-          <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formName} onChangeText={setFormName} placeholder="e.g. House" placeholderTextColor={theme.textTertiary} />
-          <Text style={[styles.label, { color: theme.textSecondary }]}>Value</Text>
-          <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formValue} onChangeText={setFormValue} placeholder="0.00" placeholderTextColor={theme.textTertiary} keyboardType="decimal-pad" />
-          <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.primary }]} onPress={handleSave} disabled={formLoading}>
-            {formLoading ? <ActivityIndicator color="white" /> : <Text style={styles.saveBtnText}>Save</Text>}
-          </TouchableOpacity>
-        </View></View>
-      </Modal>
     </View>
   );
 }
@@ -119,12 +128,14 @@ const styles = StyleSheet.create({
   cardIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   cardTitle: { fontSize: 14, fontWeight: '600' }, cardAmount: { fontSize: 15, fontWeight: '700' },
   empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalCard: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '80%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 18, fontWeight: '700' }, formError: { padding: 10, borderRadius: 8, marginBottom: 12 },
+  formCard: { margin: 20, marginBottom: 4, borderRadius: 16, padding: 20 },
+  formHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  formTitle: { fontSize: 18, fontWeight: '700' },
+  formError: { padding: 10, borderRadius: 8, marginBottom: 12 },
+  formActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
+  cancelBtn: { flex: 1, height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   label: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 12 },
   input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
-  saveBtn: { height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 24 },
+  saveBtn: { flex: 1, height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 });

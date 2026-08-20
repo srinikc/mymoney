@@ -21,7 +21,6 @@ test.describe("Sidebar Navigation", () => {
     { href: "/expenses", label: "All Expenses" },
     { href: "/expenses/import", label: "Bulk Import" },
     { href: "/expenses/vendors", label: "Vendors" },
-    { href: "/expenses/review-duplicates", label: "Review" },
     { href: "/assets", label: "Assets" },
     { href: "/subscriptions", label: "Subscriptions" },
     { href: "/settings/integrations", label: "Integrations" },

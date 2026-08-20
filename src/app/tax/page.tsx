@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import {
   AlertDialog,
@@ -37,6 +37,7 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
+  X,
 } from "lucide-react"
 
 const FY_OPTIONS = ["2026-27", "2025-26", "2024-25", "2023-24"]
@@ -318,66 +319,72 @@ function DocumentsTab({ fy }: { fy: string }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{documents.length} document(s) for FY {fy}</p>
-        <Dialog open={showUpload} onOpenChange={setShowUpload}>
-          <DialogTrigger asChild>
-            <Button size="sm"><Upload className="mr-2 h-4 w-4" /> Upload Document</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>Upload Tax Document</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Document Type</Label>
-                <Select value={uploadType} onValueChange={setUploadType}>
-                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                  <SelectContent>
-                    {DOC_TYPES.map((dt) => (
-                      <SelectItem key={dt.value} value={dt.value}>{dt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Label (optional)</Label>
-                <Input value={uploadLabel} onChange={(e) => setUploadLabel(e.target.value)} placeholder="e.g., Employer: ABC Corp" />
-              </div>
-              <div>
-                <Label>File (PDF, PNG, JPG — max 10MB)</Label>
-                <Input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-                {file && <p className="text-xs text-muted-foreground mt-1">{file.name} ({formatBytes(file.size)})</p>}
-              </div>
-
-              {uploadType === "form16" && (
-                <div className="rounded-lg border p-4 space-y-3 bg-muted/20">
-                  <p className="text-sm font-medium">Form 16 Metadata (optional)</p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div><Label>Gross Salary (₹)</Label><Input type="number" value={formData.grossSalary || ""} onChange={(e) => setFormData((p) => ({ ...p, grossSalary: e.target.value }))} /></div>
-                    <div><Label>TDS Deducted (₹)</Label><Input type="number" value={formData.tds || ""} onChange={(e) => setFormData((p) => ({ ...p, tds: e.target.value }))} /></div>
-                    <div><Label>Employer Name</Label><Input value={formData.employerName || ""} onChange={(e) => setFormData((p) => ({ ...p, employerName: e.target.value }))} /></div>
-                    <div><Label>TAN</Label><Input value={formData.tan || ""} onChange={(e) => setFormData((p) => ({ ...p, tan: e.target.value }))} /></div>
-                    <div><Label>PAN</Label><Input value={formData.pan || ""} onChange={(e) => setFormData((p) => ({ ...p, pan: e.target.value }))} /></div>
-                  </div>
-                </div>
-              )}
-              {uploadType === "form26as" && (
-                <div className="rounded-lg border p-4 space-y-3 bg-muted/20">
-                  <p className="text-sm font-medium">Form 26AS Metadata (optional)</p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div><Label>TDS as per 26AS (₹)</Label><Input type="number" value={formData.tds || ""} onChange={(e) => setFormData((p) => ({ ...p, tds: e.target.value }))} /></div>
-                    <div><Label>PAN</Label><Input value={formData.pan || ""} onChange={(e) => setFormData((p) => ({ ...p, pan: e.target.value }))} /></div>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-end gap-3">
-                <Button variant="outline" onClick={() => setShowUpload(false)}>Cancel</Button>
-                <Button onClick={handleUpload} disabled={!file || !uploadType || uploading}>
-                  {uploading ? "Uploading..." : "Upload"}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button size="sm" onClick={() => setShowUpload((v) => !v)}>
+          <Upload className="mr-2 h-4 w-4" /> {showUpload ? "Close Upload" : "Upload Document"}
+        </Button>
       </div>
+
+      {showUpload && (
+        <Card className="border-dashed">
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold">Upload Tax Document</p>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowUpload(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div>
+              <Label>Document Type</Label>
+              <Select value={uploadType} onValueChange={setUploadType}>
+                <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                <SelectContent>
+                  {DOC_TYPES.map((dt) => (
+                    <SelectItem key={dt.value} value={dt.value}>{dt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Label (optional)</Label>
+              <Input value={uploadLabel} onChange={(e) => setUploadLabel(e.target.value)} placeholder="e.g., Employer: ABC Corp" />
+            </div>
+            <div>
+              <Label>File (PDF, PNG, JPG — max 10MB)</Label>
+              <Input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+              {file && <p className="text-xs text-muted-foreground mt-1">{file.name} ({formatBytes(file.size)})</p>}
+            </div>
+
+            {uploadType === "form16" && (
+              <div className="rounded-lg border p-4 space-y-3 bg-muted/20">
+                <p className="text-sm font-medium">Form 16 Metadata (optional)</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div><Label>Gross Salary (₹)</Label><Input type="number" value={formData.grossSalary || ""} onChange={(e) => setFormData((p) => ({ ...p, grossSalary: e.target.value }))} /></div>
+                  <div><Label>TDS Deducted (₹)</Label><Input type="number" value={formData.tds || ""} onChange={(e) => setFormData((p) => ({ ...p, tds: e.target.value }))} /></div>
+                  <div><Label>Employer Name</Label><Input value={formData.employerName || ""} onChange={(e) => setFormData((p) => ({ ...p, employerName: e.target.value }))} /></div>
+                  <div><Label>TAN</Label><Input value={formData.tan || ""} onChange={(e) => setFormData((p) => ({ ...p, tan: e.target.value }))} /></div>
+                  <div><Label>PAN</Label><Input value={formData.pan || ""} onChange={(e) => setFormData((p) => ({ ...p, pan: e.target.value }))} /></div>
+                </div>
+              </div>
+            )}
+            {uploadType === "form26as" && (
+              <div className="rounded-lg border p-4 space-y-3 bg-muted/20">
+                <p className="text-sm font-medium">Form 26AS Metadata (optional)</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div><Label>TDS as per 26AS (₹)</Label><Input type="number" value={formData.tds || ""} onChange={(e) => setFormData((p) => ({ ...p, tds: e.target.value }))} /></div>
+                  <div><Label>PAN</Label><Input value={formData.pan || ""} onChange={(e) => setFormData((p) => ({ ...p, pan: e.target.value }))} /></div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowUpload(false)}>Cancel</Button>
+              <Button onClick={handleUpload} disabled={!file || !uploadType || uploading}>
+                {uploading ? "Uploading..." : "Upload"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {loading ? (
         <div className="space-y-3">
@@ -453,6 +460,7 @@ function ITRTab({ fy }: { fy: string }) {
   const [records, setRecords] = useState<ITRRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<ITRRecord | null>(null)
   const [form, setForm] = useState({ ay: fy.replace("-", "-").replace("25", "26"), itrForm: "", status: "", filedDate: "", acknowledgmentNo: "", taxableIncome: "", taxLiability: "", tdsClaimed: "", refundAmount: "", notes: "" })
   const [saving, setSaving] = useState(false)
@@ -486,6 +494,7 @@ function ITRTab({ fy }: { fy: string }) {
       if (!res.ok) throw new Error(data.error || "Failed to save")
       toast.success(editing ? "ITR updated" : "ITR record created")
       setShowForm(false)
+      setShowAdd(false)
       setEditing(null)
       resetForm()
       loadITRs()
@@ -528,6 +537,7 @@ function ITRTab({ fy }: { fy: string }) {
       notes: r.notes || "",
     })
     setShowForm(true)
+    setShowAdd(false)
   }
 
   const grouped = records.reduce<Record<string, ITRRecord[]>>((acc, r) => {
@@ -540,43 +550,83 @@ function ITRTab({ fy }: { fy: string }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{records.length} ITR record(s)</p>
-        <Dialog open={showForm} onOpenChange={(open) => { setShowForm(open); if (!open) { setEditing(null); resetForm() } }}>
-          <DialogTrigger asChild>
-            <Button size="sm" onClick={() => { setEditing(null); resetForm() }}><Plus className="mr-2 h-4 w-4" /> Add ITR Record</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>{editing ? "Edit ITR Record" : "Add ITR Record"}</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div><Label>Assessment Year</Label><Input value={form.ay} onChange={(e) => setForm((p) => ({ ...p, ay: e.target.value }))} placeholder="e.g., 2025-26" /></div>
-                <div><Label>ITR Form</Label>
-                  <Select value={form.itrForm} onValueChange={(v) => setForm((p) => ({ ...p, itrForm: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>{ITR_FORMS.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div><Label>Status</Label>
-                  <Select value={form.status} onValueChange={(v) => setForm((p) => ({ ...p, status: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>{ITR_STATUSES.map((s) => <SelectItem key={s} value={s}>{ITR_STATUS_CONFIG[s]?.label || s}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div><Label>Filed Date</Label><Input type="date" value={form.filedDate} onChange={(e) => setForm((p) => ({ ...p, filedDate: e.target.value }))} /></div>
-                <div><Label>Acknowledgment No.</Label><Input value={form.acknowledgmentNo} onChange={(e) => setForm((p) => ({ ...p, acknowledgmentNo: e.target.value }))} /></div>
-                <div><Label>Taxable Income (₹)</Label><Input type="number" value={form.taxableIncome} onChange={(e) => setForm((p) => ({ ...p, taxableIncome: e.target.value }))} /></div>
-                <div><Label>Tax Liability (₹)</Label><Input type="number" value={form.taxLiability} onChange={(e) => setForm((p) => ({ ...p, taxLiability: e.target.value }))} /></div>
-                <div><Label>TDS Claimed (₹)</Label><Input type="number" value={form.tdsClaimed} onChange={(e) => setForm((p) => ({ ...p, tdsClaimed: e.target.value }))} /></div>
-                <div><Label>Refund Amount (₹)</Label><Input type="number" value={form.refundAmount} onChange={(e) => setForm((p) => ({ ...p, refundAmount: e.target.value }))} /></div>
-              </div>
-              <div><Label>Notes</Label><Input value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} /></div>
-              <div className="flex justify-end gap-3">
-                <Button variant="outline" onClick={() => { setShowForm(false); setEditing(null) }}>Cancel</Button>
-                <Button onClick={handleSave} disabled={saving}>{saving ? "Saving..." : editing ? "Update" : "Save"}</Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button size="sm" onClick={() => { setEditing(null); resetForm(); setShowForm(false); setShowAdd((v) => !v) }}>
+          <Plus className="mr-2 h-4 w-4" /> {showAdd ? "Close Form" : "Add ITR Record"}
+        </Button>
       </div>
+
+      {showAdd && (
+        <Card className="border-dashed">
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold">Add ITR Record</p>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowAdd(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><Label>Assessment Year</Label><Input value={form.ay} onChange={(e) => setForm((p) => ({ ...p, ay: e.target.value }))} placeholder="e.g., 2025-26" /></div>
+              <div><Label>ITR Form</Label>
+                <Select value={form.itrForm} onValueChange={(v) => setForm((p) => ({ ...p, itrForm: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>{ITR_FORMS.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>Status</Label>
+                <Select value={form.status} onValueChange={(v) => setForm((p) => ({ ...p, status: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>{ITR_STATUSES.map((s) => <SelectItem key={s} value={s}>{ITR_STATUS_CONFIG[s]?.label || s}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>Filed Date</Label><Input type="date" value={form.filedDate} onChange={(e) => setForm((p) => ({ ...p, filedDate: e.target.value }))} /></div>
+              <div><Label>Acknowledgment No.</Label><Input value={form.acknowledgmentNo} onChange={(e) => setForm((p) => ({ ...p, acknowledgmentNo: e.target.value }))} /></div>
+              <div><Label>Taxable Income (₹)</Label><Input type="number" value={form.taxableIncome} onChange={(e) => setForm((p) => ({ ...p, taxableIncome: e.target.value }))} /></div>
+              <div><Label>Tax Liability (₹)</Label><Input type="number" value={form.taxLiability} onChange={(e) => setForm((p) => ({ ...p, taxLiability: e.target.value }))} /></div>
+              <div><Label>TDS Claimed (₹)</Label><Input type="number" value={form.tdsClaimed} onChange={(e) => setForm((p) => ({ ...p, tdsClaimed: e.target.value }))} /></div>
+              <div><Label>Refund Amount (₹)</Label><Input type="number" value={form.refundAmount} onChange={(e) => setForm((p) => ({ ...p, refundAmount: e.target.value }))} /></div>
+            </div>
+            <div><Label>Notes</Label><Input value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} /></div>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
+              <Button onClick={handleSave} disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog open={showForm} onOpenChange={(open) => { setShowForm(open); if (!open) { setEditing(null); resetForm() } }}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Edit ITR Record</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><Label>Assessment Year</Label><Input value={form.ay} onChange={(e) => setForm((p) => ({ ...p, ay: e.target.value }))} placeholder="e.g., 2025-26" /></div>
+              <div><Label>ITR Form</Label>
+                <Select value={form.itrForm} onValueChange={(v) => setForm((p) => ({ ...p, itrForm: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>{ITR_FORMS.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>Status</Label>
+                <Select value={form.status} onValueChange={(v) => setForm((p) => ({ ...p, status: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>{ITR_STATUSES.map((s) => <SelectItem key={s} value={s}>{ITR_STATUS_CONFIG[s]?.label || s}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>Filed Date</Label><Input type="date" value={form.filedDate} onChange={(e) => setForm((p) => ({ ...p, filedDate: e.target.value }))} /></div>
+              <div><Label>Acknowledgment No.</Label><Input value={form.acknowledgmentNo} onChange={(e) => setForm((p) => ({ ...p, acknowledgmentNo: e.target.value }))} /></div>
+              <div><Label>Taxable Income (₹)</Label><Input type="number" value={form.taxableIncome} onChange={(e) => setForm((p) => ({ ...p, taxableIncome: e.target.value }))} /></div>
+              <div><Label>Tax Liability (₹)</Label><Input type="number" value={form.taxLiability} onChange={(e) => setForm((p) => ({ ...p, taxLiability: e.target.value }))} /></div>
+              <div><Label>TDS Claimed (₹)</Label><Input type="number" value={form.tdsClaimed} onChange={(e) => setForm((p) => ({ ...p, tdsClaimed: e.target.value }))} /></div>
+              <div><Label>Refund Amount (₹)</Label><Input type="number" value={form.refundAmount} onChange={(e) => setForm((p) => ({ ...p, refundAmount: e.target.value }))} /></div>
+            </div>
+            <div><Label>Notes</Label><Input value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} /></div>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => { setShowForm(false); setEditing(null) }}>Cancel</Button>
+              <Button onClick={handleSave} disabled={saving}>{saving ? "Saving..." : editing ? "Update" : "Save"}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {loading ? (
         <Skeleton className="h-32 w-full" />

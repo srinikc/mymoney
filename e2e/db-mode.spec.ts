@@ -138,6 +138,11 @@ test.describe("P5 — Database Mode Switching (Admin)", () => {
 
     test("admin can switch to test mode and back", async ({ page }) => {
       test.skip(!process.env.TEST_DATABASE_URL, "TEST_DATABASE_URL not configured in this environment")
+      // E2E-forced test mode: when the server is started with E2E=true and a test
+      // DB is configured, getDbMode() always returns "test" so e2e can never write
+      // to the production dev database. In that case switching to production must
+      // be prevented.
+      const e2eForced = process.env.E2E === "true"
       // Switch to test
       const putRes = await page.request.put("/api/admin/db-mode", {
         data: { mode: "test" },
@@ -151,18 +156,18 @@ test.describe("P5 — Database Mode Switching (Admin)", () => {
       data = await getRes.json()
       expect(data.mode).toBe("test")
 
-      // Switch back to production
+      // Switch back to production (prevented when E2E-forced)
       const putBack = await page.request.put("/api/admin/db-mode", {
         data: { mode: "production" },
       })
       expect(putBack.status()).toBe(200)
       data = await putBack.json()
-      expect(data.mode).toBe("production")
+      expect(data.mode).toBe(e2eForced ? "test" : "production")
 
       // Verify
       const getBack = await page.request.get("/api/admin/db-mode")
       data = await getBack.json()
-      expect(data.mode).toBe("production")
+      expect(data.mode).toBe(e2eForced ? "test" : "production")
     })
 
     test("invalid mode is rejected with 400", async ({ page }) => {

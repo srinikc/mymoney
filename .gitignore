@@ -16,6 +16,7 @@ tsconfig.tsbuildinfo
 test-results/
 playwright-report/
 e2e-results/
+e2e/fixtures/
 .gpay-profile/
 data/
 .db-mode.json

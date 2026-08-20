@@ -87,7 +87,6 @@ export const helpContent: Record<string, HelpSection> = {
     controls: [
       { name: "Add button", description: "Opens a dialog to create a new expense manually.", location: "Top toolbar" },
       { name: "Bulk Import button", description: "Navigates to the /expenses/import page for batch uploads.", location: "Top toolbar" },
-      { name: "Review button", description: "Navigates to /expenses/review-duplicates to merge duplicate entries.", location: "Top toolbar" },
       { name: "Drive button", description: "Opens a file picker to import from Google Drive.", location: "Top toolbar" },
       { name: "Refresh GPay button", description: "Pulls the latest GPay transactions for import.", location: "Top toolbar" },
       { name: "Refresh button", description: "Reloads the expense list from the server.", location: "Top toolbar" },
@@ -135,7 +134,7 @@ export const helpContent: Record<string, HelpSection> = {
   "/expenses/import": {
     title: "Bulk Import",
     summary: "Import many expenses at once from a spreadsheet or GPay export files.",
-    details: "Use this page when you have a file full of expenses to bring in at once. Two import types are supported: Upload Spreadsheet (a CSV/XLSX format for bank/credit card statements) and GPay (Google Pay transaction history export). Upload the file, preview the parsed data, then import everything in one click. Vendors are auto-learned from the file (deduped), and the spreadsheet also learns each vendor's category, sub-category, and person. After import, visit Review Duplicates to clean up any overlapping entries.",
+    details: "Use this page when you have a file full of expenses to bring in at once. Two import types are supported: Upload Spreadsheet (a CSV/XLSX format for bank/credit card statements) and GPay (Google Pay transaction history export). Upload the file, preview the parsed data, then import everything in one click. Vendors are auto-learned from the file (deduped), and the spreadsheet also learns each vendor's category, sub-category, and person.",
     controls: [
       { name: "Tab selector — Upload Spreadsheet", description: "Switch to the spreadsheet importer for bank/credit card statement files.", location: "Top of the import area" },
       { name: "Tab selector — GPay", description: "Switch to the GPay importer for Google Pay transaction exports.", location: "Top of the import area" },
@@ -156,31 +155,6 @@ export const helpContent: Record<string, HelpSection> = {
     relatedFeatures: [
       { name: "Expenses Ledger", description: "Imported expenses appear in the main expense list." },
       { name: "Merchants", description: "Merchant name mappings from imports can be reviewed and saved." },
-      { name: "Review Duplicates", description: "Always check this page after import to merge any duplicate entries." },
-    ],
-  },
-
-  "/expenses/review-duplicates": {
-    title: "Review Duplicates",
-    summary: "Catch and resolve expense entries that may have been imported twice.",
-    details: "After bulk imports or GPay syncs, the same transaction may appear twice. This page automatically flags potential duplicates based on matching date, amount, and vendor. Review each set, select which ones to keep or delete, and clean up your ledger. Use the search input to find specific duplicates, and navigate through pages using the pagination controls.",
-    controls: [
-      { name: "Search input", description: "Free-text search across flagged duplicate entries.", location: "Top of the page" },
-      { name: "Keep (N) button", description: "Marks the selected entries as legitimate (not duplicates) and removes them from the review list.", location: "Next to each duplicate group, N = number of selected rows" },
-      { name: "Delete (N) button", description: "Permanently deletes the selected entries from the expense ledger.", location: "Next to each duplicate group, N = number of selected rows" },
-      { name: "Checkboxes (per row)", description: "Select individual expense rows within a duplicate group.", location: "Left side of each row" },
-      { name: "Select All checkbox", description: "Toggle all rows in the current duplicate group on or off.", location: "Top of each duplicate group" },
-      { name: "Pagination Prev button", description: "Go to the previous page of duplicate groups.", location: "Bottom of the page" },
-      { name: "Pagination Next button", description: "Go to the next page of duplicate groups.", location: "Bottom of the page" },
-    ],
-    workflow: [
-      { step: "Review flagged duplicates", description: "Each group shows 2+ expenses that look similar. Compare date, amount, and vendor side by side.", example: "₹500 'Swiggy' on 15-Jan appears twice — one from manual entry, one from GPay sync." },
-      { step: "Keep legitimate ones", description: "Select the genuine entries and click 'Keep' to leave them in your ledger.", example: "Keep the original ₹500 Swiggy expense and delete the GPay duplicate." },
-      { step: "Delete true duplicates", description: "Select the extra entries and click 'Delete' to permanently remove them." },
-    ],
-    relatedFeatures: [
-      { name: "Expenses Ledger", description: "Changes here update your main expense list." },
-      { name: "Bulk Import", description: "Always check this page after a bulk import to clean up." },
     ],
   },
 

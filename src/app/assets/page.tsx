@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatCurrency, formatDate } from "@/lib/utils"
@@ -35,6 +35,7 @@ export default function AssetsPage() {
   const [assets, setAssets] = useState<Asset[]>([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
+  const [showAddForm, setShowAddForm] = useState(false)
   const [editAsset, setEditAsset] = useState<Asset | null>(null)
   const [form, setForm] = useState(defaultForm)
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
@@ -75,7 +76,8 @@ export default function AssetsPage() {
         if (!res.ok) throw new Error("Add failed")
         toast.success("Asset added")
       }
-      setOpen(false)
+      if (editAsset) setOpen(false)
+      else setShowAddForm(false)
       setEditAsset(null)
       setForm(defaultForm)
       setFormErrors({})
@@ -87,6 +89,7 @@ export default function AssetsPage() {
 
   const handleEdit = (asset: Asset) => {
     setEditAsset(asset)
+    setShowAddForm(false)
     setFormErrors({})
     setForm({
       name: asset.name,
@@ -125,6 +128,83 @@ export default function AssetsPage() {
   const totalCost = assets.reduce((s, a) => s + (a.purchasePrice ?? a.currentValue), 0)
   const totalPL = totalValue - totalCost
 
+  const renderAssetFields = () => (
+    <div className="grid gap-4 md:grid-cols-2">
+      <div className="md:col-span-2">
+        <label className="text-sm font-medium">Name</label>
+        <Input placeholder="e.g. 2BHK Flat" value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setFormErrors((prev) => ({ ...prev, name: "" })) }} className={formErrors.name ? "border-destructive" : ""} />
+        {formErrors.name && <p className="mt-1 text-xs text-destructive">{formErrors.name}</p>}
+      </div>
+      <div>
+        <label className="text-sm font-medium">Type</label>
+        <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="property">Property</SelectItem>
+            <SelectItem value="building">Building</SelectItem>
+            <SelectItem value="gold">Gold</SelectItem>
+            <SelectItem value="silver">Silver</SelectItem>
+            <SelectItem value="precious_metals">Precious Metals</SelectItem>
+            <SelectItem value="equipment">Equipment</SelectItem>
+            <SelectItem value="vehicle">Vehicle</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <label className="text-sm font-medium">Current Value (₹)</label>
+        <Input type="number" placeholder="0" value={form.currentValue} onChange={(e) => { setForm({ ...form, currentValue: e.target.value }); setFormErrors((prev) => ({ ...prev, currentValue: "" })) }} className={formErrors.currentValue ? "border-destructive" : ""} />
+        {formErrors.currentValue && <p className="mt-1 text-xs text-destructive">{formErrors.currentValue}</p>}
+      </div>
+      <div>
+        <label className="text-sm font-medium">Purchase Price (₹)</label>
+        <Input type="number" placeholder="0" value={form.purchasePrice} onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })} />
+      </div>
+      <div>
+        <label className="text-sm font-medium">Purchase Date</label>
+        <DatePicker value={form.purchaseDate} onChange={(d) => setForm({ ...form, purchaseDate: d })} label="Purchase Date" />
+      </div>
+      <div>
+        <label className="text-sm font-medium">Quantity</label>
+        <Input type="number" placeholder="e.g. 100" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
+      </div>
+      <div>
+        <label className="text-sm font-medium">Unit</label>
+        <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
+          <SelectTrigger><SelectValue placeholder="Select unit" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">None</SelectItem>
+            <SelectItem value="grams">Grams</SelectItem>
+            <SelectItem value="kg">Kilograms</SelectItem>
+            <SelectItem value="sqft">Sq. Feet</SelectItem>
+            <SelectItem value="carats">Carats</SelectItem>
+            <SelectItem value="units">Units</SelectItem>
+            <SelectItem value="tola">Tola</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <label className="text-sm font-medium">Status</label>
+        <Select value="owned" onValueChange={() => {}}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="owned">Owned</SelectItem>
+            <SelectItem value="sold">Sold</SelectItem>
+            <SelectItem value="inherited">Inherited</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="md:col-span-2">
+        <label className="text-sm font-medium">Location</label>
+        <Input placeholder="e.g. Mumbai, Dadar" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+      </div>
+      <div className="md:col-span-2">
+        <label className="text-sm font-medium">Notes</label>
+        <Input placeholder="Optional notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+      </div>
+    </div>
+  )
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -132,96 +212,23 @@ export default function AssetsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Assets</h1>
           <p className="text-muted-foreground">Track properties, precious metals, equipment and valuables</p>
         </div>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditAsset(null); setForm(defaultForm) } }}>
-          <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> Add Asset</Button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[85vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>{editAsset ? "Edit Asset" : "Add Asset"}</DialogTitle></DialogHeader>
-            <div className="grid gap-4">
-              <div>
-                <label className="text-sm font-medium">Name</label>
-                <Input placeholder="e.g. 2BHK Flat" value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setFormErrors((prev) => ({ ...prev, name: "" })) }} className={formErrors.name ? "border-destructive" : ""} />
-                {formErrors.name && <p className="mt-1 text-xs text-destructive">{formErrors.name}</p>}
-              </div>
-              <div>
-                <label className="text-sm font-medium">Type</label>
-                <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="property">Property</SelectItem>
-                    <SelectItem value="building">Building</SelectItem>
-                    <SelectItem value="gold">Gold</SelectItem>
-                    <SelectItem value="silver">Silver</SelectItem>
-                    <SelectItem value="precious_metals">Precious Metals</SelectItem>
-                    <SelectItem value="equipment">Equipment</SelectItem>
-                    <SelectItem value="vehicle">Vehicle</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Current Value (₹)</label>
-                  <Input type="number" placeholder="0" value={form.currentValue} onChange={(e) => { setForm({ ...form, currentValue: e.target.value }); setFormErrors((prev) => ({ ...prev, currentValue: "" })) }} className={formErrors.currentValue ? "border-destructive" : ""} />
-                  {formErrors.currentValue && <p className="mt-1 text-xs text-destructive">{formErrors.currentValue}</p>}
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Purchase Price (₹)</label>
-                  <Input type="number" placeholder="0" value={form.purchasePrice} onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Purchase Date</label>
-                  <DatePicker value={form.purchaseDate} onChange={(d) => setForm({ ...form, purchaseDate: d })} label="Purchase Date" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Quantity</label>
-                  <Input type="number" placeholder="e.g. 100" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Unit</label>
-                  <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select unit" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-                      <SelectItem value="grams">Grams</SelectItem>
-                      <SelectItem value="kg">Kilograms</SelectItem>
-                      <SelectItem value="sqft">Sq. Feet</SelectItem>
-                      <SelectItem value="carats">Carats</SelectItem>
-                      <SelectItem value="units">Units</SelectItem>
-                      <SelectItem value="tola">Tola</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Status</label>
-                  <Select value="owned" onValueChange={() => {}}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="owned">Owned</SelectItem>
-                      <SelectItem value="sold">Sold</SelectItem>
-                      <SelectItem value="inherited">Inherited</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Location</label>
-                <Input placeholder="e.g. Mumbai, Dadar" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Notes</label>
-                <Input placeholder="Optional notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-              </div>
-              <Button onClick={handleSubmit}>{editAsset ? "Update Asset" : "Add Asset"}</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => { setEditAsset(null); setForm(defaultForm); setFormErrors({}); setShowAddForm((v) => !v) }}>
+          <Plus className="mr-2 h-4 w-4" /> Add Asset
+        </Button>
       </div>
+
+      {showAddForm && (
+        <Card>
+          <CardHeader className="pb-3"><CardTitle className="text-lg">Add Asset</CardTitle></CardHeader>
+          <CardContent>
+            {renderAssetFields()}
+            <div className="mt-4 flex items-center gap-2">
+              <Button onClick={handleSubmit}><Plus className="mr-2 h-4 w-4" /> Add Asset</Button>
+              <Button variant="ghost" onClick={() => { setShowAddForm(false); setForm(defaultForm); setFormErrors({}) }}>Cancel</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
@@ -268,6 +275,17 @@ export default function AssetsPage() {
           )
         })}
       </Tabs>
+
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditAsset(null); setForm(defaultForm) } }}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Edit Asset</DialogTitle></DialogHeader>
+          {renderAssetFields()}
+          <div className="mt-4 flex items-center gap-2">
+            <Button onClick={handleSubmit}>Update Asset</Button>
+            <Button variant="ghost" onClick={() => { setOpen(false); setEditAsset(null); setForm(defaultForm); setFormErrors({}) }}>Cancel</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={confirmDelete.open}

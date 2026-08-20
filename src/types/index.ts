@@ -138,6 +138,8 @@ export interface DashboardInsights {
   goalProgress: number
   totalInvestments: number
   investmentReturns: number
+  totalPF: number
+  totalLoans: number
   yearlyExpense: number
   topCategories: { name: string; amount: number; percentage: number }[]
   monthlyTrend: { month: string; amount: number }[]

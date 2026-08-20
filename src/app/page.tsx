@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -15,10 +16,26 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area,
 } from "recharts"
 import { ChartTooltip } from "@/components/charts/chart-tooltip"
-import { IndianRupee, TrendingUp, TrendingDown, Target, Wallet } from "lucide-react"
+import { IndianRupee, TrendingUp, TrendingDown, Target, Wallet, Landmark, PiggyBank, Scale, Briefcase, ArrowUpRight } from "lucide-react"
+
+interface NetWorth {
+  totalAssets: number
+  totalLiabilities: number
+  netWorth: number
+  totalLoans: number
+  totalCash: number
+  breakdown: { userAssets: number; investments: number; bankBalance: number; fixedDeposits: number; cash: number }
+}
+
+interface BankAccountSummary {
+  id: number; name: string; bankName: string; balance: number; type: string
+}
 
 export default function DashboardPage() {
   const [insights, setInsights] = useState<DashboardInsights | null>(null)
+  const [netWorth, setNetWorth] = useState<NetWorth | null>(null)
+  const [accounts, setAccounts] = useState<BankAccountSummary[]>([])
+  const [cashBalance, setCashBalance] = useState<{ amount: number; notes?: string | null } | null>(null)
   const [loading, setLoading] = useState(true)
   const [years, setYears] = useState<number[]>([])
   const [healthScore, setHealthScore] = useState<{
@@ -79,14 +96,16 @@ export default function DashboardPage() {
     fetchInsights()
   }, [fetchInsights])
 
-  // Fetch yearly comparison data (P4.2)
-  const [yearlyData, setYearlyData] = useState<{ year: number; amount: number; count: number }[]>([])
+  // Wealth & bank summaries (not date-dependent)
   useEffect(() => {
-    fetch("/api/insights/deep")
+    fetch("/api/net-worth").then((r) => r.json()).then(setNetWorth).catch(() => {})
+    fetch("/api/bank-accounts")
       .then((r) => r.json())
-      .then((data) => {
-        if (data.yearlyComparison) setYearlyData(data.yearlyComparison)
-      })
+      .then((data) => setAccounts(data.accounts || []))
+      .catch(() => {})
+    fetch("/api/cash-balance")
+      .then((r) => r.json())
+      .then((data) => setCashBalance(data.cash || null))
       .catch(() => {})
   }, [])
 
@@ -94,13 +113,24 @@ export default function DashboardPage() {
 
   if (!insights) return <div className="p-8 text-center text-muted-foreground">Failed to load insights</div>
 
+  const budgetStatus = (() => {
+    if (insights.monthlyBudget <= 0) return { text: "No budget set", up: false, color: "text-muted-foreground" }
+    const pct = insights.budgetUtilization
+    if (pct > 100) return { text: `Over budget by ${formatCurrency(insights.monthlyExpense - insights.monthlyBudget)}`, up: false, color: "text-red-500" }
+    if (pct >= 80) return { text: `${formatCurrency(insights.monthlyBudget - insights.monthlyExpense)} left`, up: true, color: "text-amber-500" }
+    return { text: `${formatCurrency(insights.monthlyBudget - insights.monthlyExpense)} remaining`, up: true, color: "text-emerald-500" }
+  })()
+
+  const expenseLink = `/expenses?${selectedYear !== "all" ? `year=${selectedYear}&` : ""}${selectedMonth ? `month=${selectedMonth}` : ""}`
+
   const stats = [
     {
       title: "Total Income",
       value: insights.totalIncome,
       icon: IndianRupee,
-      sub: `${formatCurrency(Math.round(insights.totalIncome / 12))}/mo`,
+      sub: `${formatCurrency(insights.totalIncome / 12)}/mo`,
       up: insights.totalIncome > insights.totalExpenses,
+      href: "/income",
     },
     {
       title: "Total Expenses",
@@ -108,13 +138,16 @@ export default function DashboardPage() {
       icon: Wallet,
       change: `${(insights.monthlyTrend.at(-1)?.amount ?? 0) > (insights.monthlyTrend.at(-2)?.amount ?? 0) ? "+" : ""}${formatCurrency((insights.monthlyTrend.at(-1)?.amount ?? 0) - (insights.monthlyTrend.at(-2)?.amount ?? 0))}`,
       up: (insights.monthlyTrend.at(-1)?.amount ?? 0) < (insights.monthlyTrend.at(-2)?.amount ?? 0),
+      href: expenseLink,
     },
     {
       title: "This Month",
       value: insights.monthlyExpense,
       icon: Wallet,
-      sub: `${insights.budgetUtilization.toFixed(1)}% of budget`,
-      up: insights.budgetUtilization < 100,
+      sub: `${insights.budgetUtilization.toFixed(1)}% of budget · ${budgetStatus.text}`,
+      subClassName: budgetStatus.color,
+      up: budgetStatus.up,
+      href: expenseLink,
     },
     {
       title: "Total Investments",
@@ -122,6 +155,7 @@ export default function DashboardPage() {
       icon: TrendingUp,
       change: `${insights.investmentReturns >= 0 ? "+" : ""}${formatCurrency(insights.investmentReturns)}`,
       up: insights.investmentReturns >= 0,
+      href: "/investments",
     },
     {
       title: "Active Goals",
@@ -129,8 +163,42 @@ export default function DashboardPage() {
       icon: Target,
       sub: `${insights.goalProgress.toFixed(0)}% avg progress`,
       up: insights.goalProgress > 50,
+      href: "/goals",
     },
   ]
+
+  const wealthCards = [
+    {
+      title: "Net Worth",
+      value: netWorth?.netWorth ?? 0,
+      icon: Scale,
+      href: "/net-worth",
+      color: "text-emerald-500 bg-emerald-500/10",
+    },
+    {
+      title: "Total Assets",
+      value: netWorth?.totalAssets ?? 0,
+      icon: Briefcase,
+      href: "/assets",
+      color: "text-blue-500 bg-blue-500/10",
+    },
+    {
+      title: "Total Loans",
+      value: insights.totalLoans,
+      icon: Wallet,
+      href: "/loans",
+      color: "text-red-500 bg-red-500/10",
+    },
+    {
+      title: "Total PF",
+      value: insights.totalPF,
+      icon: PiggyBank,
+      href: "/investments",
+      color: "text-amber-500 bg-amber-500/10",
+    },
+  ]
+
+  const bankTotal = accounts.reduce((s, a) => s + a.balance, 0) + (cashBalance?.amount || 0)
 
   const COLORS = ["#6366f1", "#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#ec4899", "#8b5cf6", "#06b6d4"]
 
@@ -191,11 +259,38 @@ export default function DashboardPage() {
         )}
       </div>
 
+      {/* Wealth summary strip */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {wealthCards.map((card) => {
+          const Icon = card.icon
+          return (
+            <Link key={card.title} href={card.href} className="block">
+              <Card className="hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 h-full">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">{card.title}</CardTitle>
+                  <div className={`rounded-lg p-2 ${card.color}`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    <AnimatedCounter value={card.value} format={formatCurrency} />
+                  </div>
+                  <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                    <ArrowUpRight className="h-3 w-3" /> View details
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          )
+        })}
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => {
           const Icon = stat.icon
-          return (
-            <Card key={stat.title} className="hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+          const content = (
+            <>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
                 <div className="rounded-lg bg-primary/10 p-2 text-primary">
@@ -216,10 +311,17 @@ export default function DashboardPage() {
                     {stat.change} vs last month
                   </p>
                 ) : ("sub" in stat && stat.sub ? (
-                  <p className="text-xs text-muted-foreground">{stat.sub}</p>
+                  <p className={`text-xs ${("subClassName" in stat && stat.subClassName) || "text-muted-foreground"}`}>{stat.sub}</p>
                 ) : null)}
               </CardContent>
-            </Card>
+            </>
+          )
+          return stat.href ? (
+            <Link key={stat.title} href={stat.href} className="block">
+              <Card className="hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 h-full">{content}</Card>
+            </Link>
+          ) : (
+            <Card key={stat.title} className="hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 h-full">{content}</Card>
           )
         })}
       </div>
@@ -236,6 +338,54 @@ export default function DashboardPage() {
           ]}
         />
       )}
+
+      {/* Bank Accounts summary */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2"><Landmark className="h-5 w-5 text-primary" /> Bank Accounts</CardTitle>
+          <Link href="/bank-accounts" className="text-xs text-primary hover:underline flex items-center gap-1">Manage <ArrowUpRight className="h-3 w-3" /></Link>
+        </CardHeader>
+        <CardContent>
+          {accounts.length === 0 && !cashBalance ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No bank accounts or cash recorded yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {accounts.map((acc) => (
+                <div key={acc.id} className="flex items-center justify-between rounded-lg border p-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                      <Landmark className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{acc.bankName}</p>
+                      <p className="text-[10px] text-muted-foreground">{acc.name}</p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold">{formatCurrency(acc.balance)}</span>
+                </div>
+              ))}
+              {(cashBalance && cashBalance.amount > 0) || (cashBalance?.notes) ? (
+                <div className="flex items-center justify-between rounded-lg border bg-emerald-500/5 p-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/10">
+                      <PiggyBank className="h-3.5 w-3.5 text-emerald-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Cash</p>
+                      {cashBalance?.notes && <p className="text-[10px] text-muted-foreground">{cashBalance.notes}</p>}
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold">{formatCurrency(cashBalance?.amount || 0)}</span>
+                </div>
+              ) : null}
+              <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 p-2.5">
+                <span className="text-sm font-semibold text-muted-foreground">Total</span>
+                <span className="text-base font-bold">{formatCurrency(bankTotal)}</span>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
@@ -304,27 +454,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Yearly Comparison Chart (P4.2) */}
-      {yearlyData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Yearly Comparison</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={yearlyData}>
-                  <XAxis dataKey="year" stroke="#888" fontSize={12} />
-                  <YAxis stroke="#888" fontSize={12} tickFormatter={(v) => `₹${(v / 100_000).toFixed(1)}L`} />
-                  <Tooltip content={<ChartTooltip formatter={(value) => formatIndianCurrency(value)} />} />
-                  <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

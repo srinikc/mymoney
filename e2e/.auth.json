@@ -2,7 +2,7 @@
   "cookies": [
     {
       "name": "authjs.csrf-token",
-      "value": "8e3a226077c8c0561957c80e5d51de57ff7641a7f96f5656663fe75e7c958958%7Ceec6ac762b450a794d7d8f765cc3d74c9fec319dd048bb7d99dce8c1f9aa7a45",
+      "value": "1cca53c4a902b30d53681babf7ffc008932b85f5192c86bbbcfb292d98e2a0a9%7C9bf79a06d3b9500dc1f7c35aeab6daff3bab2bf8b8ec8880275d63011ebc0190",
       "domain": "localhost",
       "path": "/",
       "expires": -1,
@@ -12,14 +12,34 @@
     },
     {
       "name": "authjs.callback-url",
-      "value": "http%3A%2F%2Flocalhost%3A3005",
+      "value": "http%3A%2F%2Flocalhost%3A3005%2F",
       "domain": "localhost",
       "path": "/",
       "expires": -1,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Lax"
+    },
+    {
+      "name": "authjs.session-token",
+      "value": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2Q0JDLUhTNTEyIiwia2lkIjoiSFkxcS1QOHctM1FiM19lV3dVUkNXVUJZTXJ4UFZzYl8xYXVMVmgzaEJhd0czREJULXRoZUlrUmM5bGl6SGU0bnhjWUpNUHJ2ZTl3RVlGejNIRzhHLVEifQ..MkwaEsgQCLtPuaJrA_z0yQ.UxHCKwdtTTGYYiGFqyVXnAx7wPut3ew65d77nRIUugymmU-nD9XdcnGGWsdYXp73sSQT7SeUx-QDqA4_pXrOxSTK9cYYhOPFGHW_can2g-wvnjNmIP_qplXmQV3eCp57ZGLx_tq88nykMuwvPNoDaHh-ThAP-t54rp_N2TVUsIWlIocKRExB9FmHx1QLsh2SlJ7cmAzldnj0H7RXIE-6-yynoFeYMmyrEzQJJPbQhwE6XquKscYDSbi6vQOg1F0JoxYXNpcj2U13d11OVkX0kSzSLZNOmfVUSRKiOWN2yveE_0ULKnlqWxfbIaeztpZUkUaf_BUqbkbJ_ShavlfqrQ.-cGhzuPWjL1ogjgrydz3INl8wVm5vG9pobvl7ndUyDs",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1787313409.056239,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
     }
   ],
-  "origins": []
+  "origins": [
+    {
+      "origin": "http://localhost:3005",
+      "localStorage": [
+        {
+          "name": "mymoney-ui-store",
+          "value": "{\"state\":{\"activeProfileId\":null,\"activeProfileName\":null,\"sidebarOpen\":true},\"version\":0}"
+        }
+      ]
+    }
+  ]
 }

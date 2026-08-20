@@ -36,7 +36,6 @@ const MENU_SECTIONS: MenuSection[] = [
       { title: 'Expenses — Archive', icon: 'archive-outline', route: '/expenses/archive' },
       { title: 'Expenses — Import', icon: 'cloud-upload-outline', route: '/expenses/import' },
       { title: 'Expenses — Vendors', icon: 'storefront-outline', route: '/expenses/vendors' },
-      { title: 'Expenses — Duplicates', icon: 'copy-outline', route: '/expenses/review-duplicates' },
       { title: 'Deals', icon: 'pricetag-outline', route: '/deals' },
     ],
   },

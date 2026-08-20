@@ -12,7 +12,6 @@ const knownRoutes = [
   "/expenses",
   "/expenses/import",
   "/expenses/vendors",
-  "/expenses/review-duplicates",
   "/expenses/archive",
   "/family",
   "/gmail-import",

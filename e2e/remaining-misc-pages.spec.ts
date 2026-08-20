@@ -13,7 +13,6 @@ test.describe("Remaining Pages — All remaining UI pages validated", () => {
     test("SCENARIO: Expenses archive page loads without error", async ({ page }) => { await page.goto("/expenses/archive", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000); await ready(page) })
     test("SCENARIO: Import page loads without error", async ({ page }) => { await page.goto("/expenses/import", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000); await ready(page) })
     test("SCENARIO: Merchants page loads without error", async ({ page }) => { await page.goto("/expenses/vendors", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000); await ready(page) })
-    test("SCENARIO: Review duplicates page loads without error", async ({ page }) => { await page.goto("/expenses/review-duplicates", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3000); await ready(page) })
   })
 
   test.describe("Settings sub-pages", () => {

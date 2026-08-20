@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 import { Landmark, Plus, Building2, PiggyBank, RefreshCw, Loader2, CheckCircle2 } from "lucide-react"
@@ -26,6 +27,10 @@ export default function BankAccountsPage() {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
+  const [cashAmount, setCashAmount] = useState("")
+  const [cashNotes, setCashNotes] = useState("")
+  const [savingCash, setSavingCash] = useState(false)
+  const [showCashForm, setShowCashForm] = useState(false)
 
   const fetchAccounts = async () => {
     const res = await fetch("/api/bank-accounts")
@@ -35,7 +40,36 @@ export default function BankAccountsPage() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchAccounts() }, [])
+  const fetchCash = async () => {
+    try {
+      const res = await fetch("/api/cash-balance")
+      const data = await res.json()
+      if (data?.cash) {
+        setCashAmount(data.cash.amount != null ? String(data.cash.amount) : "")
+        setCashNotes(data.cash.notes || "")
+      }
+    } catch { /* ignore */ }
+  }
+
+  useEffect(() => { fetchAccounts(); fetchCash() }, [])
+
+  const handleSaveCash = async () => {
+    setSavingCash(true)
+    try {
+      const res = await fetch("/api/cash-balance", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: parseFloat(cashAmount || "0") || 0, notes: cashNotes || null }),
+      })
+      if (!res.ok) throw new Error("Failed to save cash")
+      toast.success("Cash amount saved")
+      fetchCash()
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to save cash")
+    } finally {
+      setSavingCash(false)
+    }
+  }
 
   const handleSync = async () => {
     setSyncing(true)
@@ -111,6 +145,30 @@ export default function BankAccountsPage() {
               <CardContent><p className="text-3xl font-bold">{formatCurrency(totals.balance + totals.fdValue)}</p></CardContent>
             </Card>
           </div>
+
+          {/* Cash section */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-bold flex items-center gap-2"><PiggyBank className="h-4 w-4 text-emerald-500" /> Cash Amount</CardTitle>
+              <Button variant="outline" size="sm" onClick={() => setShowCashForm(!showCashForm)}>{showCashForm ? "Cancel" : "Update"}</Button>
+            </CardHeader>
+            <CardContent>
+              {!showCashForm ? (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-3xl font-bold text-emerald-600">{formatCurrency(parseFloat(cashAmount || "0") || 0)}</p>
+                    {cashNotes && <p className="text-xs text-muted-foreground mt-1">{cashNotes}</p>}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input type="number" placeholder="Cash amount (₹)" className="h-9 w-48" value={cashAmount} onChange={(e) => setCashAmount(e.target.value)} />
+                  <Input placeholder="Comments" className="h-9 flex-1 min-w-[160px]" value={cashNotes} onChange={(e) => setCashNotes(e.target.value)} />
+                  <Button size="sm" className="h-9" onClick={handleSaveCash} disabled={savingCash}>{savingCash ? "Saving..." : "Save Cash"}</Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {accounts.length === 0 ? (
             <Card>

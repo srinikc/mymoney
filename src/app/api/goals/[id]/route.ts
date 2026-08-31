@@ -50,6 +50,8 @@ export async function PUT(
       term: body.term,
       priority: body.priority,
       type: body.type,
+      targetUnit: body.targetUnit,
+      goldQuantity: body.goldQuantity === undefined ? undefined : (body.goldQuantity ? Number(body.goldQuantity) : null),
       description: body.description,
       monthlyContribution: body.monthlyContribution === undefined
         ? undefined

@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { withAuth } from "@/lib/with-auth"
 import { validateBody } from "@/shared/validate"
 import { DealCreateSchema } from "@/shared/validation"
 
 export async function GET() {
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
   const deals = await prisma.deal.findMany({
-    where: { isActive: true },
+    where: { profileId, isActive: true },
     orderBy: { validUntil: "asc" },
     take: 20,
   })
@@ -13,10 +17,14 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
   const { data: body, error } = await validateBody(req, DealCreateSchema)
   if (error) return error
   const deal = await prisma.deal.create({
     data: {
+      profileId,
       merchant: body.merchant,
       title: body.title,
       description: body.description || null,
@@ -32,9 +40,16 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
   try {
     const { id } = await req.json()
-    await prisma.deal.delete({ where: { id } })
+    const existing = await prisma.deal.findUnique({ where: { id } })
+    if (!existing || existing.profileId !== profileId) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 })
+    }
+    await prisma.deal.delete({ where: { id: existing.id } })
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Deal delete error:", error)

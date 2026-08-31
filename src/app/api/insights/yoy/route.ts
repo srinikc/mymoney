@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { withAuth } from "@/lib/with-auth"
 
 export async function GET(request: Request) {
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
   const { searchParams } = new URL(request.url)
   const categoryName = searchParams.get("category")
   const yearsParam = searchParams.get("years")
@@ -28,7 +32,7 @@ export async function GET(request: Request) {
       const yearEnd = new Date(year + 1, 0, 1)
 
       const agg = await prisma.expense.aggregate({
-        where: { categoryId: category.id, date: { gte: yearStart, lt: yearEnd } },
+        where: { profileId, categoryId: category.id, date: { gte: yearStart, lt: yearEnd } },
         _sum: { amount: true },
         _count: true,
       })
@@ -39,7 +43,7 @@ export async function GET(request: Request) {
           const start = new Date(year, i, 1)
           const end = new Date(year, i + 1, 1)
           const mAgg = await prisma.expense.aggregate({
-            where: { categoryId: category.id, date: { gte: start, lt: end } },
+            where: { profileId, categoryId: category.id, date: { gte: start, lt: end } },
             _sum: { amount: true },
             _count: true,
           })

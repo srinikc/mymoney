@@ -1,24 +1,15 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { z } from "zod"
+import { withAuth } from "@/lib/with-auth"
 import { formatCurrencyFull } from "@/lib/utils"
 
-const QuerySchema = z.object({
-  profileId: z.coerce.number().optional(),
-})
-
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url)
-    const parsed = QuerySchema.safeParse({
-      profileId: searchParams.get("profileId") ?? undefined,
-    })
-    if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid query" }, { status: 400 })
-    }
-    const { profileId } = parsed.data
+    const auth = await withAuth()
+    if (auth.error) return auth.error
+    const { profileId } = auth
 
-    const profileFilter = profileId ? { profileId } : {}
+    const profileFilter = { profileId }
     const now = new Date()
     const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1)
 

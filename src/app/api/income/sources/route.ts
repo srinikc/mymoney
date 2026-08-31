@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getAuthContext } from "@/lib/with-auth"
 import { validateBody } from "@/shared/validate"
 import { IncomeSourceCreateSchema } from "@/shared/income-validation"
+import { syncProfileAnnualIncome } from "@/shared/income-sync"
 
 export async function GET(_req: Request) {
     const { profileId } = await getAuthContext()
@@ -66,5 +67,12 @@ export async function POST(req: Request) {
       },
       include: { category: true },
     })
+    if (profileId) {
+      try {
+        await syncProfileAnnualIncome(profileId)
+      } catch {
+        // best-effort sync
+      }
+    }
     return NextResponse.json(source, { status: 201 })
 }

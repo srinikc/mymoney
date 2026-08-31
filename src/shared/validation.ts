@@ -1,9 +1,71 @@
 import { z } from "zod"
 
+export const EXPENSE_PURPOSES = [
+  "groceries",
+  "dining",
+  "transport",
+  "rent",
+  "utilities",
+  "medical",
+  "education",
+  "wedding",
+  "festival",
+  "religious",
+  "gifting",
+  "travel",
+  "home-repair",
+  "vehicle-maintenance",
+  "appliance",
+  "electronics",
+  "apparel",
+  "personal-care",
+  "entertainment",
+  "subscription",
+  "insurance-premium",
+  "emi-payment",
+  "investment",
+  "tax-payment",
+  "charity",
+  "childcare",
+  "pet-care",
+  "other",
+] as const
+
+export type ExpensePurpose = (typeof EXPENSE_PURPOSES)[number]
+
+export const UNUSUAL_THRESHOLD = 5000
+
+export const REGULAR_CATEGORIES_NO_PURPOSE = new Set([
+  "rent-housing",
+  "utility-bills",
+  "telecom",
+  "debt-repayment",
+  "protection-premiums",
+  "tax-govt",
+  "card-fees",
+  "office-supplies",
+  "wealth-building",
+  "equity",
+])
+
+export function shouldRequirePurpose(categoryName: string | null | undefined, amount: number): boolean {
+  if (amount <= UNUSUAL_THRESHOLD) return false
+  if (categoryName && REGULAR_CATEGORIES_NO_PURPOSE.has(categoryName)) return false
+  return true
+}
+
+export function isUnusualByDefault(categoryName: string | null | undefined, amount: number): boolean {
+  if (amount <= UNUSUAL_THRESHOLD) return false
+  if (categoryName && REGULAR_CATEGORIES_NO_PURPOSE.has(categoryName)) return false
+  return true
+}
+
 export const ExpenseCreateSchema = z.object({
   date: z.string().min(1, "Date is required"),
   amount: z.union([z.string(), z.number()]).transform((v) => typeof v === "string" ? Number.parseFloat(v) : v),
   categoryId: z.union([z.string(), z.number()]).optional().transform((v) => typeof v === "string" ? Number.parseInt(v) : v),
+  purpose: z.enum(EXPENSE_PURPOSES).optional(),
+  isUnusual: z.boolean().optional(),
   categoryName: z.string().optional(),
   vendor: z.string().max(200).optional().default(""),
   description: z.string().max(500).optional().default(""),
@@ -42,6 +104,8 @@ export const ExpenseUpdateSchema = z.object({
   bankAccount: z.string().optional(),
   paidThrough: z.string().optional(),
   saveMapping: z.boolean().optional(),
+  purpose: z.enum(EXPENSE_PURPOSES).nullable().optional(),
+  isUnusual: z.boolean().optional(),
 })
 
 export const BudgetCreateSchema = z.object({
@@ -60,11 +124,25 @@ export const GoalCreateSchema = z.object({
   category: z.string().optional().default("savings"),
   term: z.string().optional().default("medium"),
   priority: z.string().optional().default("P1"),
-  type: z.string().optional().default("Other"),
+  type: z.string().optional().default("Functions"),
   description: z.string().optional(),
   monthlyContribution: z.union([z.string(), z.number()]).optional(),
   notes: z.string().optional(),
   status: z.string().optional().default("active"),
+  targetUnit: z.string().optional().default("₹"),
+  goldQuantity: z.union([z.string(), z.number()]).optional().nullable(),
+  employeeContribution: z.union([z.string(), z.number()]).optional().nullable(),
+  employerContribution: z.union([z.string(), z.number()]).optional().nullable(),
+  passbookUrl: z.string().optional().nullable(),
+  projectionYears: z.union([z.string(), z.number()]).optional().nullable(),
+  fdNumber: z.string().optional().nullable(),
+  bankName: z.string().optional().nullable(),
+  maturityDate: z.string().optional().nullable(),
+  paymentMode: z.string().optional().nullable(),
+  monthlyContributionAmt: z.union([z.string(), z.number()]).optional().nullable(),
+  totalMonths: z.union([z.string(), z.number()]).optional().nullable(),
+  completedMonths: z.union([z.string(), z.number()]).optional().nullable(),
+  purpose: z.string().optional().nullable(),
 })
 
 export const InvestmentCreateSchema = z.object({
@@ -81,6 +159,17 @@ export const InvestmentCreateSchema = z.object({
   linkedGoalId: z.union([z.string(), z.number()]).optional().nullable(),
   notes: z.string().optional(),
   status: z.string().optional().default("active"),
+  employeeContribution: z.union([z.string(), z.number()]).optional().nullable(),
+  employerContribution: z.union([z.string(), z.number()]).optional().nullable(),
+  passbookUrl: z.string().optional().nullable(),
+  projectionYears: z.union([z.string(), z.number()]).optional().nullable(),
+  fdNumber: z.string().optional().nullable(),
+  bankName: z.string().optional().nullable(),
+  maturityDate: z.string().optional().nullable(),
+  paymentMode: z.string().optional().nullable(),
+  monthlyContribution: z.union([z.string(), z.number()]).optional().nullable(),
+  totalMonths: z.union([z.string(), z.number()]).optional().nullable(),
+  completedMonths: z.union([z.string(), z.number()]).optional().nullable(),
 })
 
 export const CategoryCreateSchema = z.object({
@@ -128,6 +217,8 @@ export const GoalUpdateSchema = z.object({
   monthlyContribution: z.union([z.string(), z.number()]).optional().nullable(),
   notes: z.string().optional().nullable(),
   status: z.string().optional(),
+  targetUnit: z.string().optional().nullable(),
+  goldQuantity: z.union([z.string(), z.number()]).optional().nullable(),
 })
 
 export const InvestmentUpdateSchema = z.object({
@@ -145,6 +236,17 @@ export const InvestmentUpdateSchema = z.object({
   linkedGoalId: z.union([z.string(), z.number()]).optional().nullable(),
   notes: z.string().optional().nullable(),
   status: z.string().optional(),
+  employeeContribution: z.union([z.string(), z.number()]).optional().nullable(),
+  employerContribution: z.union([z.string(), z.number()]).optional().nullable(),
+  passbookUrl: z.string().optional().nullable(),
+  projectionYears: z.union([z.string(), z.number()]).optional().nullable(),
+  fdNumber: z.string().optional().nullable(),
+  bankName: z.string().optional().nullable(),
+  maturityDate: z.string().optional().nullable(),
+  paymentMode: z.string().optional().nullable(),
+  monthlyContribution: z.union([z.string(), z.number()]).optional().nullable(),
+  totalMonths: z.union([z.string(), z.number()]).optional().nullable(),
+  completedMonths: z.union([z.string(), z.number()]).optional().nullable(),
 })
 
 export const ReminderUpdateSchema = z.object({
@@ -235,6 +337,7 @@ export const AssetCreateSchema = z.object({
   location: z.string().optional().nullable(),
   status: z.string().optional().default("owned"),
   notes: z.string().optional().nullable(),
+  purpose: z.string().optional().nullable(),
 })
 
 export const AssetUpdateSchema = z.object({
@@ -249,6 +352,7 @@ export const AssetUpdateSchema = z.object({
   location: z.string().optional().nullable(),
   status: z.string().optional(),
   notes: z.string().optional().nullable(),
+  purpose: z.string().optional().nullable(),
 })
 
 export const AuditLogCreateSchema = z.object({
@@ -257,4 +361,43 @@ export const AuditLogCreateSchema = z.object({
   entity: z.string().min(1),
   entityId: z.union([z.string(), z.number()]).optional().nullable(),
   metadata: z.string().optional().nullable(),
+})
+
+export const LoanCreateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  type: z.string().min(1, "Type is required"),
+  principal: z.union([z.string(), z.number()]),
+  interestRate: z.union([z.string(), z.number()]),
+  tenureMonths: z.union([z.string(), z.number()]),
+  emiAmount: z.union([z.string(), z.number()]).optional(),
+  lender: z.string().optional().nullable(),
+  startDate: z.string().min(1, "Start date is required"),
+  notes: z.string().optional().nullable(),
+  linkedGoalId: z.union([z.string(), z.number()]).optional().nullable(),
+  emiActive: z.boolean().optional().default(false),
+  emiStartDate: z.string().optional().nullable(),
+  emiFrequency: z.string().optional().nullable(),
+  remainingAmount: z.union([z.string(), z.number()]).optional().nullable(),
+  status: z.string().optional().default("active"),
+  closedDate: z.string().optional().nullable(),
+})
+
+export const LoanUpdateSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+  name: z.string().optional(),
+  type: z.string().optional(),
+  principal: z.union([z.string(), z.number()]).optional(),
+  interestRate: z.union([z.string(), z.number()]).optional(),
+  tenureMonths: z.union([z.string(), z.number()]).optional(),
+  emiAmount: z.union([z.string(), z.number()]).optional(),
+  lender: z.string().optional().nullable(),
+  startDate: z.string().optional(),
+  notes: z.string().optional().nullable(),
+  linkedGoalId: z.union([z.string(), z.number()]).optional().nullable(),
+  emiActive: z.boolean().optional(),
+  emiStartDate: z.string().optional().nullable(),
+  emiFrequency: z.string().optional().nullable(),
+  remainingAmount: z.union([z.string(), z.number()]).optional().nullable(),
+  status: z.string().optional(),
+  closedDate: z.string().optional().nullable(),
 })

@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth"
 import { isViewer, type AuthUser } from "@/lib/roles"
 import { validateBody } from "@/shared/validate"
 import { IncomeSourceUpdateSchema } from "@/shared/income-validation"
+import { syncProfileAnnualIncome } from "@/shared/income-sync"
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -81,6 +82,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       data,
       include: { category: true },
     })
+    if (profileId) {
+      try {
+        await syncProfileAnnualIncome(profileId)
+      } catch {
+        // best-effort sync
+      }
+    }
     return NextResponse.json(source)
     } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -103,6 +111,13 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const deleteWhere: { id: number; profileId?: number } = { id: Number.parseInt(id) }
     if (profileId) deleteWhere.profileId = profileId
     await prisma.incomeSource.delete({ where: deleteWhere })
+    if (profileId) {
+      try {
+        await syncProfileAnnualIncome(profileId)
+      } catch {
+        // best-effort sync
+      }
+    }
     return NextResponse.json({ success: true })
     } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

@@ -1,3 +1,4 @@
+﻿
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
@@ -8,6 +9,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   Animated,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -51,36 +53,54 @@ export default function HomeScreen() {
   const [healthScore, setHealthScore] = useState<number | null>(null);
   const [quickStats, setQuickStats] = useState<QuickStat[]>([]);
   const [budgetInfo, setBudgetInfo] = useState<{ budget: number; spent: number; pct: number } | null>(null);
-  const [netWorth, setNetWorth] = useState<{ netWorth: number; totalAssets: number; totalLoans: number } | null>(null);
+  const [netWorth, setNetWorth] = useState<{ netWorth: number; totalAssets: number; totalLoans: number; totalPF: 
+number; subscriptionsTotal: number; insurancePremiumTotal: number; activeGoals: number; goalProgress: number; 
+breakdown: { userAssets: number; investments: number; bankBalance: number; fixedDeposits: number; cash: number } } | 
+null>(null);
   const [totalPF, setTotalPF] = useState(0);
-  const [accounts, setAccounts] = useState<{ id: number; bankName: string; name: string; balance: number }[]>([]);
+  const [accounts, setAccounts] = useState<{ id: number; bankName: string; name: string; accountNumber?: string | 
+null; balance: number }[]>([]);
   const [cashBalance, setCashBalance] = useState<{ amount: number; notes?: string | null } | null>(null);
+  const [periodLabel, setPeriodLabel] = useState('All Years');
+  const [overall, setOverall] = useState<{ expense: number; income: number }>({ expense: 0, income: 0 });
+  const [years, setYears] = useState<number[]>([]);
+  const [selectedYear, setSelectedYear] = useState('all');
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedQuarter, setSelectedQuarter] = useState('');
+  const [showYearPicker, setShowYearPicker] = useState(false);
   const balanceScaleAnim = useRef(new Animated.Value(0)).current;
 
   const fetchData = useCallback(async () => {
     setError(null);
     try {
-      const [insightsRes, healthRes, expensesRes, netWorthRes, bankRes, cashRes] = await Promise.allSettled([
+      const [insightsRes, healthRes, expensesRes] = await Promise.allSettled([
         api.get('/api/insights'),
+      const params = new URLSearchParams();
+      if (selectedYear !== 'all') params.set('year', selectedYear);
+      if (selectedMonth) params.set('month', selectedMonth);
+      if (selectedQuarter) params.set('quarter', selectedQuarter);
+      const qs = params.toString();
+
+      const [insightsRes, healthRes, expensesRes, netWorthRes, bankRes, cashRes] = await Promise.allSettled([
+        api.get(`/api/insights${qs ? `?${qs}` : ''}`),
         api.get('/api/health-score'),
         api.get('/api/expenses', { params: { limit: 5 } }),
-        api.get('/api/net-worth'),
-        api.get('/api/bank-accounts'),
-        api.get('/api/cash-balance'),
       ]);
 
       if (insightsRes.status === 'fulfilled') {
         const d = insightsRes.value.data;
-        setTotalIncome(d.totalIncome || d.income || 0);
-        setTotalExpenses(d.totalExpenses || d.expenses || 0);
-        setBalance((d.totalIncome || d.income || 0) - (d.totalExpenses || d.expenses || 0));
+        setPeriodLabel(d.periodLabel || 'All Years');
+        setTotalIncome(d.periodIncome || d.totalIncome || 0);
+        setTotalExpenses(d.periodExpense || d.totalExpenses || 0);
+        setBalance((d.periodIncome || 0) - (d.periodExpense || 0));
+        setOverall({ expense: d.overallExpense || 0, income: d.overallIncome || 0 });
         setQuickStats([
-          { label: 'Spent Today', amount: d.spentToday || d.todayExpense || 0, type: 'expense' },
-          { label: 'Income MTD', amount: d.incomeMTD || d.totalIncome || 0, type: 'income' },
-          { label: 'Saved', amount: (d.totalIncome || d.income || 0) - (d.totalExpenses || d.expenses || 0), type: 'saved' },
+          { label: 'Period Income', amount: d.periodIncome || 0, type: 'income' },
+          { label: 'Period Expense', amount: d.periodExpense || 0, type: 'expense' },
+          { label: 'Net Savings', amount: (d.periodIncome || 0) - (d.periodExpense || 0), type: 'saved' },
         ]);
-        const budget = d.monthlyBudget || 0;
-        const spent = d.monthlyExpense || 0;
+        const budget = d.currentMonthBudget || 0;
+        const spent = d.currentMonthSpent || 0;
         setBudgetInfo({ budget, spent, pct: budget > 0 ? (spent / budget) * 100 : 0 });
         setTotalPF(d.totalPF || 0);
       }
@@ -99,7 +119,17 @@ export default function HomeScreen() {
 
       if (netWorthRes.status === 'fulfilled') {
         const nw = netWorthRes.value.data;
-        setNetWorth({ netWorth: nw.netWorth || 0, totalAssets: nw.totalAssets || 0, totalLoans: nw.totalLoans || 0 });
+        setNetWorth({
+          netWorth: nw.netWorth || 0,
+          totalAssets: nw.totalAssets || 0,
+          totalLoans: nw.totalLoans || 0,
+          totalPF: nw.totalPF || 0,
+          subscriptionsTotal: nw.subscriptionsTotal || 0,
+          insurancePremiumTotal: nw.insurancePremiumTotal || 0,
+          activeGoals: nw.activeGoals || 0,
+          goalProgress: nw.goalProgress || 0,
+          breakdown: nw.breakdown || { userAssets: 0, investments: 0, bankBalance: 0, fixedDeposits: 0, cash: 0 },
+        });
       }
 
       if (bankRes.status === 'fulfilled') {
@@ -117,11 +147,18 @@ export default function HomeScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [error]);
+  }, [error, selectedYear, selectedMonth, selectedQuarter]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    api.get('/api/expenses/years').then((r) => {
+      const yrs = Array.isArray(r?.data?.years) ? r.data.years : [];
+      setYears(yrs);
+    }).catch(() => setYears([]));
+  }, []);
 
   useEffect(() => {
     Animated.spring(balanceScaleAnim, {
@@ -182,6 +219,51 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />
         }
       >
+        <View style={[styles.periodBar, { backgroundColor: theme.surface }]}>
+          <TouchableOpacity onPress={() => setShowYearPicker(true)} style={[styles.periodChip, { backgroundColor: 
+theme.primaryLight }]}>
+            <Ionicons name="calendar-outline" size={14} color={theme.primary} />
+            <Text style={[styles.periodChipText, { color: theme.primary }]}>{selectedYear === 'all' ? 'All Years' : 
+selectedYear}</Text>
+          </TouchableOpacity>
+          {selectedYear !== 'all' && (
+            <>
+              {!selectedQuarter && (
+                <View style={styles.periodChips}>
+                  <TouchableOpacity style={[styles.periodChip2, selectedMonth === '' && { borderColor: theme.primary 
+}]} onPress={() => { setSelectedMonth(''); setSelectedQuarter(''); }}>
+                    <Text style={[styles.periodChipText2, { color: selectedMonth === '' ? theme.primary : 
+theme.textSecondary }]}>All</Text>
+                  </TouchableOpacity>
+                  {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((m, i) => (
+                    <TouchableOpacity key={m} style={[styles.periodChip2, selectedMonth === String(i + 1) && { 
+borderColor: theme.primary }]} onPress={() => { setSelectedMonth(String(i + 1)); setSelectedQuarter(''); }}>
+                      <Text style={[styles.periodChipText2, { color: selectedMonth === String(i + 1) ? theme.primary : 
+theme.textSecondary }]}>{m}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              {!selectedMonth && (
+                <View style={styles.periodChips}>
+                  <TouchableOpacity style={[styles.periodChip2, selectedQuarter === '' && { borderColor: theme.primary 
+}]} onPress={() => { setSelectedQuarter(''); setSelectedMonth(''); }}>
+                    <Text style={[styles.periodChipText2, { color: selectedQuarter === '' ? theme.primary : 
+theme.textSecondary }]}>All</Text>
+                  </TouchableOpacity>
+                  {[1, 2, 3, 4].map((q) => (
+                    <TouchableOpacity key={q} style={[styles.periodChip2, selectedQuarter === String(q) && { 
+borderColor: theme.primary }]} onPress={() => { setSelectedQuarter(String(q)); setSelectedMonth(''); }}>
+                      <Text style={[styles.periodChipText2, { color: selectedQuarter === String(q) ? theme.primary : 
+theme.textSecondary }]}>Q{q}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </>
+          )}
+        </View>
+
         {error ? (
           <View style={[styles.errorCard, { backgroundColor: theme.expenseLight }]}>
             <Ionicons name="alert-circle" size={22} color={theme.expense} />
@@ -209,7 +291,7 @@ export default function HomeScreen() {
                 },
               ]}
             >
-              <Text style={styles.balanceLabel}>Total Balance</Text>
+              <Text style={styles.balanceLabel}>Balance ┬╖ {periodLabel}</Text>
               <Text style={styles.balanceAmount}>{formatCurrency(balance)}</Text>
               <View style={styles.balanceRow}>
                 <View style={styles.balanceItem}>
@@ -283,27 +365,68 @@ export default function HomeScreen() {
                   />
                 </View>
                 <Text style={[styles.budgetSub, { color: theme.textTertiary }]}>
-                  {formatCurrency(budgetInfo.spent)} of {formatCurrency(budgetInfo.budget)} · {Math.round(budgetInfo.pct)}%
+                  {formatCurrency(budgetInfo.spent)} of {formatCurrency(budgetInfo.budget)} ┬╖ 
+{Math.round(budgetInfo.pct)}%
                 </Text>
               </TouchableOpacity>
             )}
 
+            <View style={[styles.overallCard, { backgroundColor: theme.surface }]}>
+              <View style={styles.overallHeader}>
+                <Text style={[styles.overallTitle, { color: theme.textSecondary }]}>Overall (All Time)</Text>
+                <Text style={[styles.overallHint, { color: theme.textTertiary }]}>Not affected by filter</Text>
+              </View>
+              <View style={styles.overallRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.overallLabel, { color: theme.textTertiary }]}>Total Expense</Text>
+                  <Text style={[styles.overallValue, { color: theme.text }]}>{formatCurrency(overall.expense)}</Text>
+                </View>
+                <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                  <Text style={[styles.overallLabel, { color: theme.textTertiary }]}>Total Income</Text>
+                  <Text style={[styles.overallValue, { color: theme.text }]}>{formatCurrency(overall.income)}</Text>
+                </View>
+              </View>
+            </View>
+
             <View style={styles.wealthRow}>
-              <TouchableOpacity style={[styles.wealthCard, { backgroundColor: theme.surface }]} onPress={() => router.push('/net-worth')}>
+              <TouchableOpacity style={[styles.wealthCard, { backgroundColor: theme.surface }]} onPress={() => 
+router.push('/net-worth')}>
                 <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Net Worth</Text>
-                <Text style={[styles.wealthValue, { color: theme.income }]}>{formatCurrency(netWorth?.netWorth || 0)}</Text>
+                <Text style={[styles.wealthValue, { color: theme.income }]}>{formatCurrency(netWorth?.netWorth || 
+0)}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.wealthCard, { backgroundColor: theme.surface }]} onPress={() => router.push('/assets')}>
+              <TouchableOpacity style={[styles.wealthCard, { backgroundColor: theme.surface }]} onPress={() => 
+router.push('/assets')}>
                 <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Assets</Text>
-                <Text style={[styles.wealthValue, { color: theme.primary }]}>{formatCurrency(netWorth?.totalAssets || 0)}</Text>
+                <Text style={[styles.wealthValue, { color: theme.primary }]}>{formatCurrency(netWorth?.totalAssets || 
+0)}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.wealthCard, { backgroundColor: theme.surface }]} onPress={() => router.push('/loans')}>
-                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Loans</Text>
-                <Text style={[styles.wealthValue, { color: theme.expense }]}>{formatCurrency(netWorth?.totalLoans || 0)}</Text>
+              <TouchableOpacity style={[styles.wealthCard, { backgroundColor: theme.surface }]} onPress={() => 
+router.push('/investments')}>
+                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Investments</Text>
+                <Text style={[styles.wealthValue, { color: theme.primary 
+}]}>{formatCurrency(netWorth?.breakdown?.investments || 0)}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.wealthCard, { backgroundColor: theme.surface }]} onPress={() => router.push('/investments')}>
+              <TouchableOpacity style={[styles.wealthCard, { backgroundColor: theme.surface }]} onPress={() => 
+router.push('/investments')}>
                 <Text style={[styles.statLabel, { color: theme.textSecondary }]}>PF</Text>
-                <Text style={[styles.wealthValue, { color: theme.warning }]}>{formatCurrency(totalPF)}</Text>
+                <Text style={[styles.wealthValue, { color: theme.warning }]}>{formatCurrency(netWorth?.totalPF || 
+totalPF || 0)}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.goalsCard, { backgroundColor: theme.surface }]}>
+              <TouchableOpacity onPress={() => router.push('/goals')} style={{ flex: 1, flexDirection: 'row', 
+alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={[styles.qlIcon, { backgroundColor: theme.primaryLight }]}>
+                    <Ionicons name="flag-outline" size={18} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.sectionTitle, { color: theme.text }]}>Goals</Text>
+                </View>
+                <Text style={[styles.bankBalance, { color: theme.text }]}>
+                  {netWorth?.activeGoals || 0} active ┬╖ {Math.round(netWorth?.goalProgress || 0)}% avg
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -319,16 +442,22 @@ export default function HomeScreen() {
                 </View>
                 {accounts.slice(0, 4).map((acc) => (
                   <View key={acc.id} style={styles.bankRow}>
-                    <Text style={[styles.bankName, { color: theme.text }]} numberOfLines={1}>{acc.bankName}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.bankName, { color: theme.text }]} numberOfLines={1}>{acc.bankName}</Text>
+                      <Text style={[styles.bankSub, { color: theme.textTertiary }]} numberOfLines={1}>
+                        {acc.name}{acc.accountNumber ? ` ┬╖ ${acc.accountNumber}` : ''}
+                      </Text>
+                    </View>
                     <Text style={[styles.bankBalance, { color: theme.text }]}>{formatCurrency(acc.balance)}</Text>
                   </View>
                 ))}
                 {cashBalance && (
                   <View style={styles.bankRow}>
                     <Text style={[styles.bankName, { color: theme.income }]} numberOfLines={1}>
-                      Cash{cashBalance.notes ? ` · ${cashBalance.notes}` : ''}
+                      Cash{cashBalance.notes ? ` ┬╖ ${cashBalance.notes}` : ''}
                     </Text>
-                    <Text style={[styles.bankBalance, { color: theme.income }]}>{formatCurrency(cashBalance.amount)}</Text>
+                    <Text style={[styles.bankBalance, { color: theme.income 
+}]}>{formatCurrency(cashBalance.amount)}</Text>
                   </View>
                 )}
                 <View style={[styles.bankRow, styles.bankTotalRow, { borderTopColor: theme.borderLight }]}>
@@ -340,6 +469,27 @@ export default function HomeScreen() {
               </TouchableOpacity>
             )}
 
+            <View style={styles.obligationsRow}>
+              <TouchableOpacity style={[styles.wealthCard, { backgroundColor: theme.surface }]} onPress={() => 
+router.push('/loans')}>
+                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Loans</Text>
+                <Text style={[styles.wealthValue, { color: theme.expense }]}>{formatCurrency(netWorth?.totalLoans || 
+0)}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.wealthCard, { backgroundColor: theme.surface }]} onPress={() => 
+router.push('/subscriptions')}>
+                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Subscriptions</Text>
+                <Text style={[styles.wealthValue, { color: theme.text }]}>{formatCurrency(netWorth?.subscriptionsTotal 
+|| 0)}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.wealthCard, { backgroundColor: theme.surface }]} onPress={() => 
+router.push('/insurance')}>
+                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Insurance</Text>
+                <Text style={[styles.wealthValue, { color: theme.text 
+}]}>{formatCurrency(netWorth?.insurancePremiumTotal || 0)}</Text>
+              </TouchableOpacity>
+            </View>
+
             {healthScore !== null && (
               <View style={[styles.healthCard, { backgroundColor: theme.surface }]}>
                 <View style={styles.healthHeader}>
@@ -349,7 +499,8 @@ export default function HomeScreen() {
                       styles.healthBadge,
                       {
                         backgroundColor:
-                          healthScore >= 70 ? theme.incomeLight : healthScore >= 40 ? theme.warningLight : theme.expenseLight,
+                          healthScore >= 70 ? theme.incomeLight : healthScore >= 40 ? theme.warningLight : 
+theme.expenseLight,
                       },
                     ]}
                   >
@@ -382,31 +533,36 @@ export default function HomeScreen() {
             )}
 
             <View style={styles.quickLinksRow}>
-              <TouchableOpacity style={[styles.quickLinkCard, { backgroundColor: theme.surface }]} onPress={() => router.push('/health')}>
+              <TouchableOpacity style={[styles.quickLinkCard, { backgroundColor: theme.surface }]} onPress={() => 
+router.push('/health')}>
                 <View style={[styles.qlIcon, { backgroundColor: theme.incomeLight }]}>
                   <Ionicons name="heart-outline" size={18} color={theme.income} />
                 </View>
                 <Text style={[styles.qlText, { color: theme.textSecondary }]}>Health</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.quickLinkCard, { backgroundColor: theme.surface }]} onPress={() => router.push('/what-if')}>
+              <TouchableOpacity style={[styles.quickLinkCard, { backgroundColor: theme.surface }]} onPress={() => 
+router.push('/what-if')}>
                 <View style={[styles.qlIcon, { backgroundColor: theme.warningLight }]}>
                   <Ionicons name="trending-up-outline" size={18} color={theme.warning} />
                 </View>
                 <Text style={[styles.qlText, { color: theme.textSecondary }]}>What-If</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.quickLinkCard, { backgroundColor: theme.surface }]} onPress={() => router.push('/risk-profile')}>
+              <TouchableOpacity style={[styles.quickLinkCard, { backgroundColor: theme.surface }]} onPress={() => 
+router.push('/risk-profile')}>
                 <View style={[styles.qlIcon, { backgroundColor: theme.primaryLight }]}>
                   <Ionicons name="shield-checkmark-outline" size={18} color={theme.primary} />
                 </View>
                 <Text style={[styles.qlText, { color: theme.textSecondary }]}>Risk</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.quickLinkCard, { backgroundColor: theme.surface }]} onPress={() => router.push('/deals')}>
+              <TouchableOpacity style={[styles.quickLinkCard, { backgroundColor: theme.surface }]} onPress={() => 
+router.push('/deals')}>
                 <View style={[styles.qlIcon, { backgroundColor: '#F3E8FF' }]}>
                   <Ionicons name="pricetag-outline" size={18} color="#8B5CF6" />
                 </View>
                 <Text style={[styles.qlText, { color: theme.textSecondary }]}>Deals</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.quickLinkCard, { backgroundColor: theme.surface }]} onPress={() => router.push('/expenses')}>
+              <TouchableOpacity style={[styles.quickLinkCard, { backgroundColor: theme.surface }]} onPress={() => 
+router.push('/expenses')}>
                 <View style={[styles.qlIcon, { backgroundColor: '#FEE2E2' }]}>
                   <Ionicons name="receipt-outline" size={18} color="#EF4444" />
                 </View>
@@ -493,6 +649,45 @@ export default function HomeScreen() {
         onClose={() => setQuickCaptureVisible(false)}
         onSaved={() => fetchData()}
       />
+
+      <Modal
+        visible={showYearPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowYearPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: theme.surface }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Select Year</Text>
+              <TouchableOpacity onPress={() => setShowYearPicker(false)}>
+                <Ionicons name="close" size={24} color={theme.textTertiary} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.yearGrid}>
+              <TouchableOpacity
+                style={[styles.yearCell, selectedYear === 'all' && { backgroundColor: theme.primary }]}
+                onPress={() => { setSelectedYear('all'); setSelectedMonth(''); setSelectedQuarter(''); 
+setShowYearPicker(false); }}
+              >
+                <Text style={[styles.yearCellText, { color: selectedYear === 'all' ? '#fff' : theme.text }]}>All 
+Years</Text>
+              </TouchableOpacity>
+              {years.map((y) => (
+                <TouchableOpacity
+                  key={y}
+                  style={[styles.yearCell, selectedYear === String(y) && { backgroundColor: theme.primary }]}
+                  onPress={() => { setSelectedYear(String(y)); setSelectedMonth(''); setSelectedQuarter(''); 
+setShowYearPicker(false); }}
+                >
+                  <Text style={[styles.yearCellText, { color: selectedYear === String(y) ? '#fff' : theme.text 
+}]}>{y}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -535,6 +730,137 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingBottom: 40,
+  },
+  periodBar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 14,
+    marginBottom: 16,
+  },
+  periodChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+  periodChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  periodChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  periodChip2: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  periodChipText2: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  overallCard: {
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  overallHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  overallTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  overallHint: {
+    fontSize: 10,
+  },
+  overallRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  overallLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  overallValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  obligationsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 20,
+  },
+  goalsCard: {
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  bankSub: {
+    fontSize: 10,
+    marginTop: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  yearGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  yearCell: {
+    width: '30%',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  yearCellText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   errorCard: {
     flexDirection: 'row',
@@ -639,99 +965,6 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: '700',
-  },
-  budgetCard: {
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  budgetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  budgetTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  budgetStatus: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  budgetBarBg: {
-    height: 8,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  budgetBarFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  budgetSub: {
-    fontSize: 12,
-    marginTop: 8,
-  },
-  wealthRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 20,
-  },
-  wealthCard: {
-    flex: 1,
-    borderRadius: 14,
-    padding: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  wealthValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  bankCard: {
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  bankHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  bankRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  bankTotalRow: {
-    marginTop: 6,
-    borderTopWidth: 1,
-    paddingTop: 10,
-  },
-  bankName: {
-    fontSize: 13,
-    fontWeight: '500',
-    flex: 1,
-  },
-  bankBalance: {
-    fontSize: 13,
-    fontWeight: '600',
   },
   healthCard: {
     borderRadius: 14,
@@ -873,3 +1106,5 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
 });
+
+

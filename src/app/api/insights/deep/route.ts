@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { withAuth } from "@/lib/with-auth"
 
 export async function GET() {
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
   const now = new Date()
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth() + 1
@@ -15,7 +19,7 @@ export async function GET() {
       const start = new Date(y, monthIdx, 1)
       const end = new Date(y, monthIdx + 1, 1)
       const agg = await prisma.expense.aggregate({
-        where: { date: { gte: start, lt: end } },
+        where: { profileId, date: { gte: start, lt: end } },
         _sum: { amount: true },
         _count: true,
       })
@@ -29,13 +33,13 @@ export async function GET() {
   const categoryBreakdown = await Promise.all(
     categories.map(async (cat) => {
       const agg = await prisma.expense.aggregate({
-        where: { categoryId: cat.id },
+        where: { profileId, categoryId: cat.id },
         _sum: { amount: true },
         _count: true,
       })
       const subCats = await prisma.expense.groupBy({
         by: ["subCategory"],
-        where: { categoryId: cat.id, subCategory: { not: null } },
+        where: { profileId, categoryId: cat.id, subCategory: { not: null } },
         _sum: { amount: true },
         _count: true,
       })
@@ -61,7 +65,7 @@ export async function GET() {
   // 3. Person-wise spending
   const personGroups = await prisma.expense.groupBy({
     by: ["person"],
-    where: { person: { not: null } },
+    where: { profileId, person: { not: null } },
     _sum: { amount: true },
     _count: true,
   })
@@ -77,7 +81,7 @@ export async function GET() {
   // 4. Top merchants
   const vendorGroups = await prisma.expense.groupBy({
     by: ["vendor"],
-    where: { vendor: { not: null } },
+    where: { profileId, vendor: { not: null } },
     _sum: { amount: true },
     _count: true,
   })
@@ -98,7 +102,7 @@ export async function GET() {
       const start = new Date(year, 0, 1)
       const end = new Date(year + 1, 0, 1)
       const agg = await prisma.expense.aggregate({
-        where: { date: { gte: start, lt: end } },
+        where: { profileId, date: { gte: start, lt: end } },
         _sum: { amount: true },
         _count: true,
       })
@@ -127,6 +131,7 @@ export async function GET() {
   const topMerchantNames = topMerchants.slice(0, 5).map((m) => m.name.toLowerCase())
   const deals = await prisma.deal.findMany({
     where: {
+      profileId,
       isActive: true,
       merchant: { in: topMerchantNames },
     },

@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { withAuth } from "@/lib/with-auth"
 import * as XLSX from "xlsx"
 import { generateCategorySheets } from "@/lib/export-utils"
 import { formatIndianCurrency } from "@/lib/format"
 
 export async function GET(req: Request) {
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
   const { searchParams } = new URL(req.url)
   const format = searchParams.get("format") || "xlsx"
   const type = searchParams.get("type") || "expenses"
@@ -29,7 +33,7 @@ export async function GET(req: Request) {
     }
 
     const expenses = await prisma.expense.findMany({
-      where: { date: dateFilter },
+      where: { profileId, date: dateFilter },
       include: { category: true },
       orderBy: [{ categoryId: "asc" }, { date: "desc" }],
     })
@@ -69,7 +73,7 @@ export async function GET(req: Request) {
         const y = Number.parseInt(year)
         where.date = { gte: new Date(y, m - 1, 1), lt: new Date(y, m, 1) }
       }
-      const expenses = await prisma.expense.findMany({ where, include: { category: true }, orderBy: { date: "desc" } })
+      const expenses = await prisma.expense.findMany({ where: { ...where, profileId }, include: { category: true }, orderBy: { date: "desc" } })
       data = expenses.map((e) => ({
         Date: e.date.toISOString().split("T")[0],
         Amount: formatIndianCurrency(e.amount),
@@ -83,7 +87,7 @@ export async function GET(req: Request) {
       break
     }
     case "budgets": {
-      const budgets = await prisma.budget.findMany({ include: { category: true }, orderBy: [{ year: "desc" }, { month: "desc" }] })
+      const budgets = await prisma.budget.findMany({ where: { profileId }, include: { category: true }, orderBy: [{ year: "desc" }, { month: "desc" }] })
       data = budgets.map((b) => ({
         Category: b.category.name,
         Month: b.month,
@@ -93,7 +97,7 @@ export async function GET(req: Request) {
       break
     }
     case "goals": {
-      const goals = await prisma.goal.findMany({ orderBy: { createdAt: "desc" } })
+      const goals = await prisma.goal.findMany({ where: { profileId }, orderBy: { createdAt: "desc" } })
       data = goals.map((g) => ({
         Name: g.name,
         "Target Amount": formatIndianCurrency(g.targetAmount),
@@ -107,7 +111,7 @@ export async function GET(req: Request) {
       break
     }
     case "investments": {
-      const investments = await prisma.investment.findMany({ orderBy: { purchaseDate: "desc" } })
+      const investments = await prisma.investment.findMany({ where: { profileId }, orderBy: { purchaseDate: "desc" } })
       data = investments.map((i) => ({
         Type: i.type,
         Name: i.name,

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { withAuth } from "@/lib/with-auth"
 import { z } from "zod"
 
 const SimulateSchema = z.object({
-  profileId: z.coerce.number().optional(),
   savingsRateChange: z.number().optional().default(0),
   expenseReduction: z.record(z.string(), z.number()).optional().default({}),
   investmentIncrease: z.number().optional().default(0),
@@ -38,8 +38,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid parameters", details: parsed.error.flatten() }, { status: 400 })
     }
 
-    const { profileId, savingsRateChange, expenseReduction, investmentIncrease, debtPayoff, months } = parsed.data
-    const profileFilter = profileId ? { profileId } : {}
+    const auth = await withAuth()
+    if (auth.error) return auth.error
+    const { profileId } = auth
+    const { savingsRateChange, expenseReduction, investmentIncrease, debtPayoff, months } = parsed.data
+    const profileFilter = { profileId }
     const now = new Date()
 
     // Gather baseline data
@@ -58,23 +61,30 @@ export async function POST(request: NextRequest) {
     const monthlyIncome = totalIncome > 0 ? totalIncome / 3 : 0
     const monthlyExpense = totalExpenses > 0 ? totalExpenses / 3 : 0
 
-    const budgets = await prisma.budget.findMany({
-      where: { ...profileFilter, month: now.getMonth() + 1, year: now.getFullYear() },
-    })
+    // B10: replaced 4 findMany + JS-reduce with 4 aggregate calls.
+    const [
+      budgets,
+      investmentsAgg,
+      assetsAgg,
+      liabilitiesAgg,
+      categories,
+    ] = await Promise.all([
+      prisma.budget.findMany({
+        where: { ...profileFilter, month: now.getMonth() + 1, year: now.getFullYear() },
+      }),
+      prisma.investment.aggregate({
+        where: { ...profileFilter, status: "active" },
+        _sum: { amount: true, currentValue: true },
+      }),
+      prisma.asset.aggregate({ where: { ...profileFilter }, _sum: { currentValue: true } }),
+      prisma.liability.aggregate({ where: { ...profileFilter }, _sum: { amount: true } }),
+      prisma.category.findMany({ where: { type: "expense" } }),
+    ])
 
-    const investments = await prisma.investment.findMany({
-      where: { ...profileFilter, status: "active" },
-    })
-    const totalInvested = investments.reduce((s, i) => s + i.amount, 0)
-    const totalInvestedValue = investments.reduce((s, i) => s + i.currentValue, 0)
-
-    const assets = await prisma.asset.findMany({ where: { ...profileFilter } })
-    const totalAssets = assets.reduce((s, a) => s + a.currentValue, 0)
-
-    const liabilities = await prisma.liability.findMany({ where: { ...profileFilter } })
-    const totalDebtBaseline = liabilities.reduce((s, l) => s + l.amount, 0)
-
-    const categories = await prisma.category.findMany({ where: { type: "expense" } })
+    const totalInvested = Number(investmentsAgg._sum.amount || 0)
+    const totalInvestedValue = Number(investmentsAgg._sum.currentValue || 0)
+    const totalAssets = Number(assetsAgg._sum.currentValue || 0)
+    const totalDebtBaseline = Number(liabilitiesAgg._sum.amount || 0)
 
     // Baseline scores
     const savingsRateBaseline = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpense) / monthlyIncome) * 100 : 0

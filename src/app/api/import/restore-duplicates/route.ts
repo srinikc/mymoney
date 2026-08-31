@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { withAuth } from "@/lib/with-auth"
 import * as XLSX from "xlsx"
 
 function parseDate(raw: unknown): Date | null {
@@ -88,6 +89,9 @@ function normalizePerson(p: string): string {
 
 export async function POST(req: Request) {
   try {
+    const auth = await withAuth()
+    if (auth.error) return auth.error
+    const { profileId } = auth
     const formData = await req.formData()
     const file = formData.get("file") as File
     if (!file) {
@@ -190,6 +194,7 @@ export async function POST(req: Request) {
 
     // Load existing DB keys
     const dbExpenses = await prisma.expense.findMany({
+      where: { profileId },
       select: { date: true, amount: true, vendor: true, description: true },
     })
     const dbKeys = new Set(
@@ -228,6 +233,7 @@ export async function POST(req: Request) {
     const expenseData = toRestore.map((expense) => ({
       date: expense.date,
       amount: expense.amount,
+      profileId,
       categoryId: catMap.get(expense.expenseType) || 1,
       subCategory: expense.subCategory || null,
       person: expense.person || null,

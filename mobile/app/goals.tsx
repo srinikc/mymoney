@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme,
-  RefreshControl, ActivityIndicator, TextInput, Alert,
+  RefreshControl, ActivityIndicator, Modal, TextInput, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
+import PurposePicker from '../components/PurposePicker';
 
 interface GoalItem {
   id?: string;
@@ -33,6 +34,7 @@ export default function GoalsScreen() {
   const [formName, setFormName] = useState('');
   const [formTarget, setFormTarget] = useState('');
   const [formSaved, setFormSaved] = useState('');
+  const [formPurpose, setFormPurpose] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -56,6 +58,7 @@ export default function GoalsScreen() {
         name: formName.trim(),
         targetAmount: parseFloat(formTarget),
         savedAmount: parseFloat(formSaved || '0'),
+        purpose: formPurpose || undefined,
       });
       setShowForm(false);
       fetch();
@@ -76,7 +79,7 @@ export default function GoalsScreen() {
       <View style={[styles.header, { backgroundColor: theme.surface }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}><Ionicons name="arrow-back" size={24} color={theme.text} /></TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Goals</Text>
-        <TouchableOpacity onPress={() => { setFormName(''); setFormTarget(''); setFormSaved(''); setFormError(null); setShowForm(true); }} style={[styles.addBtn, { backgroundColor: theme.primaryLight }]}><Ionicons name="add" size={22} color={theme.primary} /></TouchableOpacity>
+        <TouchableOpacity onPress={() => { setFormName(''); setFormTarget(''); setFormSaved(''); setFormPurpose(''); setFormError(null); setShowForm(true); }} style={[styles.addBtn, { backgroundColor: theme.primaryLight }]}><Ionicons name="add" size={22} color={theme.primary} /></TouchableOpacity>
       </View>
 
       {loading ? <View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View>
@@ -119,6 +122,8 @@ export default function GoalsScreen() {
           <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formTarget} onChangeText={setFormTarget} placeholder="0.00" placeholderTextColor={theme.textTertiary} keyboardType="decimal-pad" />
           <Text style={[styles.label, { color: theme.textSecondary }]}>Saved So Far</Text>
           <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formSaved} onChangeText={setFormSaved} placeholder="0.00" placeholderTextColor={theme.textTertiary} keyboardType="decimal-pad" />
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Purpose</Text>
+          <PurposePicker value={formPurpose} onChange={setFormPurpose} theme={theme} />
           <View style={styles.inlineActions}>
             <TouchableOpacity style={[styles.cancelBtn, { borderColor: theme.border }]} onPress={() => setShowForm(false)}><Text style={{ color: theme.textSecondary, fontWeight: '600' }}>Cancel</Text></TouchableOpacity>
             <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.primary }]} onPress={handleSave} disabled={formLoading}>

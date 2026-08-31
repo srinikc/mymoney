@@ -5,6 +5,7 @@ import { X, ExternalLink, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { HelpSection } from "./help-content"
+import { DiagramRenderer, DIAGRAMS } from "./workflow-diagrams"
 
 interface HelpDrawerProps {
   section: HelpSection
@@ -98,6 +99,13 @@ export function HelpDrawer({ section, path: _path, onClose }: HelpDrawerProps) {
                     </li>
                   ))}
                 </ol>
+              </div>
+            )}
+
+            {section.diagramKey && DIAGRAMS[section.diagramKey] && (
+              <div>
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Visual Workflow</h3>
+                <DiagramRenderer diagram={DIAGRAMS[section.diagramKey]} />
               </div>
             )}
 

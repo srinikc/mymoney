@@ -578,10 +578,10 @@ export default function InsurancePage() {
                   <p>No insurance policies yet. Add your first!</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="max-h-[70vh] overflow-auto">
                   <table className="w-full">
-                    <thead>
-                      <tr className="border-b text-left text-xs font-medium text-muted-foreground">
+                    <thead className="sticky top-0 z-10">
+                      <tr className="border-b text-left text-xs font-medium text-muted-foreground bg-background">
                         <th className="px-4 py-3">Policy Name</th>
                         <th className="px-4 py-3">Type</th>
                         <th className="px-4 py-3">Provider</th>

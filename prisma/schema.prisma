@@ -31,6 +31,7 @@ model User {
   gmailScans GmailScan[]
   vendorMappings VendorMapping[]
   importSessions ImportSession[]
+  autoCatVendorRules AutoCatVendorRule[]
 }
 
 model Profile {
@@ -39,6 +40,10 @@ model Profile {
   userId    Int
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   isDefault Boolean  @default(false)
+  language  String   @default("en") // en | hi | ta | kn | te | gu
+  dateOfBirth DateTime? // stored as DateTime with day=01 (MM/YYYY only)
+  annualIncome Float? // yearly income, source of truth
+  occupation String? // student | professional | business | retired | homemaker | freelance
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -140,6 +145,7 @@ model Category {
   budgets       Budget[]
   reminders     Reminder[]
   incomeSources IncomeSource[]
+  keywords      Json?
 }
 
 // ── Expense ───────────────────────────────────────────────────────────
@@ -168,6 +174,8 @@ model Expense {
   importSession   ImportSession?  @relation(fields: [importSessionId], references: [id])
   flagged         Boolean         @default(false)
   deletedAt       DateTime?
+  purpose         String?         // expense purpose from EXPENSE_PURPOSES
+  isUnusual       Boolean         @default(false) // auto-flagged if >₹5000 + non-regular category
   profileId       Int?
   profile         Profile?        @relation(fields: [profileId], references: [id])
   expenseLinks    ExpenseLink[]
@@ -183,6 +191,10 @@ model Expense {
   @@index([profileId, subCategory])
   @@index([profileId, person])
   @@index([profileId, deletedAt])
+  @@index([profileId, date, deletedAt])
+  @@index([profileId, categoryId, date])
+  @@index([profileId, vendor, date])
+  @@index([profileId, isUnusual])
 }
 
 // ── Budget ────────────────────────────────────────────────────────────
@@ -221,11 +233,15 @@ model Goal {
   monthlyContribution Float?
   notes               String?
   status              String   @default("active")
+  targetUnit          String?  @default("₹")     // currency unit for target
+  goldQuantity        Float?   // gold quantity target (grams)
+  purpose             String?  // why this goal exists
   profileId           Int?
   profile             Profile? @relation(fields: [profileId], references: [id])
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   investments         Investment[]
+  loans               Loan[]
 
   @@index([profileId])
 }
@@ -248,6 +264,20 @@ model Investment {
   linkedGoal     Goal?     @relation(fields: [linkedGoalId], references: [id])
   notes          String?
   status         String    @default("active")
+  // EPF / provident-fund specific fields
+  employeeContribution  Float?
+  employerContribution  Float?
+  passbookUrl           String?
+  projectionYears       Float?
+  // FD / deposit-specific fields
+  fdNumber      String?
+  bankName      String?
+  maturityDate  DateTime?
+  // Chit Fund specific fields
+  paymentMode         String?
+  monthlyContribution Float?
+  totalMonths         Int?
+  completedMonths     Int?
   profileId      Int?
   profile        Profile?  @relation(fields: [profileId], references: [id])
   createdAt      DateTime  @default(now())
@@ -271,6 +301,24 @@ model VendorMapping {
   subCategory String?
   person      String?
   source      String   @default("manual")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, vendorKey])
+  @@index([userId])
+}
+
+// ── Auto-Categorize Vendor Rules ──────────────────────────────────────
+
+model AutoCatVendorRule {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vendorKey   String
+  category    String?
+  subCategory String?
+  person      String?
+  source      String   @default("keyword")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -363,6 +411,7 @@ model Asset {
   location      String?   // for property
   status        String    @default("owned") // owned | sold | inherited
   notes         String?
+  purpose       String?   // why you own this asset
   profileId     Int?
   profile       Profile?  @relation(fields: [profileId], references: [id])
   createdAt     DateTime  @default(now())
@@ -497,11 +546,20 @@ model Loan {
   endDate      DateTime?
   lender       String?
   notes        String?
+  linkedGoalId Int?
+  linkedGoal   Goal?    @relation(fields: [linkedGoalId], references: [id])
+  emiActive    Boolean  @default(false)
+  emiStartDate DateTime?
+  emiFrequency String?
+  remainingAmount Float?
+  status       String   @default("active")
+  closedDate   DateTime?
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@index([profileId])
+  @@index([linkedGoalId])
 }
 
 // ── Insurance ─────────────────────────────────────────────────────────

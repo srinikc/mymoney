@@ -1,7 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿
+import { useEffect, useState, useMemo } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme,
-  RefreshControl, ActivityIndicator
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  useColorScheme,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
@@ -9,169 +16,197 @@ import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
 
-interface MonthlyTrend {
-  month: string;
-  amount: number;
+interface IntelligenceItem {
+  id: string;
+  kind: 'anomaly' | 'velocity' | 'subscription' | 'tax-optimization' | 'lifestyle-creep' | 'seasonal' | 
+'weekend-effect';
+  title: string;
+  description: string;
+  metric: string;
+  severity: 'info' | 'warn' | 'alert';
+  actionable: string;
 }
 
-interface CategoryBreakdown {
-  name: string;
-  amount: number;
-  count: number;
-  subCategories: { name: string; amount: number }[];
-}
-
-interface PersonWise {
-  name: string;
-  amount: number;
-}
-
-interface TopMerchant {
-  name: string;
-  amount: number;
-}
-
-interface Optimization {
+interface Recommendation {
+  id: string;
   category: string;
-  percentage: number;
-  potentialSavings: number;
+  priority: 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  action: string;
+  impact: string;
+  estimatedSavings?: number;
 }
 
-interface InsightsData {
-  monthlyTrend?: MonthlyTrend[];
-  categoryBreakdown?: CategoryBreakdown[];
-  personWise?: PersonWise[];
-  topMerchants?: TopMerchant[];
-  optimization?: Optimization[];
+interface IntelligenceResponse {
+  items: IntelligenceItem[];
+  total: number;
+  counts: { info: number; warn: number; alert: number };
 }
 
-const COLORS = ['#6366f1', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#ec4899', '#8b5cf6', '#06b6d4', '#84cc16'];
+const KIND_META: Record<string, { label: string; icon: any }> = {
+  anomaly: { label: 'Anomaly', icon: 'alert-circle' },
+  velocity: { label: 'Pace', icon: 'speedometer' },
+  subscription: { label: 'Subscription', icon: 'refresh-circle' },
+  'tax-optimization': { label: 'Tax', icon: 'document-text' },
+  'lifestyle-creep': { label: 'Lifestyle', icon: 'trending-up' },
+  seasonal: { label: 'Seasonal', icon: 'calendar' },
+  'weekend-effect': { label: 'Weekend', icon: 'calendar' },
+};
 
-type PeriodType = 'all' | 'year' | 'quarter' | 'month';
+const SEVERITY_META: Record<string, { bg: string; border: string; text: string }> = {
+  alert: { bg: '#FEE2E2', border: '#EF4444', text: '#991B1B' },
+  warn: { bg: '#FEF3C7', border: '#F59E0B', text: '#92400E' },
+  info: { bg: '#DBEAFE', border: '#3B82F6', text: '#1E40AF' },
+};
 
 export default function InsightsScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
 
-  const [data, setData] = useState<InsightsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [period, setPeriod] = useState<PeriodType>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [tab, setTab] = useState<'alerts' | 'all' | 'recs'>('alerts');
+  const [intelligence, setIntelligence] = useState<IntelligenceResponse | null>(null);
+  const [recs, setRecs] = useState<Recommendation[]>([]);
 
-  const fetchData = useCallback(async () => {
-    const params = new URLSearchParams();
-    if (period !== 'all') params.set(period, 'true');
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function load() {
+    setLoading(true);
     try {
-      const res = await api.get(`/api/insights/deep${params.toString() ? `?${params.toString()}` : ''}`);
-      setData(res.data);
-    } catch { /* ignore */ }
-    finally { setLoading(false); setRefreshing(false); }
-  }, [period]);
+      const [i, r] = await Promise.all([
+        api.get<IntelligenceResponse>('/api/intelligence'),
+        api.get<Recommendation[]>('/api/recommendations'),
+      ]);
+      setIntelligence(i.data);
+      setRecs(r.data);
+    } catch {
+      // noop
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const highCount = useMemo(() => {
+    const i = (intelligence?.items ?? []).filter((x) => x.severity !== 'info').length;
+    const r = recs.filter((x) => x.priority !== 'low').length;
+    return i + r;
+  }, [intelligence, recs]);
 
-  const periods = [
-    { key: 'all', label: 'All' }, { key: 'year', label: 'Year' },
-    { key: 'quarter', label: 'Quarter' }, { key: 'month', label: 'Month' },
-  ] as const;
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center' }}>
+        <Stack.Screen options={{ title: 'Insights', headerStyle: { backgroundColor: theme.card } }} />
+        <ActivityIndicator color={theme.primary} />
+      </View>
+    );
+  }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.header, { backgroundColor: theme.surface }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Insights</Text>
-      </View>
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <Stack.Screen
+        options={{
+          title: 'Insights',
+          headerStyle: { backgroundColor: theme.card },
+          headerTintColor: theme.text,
+        }}
+      />
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} 
+tintColor={theme.primary} />}
+      >
+        {highCount > 0 && tab === 'alerts' && (
+          <View style={[styles.banner, { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' }]}>
+            <Ionicons name="alert-circle" size={20} color="#92400E" />
+            <Text style={{ flex: 1, color: '#92400E', fontSize: 13, fontWeight: '600', marginLeft: 8 }}>
+              {highCount} item{highCount === 1 ? '' : 's'} need your attention
+            </Text>
+          </View>
+        )}
 
-      <View style={styles.periodRow}>
-        {periods.map((p) => (
-          <TouchableOpacity key={p.key} style={[styles.periodBtn, period === p.key && { backgroundColor: theme.primary, borderColor: theme.primary }]} onPress={() => setPeriod(p.key)}>
-            <Text style={[styles.periodText, { color: period === p.key ? 'white' : theme.textSecondary }]}>{p.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View>
-      ) : !data ? (
-        <View style={styles.center}>
-          <Ionicons name="analytics-outline" size={40} color={theme.textTertiary} />
-          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No data available</Text>
+        <View style={styles.tabBar}>
+          <TabButton active={tab === 'alerts'} label={`Alerts${highCount > 0 ? ` (${highCount})` : ''}`} onPress={() 
+=> setTab('alerts')} color={theme.primary} />
+          <TabButton active={tab === 'all'} label={`All (${intelligence?.total ?? 0})`} onPress={() => setTab('all')} 
+color={theme.primary} />
+          <TabButton active={tab === 'recs'} label={`Tips (${recs.length})`} onPress={() => setTab('recs')} 
+color={theme.primary} />
         </View>
       ) : (
         <ScrollView
           contentContainerStyle={styles.content}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={theme.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); 
+}} tintColor={theme.primary} />}
         >
           {data.monthlyTrend && data.monthlyTrend.length > 0 && (
             <View style={[styles.card, { backgroundColor: theme.surface }]}>
               <Text style={[styles.cardTitle, { color: theme.text }]}>Monthly Trend</Text>
               <View style={styles.barChart}>
                 {data.monthlyTrend.map((m: MonthlyTrend, i: number) => {
-                  const max = Math.max(...(data.monthlyTrend || []).map((x: MonthlyTrend) => x.amount));
+                  const max = Math.max(...data.monthlyTrend.map((x: MonthlyTrend) => x.amount));
                   const pct = max > 0 ? (m.amount / max) * 100 : 0;
                   return (
                     <View key={i} style={styles.barCol}>
-                      <Text style={[styles.barValue, { color: theme.textTertiary }]}>{Math.round(m.amount / 1000)}k</Text>
-                      <View style={[styles.bar, { height: `${pct}%`, backgroundColor: COLORS[i % COLORS.length], minHeight: 3 }]} />
+                      <Text style={[styles.barValue, { color: theme.textTertiary }]}>{Math.round(m.amount / 
+1000)}k</Text>
+                      <View style={[styles.bar, { height: `${pct}%`, backgroundColor: COLORS[i % COLORS.length], 
+minHeight: 3 }]} />
                       <Text style={[styles.barLabel, { color: theme.textTertiary }]}>{m.month.slice(0, 3)}</Text>
                     </View>
                   );
                 })}
+
+        {tab === 'alerts' && (
+          <>
+            {(intelligence?.items ?? []).filter((i) => i.severity !== 'info').map((i) => <IntelCard key={i.id} 
+item={i} theme={theme} />)}
+            {recs.filter((r) => r.priority !== 'low').map((r) => <RecCard key={r.id} item={r} theme={theme} />)}
+            {highCount === 0 && (
+              <View style={[styles.empty, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+                <Text style={{ color: theme.text, fontSize: 15, fontWeight: '600', marginTop: 8 }}>All clear</Text>
               </View>
-            </View>
-          )}
+            )}
+          </>
+        )}
 
-          {data.categoryBreakdown && data.categoryBreakdown.length > 0 && (
-            <View style={[styles.card, { backgroundColor: theme.surface }]}>
-              <Text style={[styles.cardTitle, { color: theme.text }]}>Category Breakdown</Text>
-              {data.categoryBreakdown.map((c: CategoryBreakdown, i: number) => {
-                const isSelected = selectedCategory === c.name;
-                const subs = c.subCategories || [];
-                return (
-                  <TouchableOpacity key={c.name} onPress={() => setSelectedCategory(isSelected ? null : c.name)}>
-                    <View style={[styles.categoryRow, isSelected && { backgroundColor: theme.primaryLight, borderRadius: 8 }]}>
-                      <View style={[styles.categoryDot, { backgroundColor: COLORS[i % COLORS.length] }]} />
-                      <Text style={[styles.categoryName, { color: theme.text, fontWeight: isSelected ? '700' : '500' }]}>{c.name}</Text>
-                      <Text style={[styles.categoryAmount, { color: theme.text }]}>{formatCurrency(c.amount)}</Text>
-                      <Text style={[styles.categoryCount, { color: theme.textTertiary }]}>({c.count})</Text>
-                    </View>
-                    {isSelected && subs.length > 0 && (
-                      <View style={[styles.subList, { borderLeftColor: COLORS[i % COLORS.length], borderLeftWidth: 2 }]}>
-                        {subs.map((s: { name: string; amount: number }) => (
-                          <View key={s.name} style={styles.subRow}>
-                            <Text style={[styles.subName, { color: theme.textSecondary }]}>{s.name}</Text>
-                            <Text style={[styles.subAmount, { color: theme.text }]}>{formatCurrency(s.amount)}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
+        {tab === 'all' && (
+          <>
+            {(intelligence?.items ?? []).map((i) => <IntelCard key={i.id} item={i} theme={theme} />)}
+            {(!intelligence || intelligence.items.length === 0) && (
+              <View style={[styles.empty, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <Ionicons name="bulb" size={48} color={theme.textTertiary} />
+                <Text style={{ color: theme.text, fontSize: 14, marginTop: 8 }}>Add more expenses to unlock 
+insights</Text>
+                <TouchableOpacity onPress={() => router.push('/expenses' as never)} style={{ marginTop: 8 }}>
+                  <Text style={{ color: theme.primary, fontSize: 14, fontWeight: '600' }}>Add expenses ΓåÆ</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
+        )}
 
-          {data.personWise && data.personWise.length > 0 && (
-            <View style={[styles.card, { backgroundColor: theme.surface }]}>
-              <Text style={[styles.cardTitle, { color: theme.text }]}>Person-wise</Text>
-              {data.personWise.map((p: PersonWise) => (
-                <View key={p.name} style={styles.personRow}>
-                  <View style={[styles.personDot, { backgroundColor: theme.primary }]} />
-                  <Text style={[styles.personName, { color: theme.text }]}>{p.name}</Text>
-                  <Text style={[styles.personAmount, { color: theme.text }]}>{formatCurrency(p.amount)}</Text>
-                </View>
-              ))}
-            </View>
-          )}
+        {tab === 'recs' && (
+          <>
+            {recs.map((r) => <RecCard key={r.id} item={r} theme={theme} />)}
+            {recs.length === 0 && (
+              <View style={[styles.empty, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <Ionicons name="flag" size={48} color={theme.textTertiary} />
+                <Text style={{ color: theme.text, fontSize: 14, marginTop: 8 }}>No recommendations right now</Text>
+              </View>
+            )}
+          </>
+        )}
 
           {data.topMerchants && data.topMerchants.length > 0 && (
             <View style={[styles.card, { backgroundColor: theme.surface }]}>
-              <Text style={[styles.cardTitle, { color: theme.text }]}>Top Vendors</Text>
+              <Text style={[styles.cardTitle, { color: theme.text }]}>Top Merchants</Text>
               {data.topMerchants.map((m: TopMerchant) => (
                 <View key={m.name} style={styles.merchantRow}>
                   <Ionicons name="storefront-outline" size={16} color={theme.textTertiary} />
@@ -189,61 +224,130 @@ export default function InsightsScreen() {
                 <View key={o.category} style={styles.optRow}>
                   <View style={styles.optHeader}>
                     <Text style={[styles.optCategory, { color: theme.text }]}>{o.category}</Text>
-                    <Text style={[styles.optPct, { color: o.percentage > 20 ? theme.expense : theme.income }]}>{o.percentage}%</Text>
+                    <Text style={[styles.optPct, { color: o.percentage > 20 ? theme.expense : theme.income 
+}]}>{o.percentage}%</Text>
                   </View>
                   <View style={[styles.optBar, { backgroundColor: theme.border }]}>
-                    <View style={[styles.optFill, { width: `${Math.min(100, o.percentage)}%`, backgroundColor: o.percentage > 20 ? theme.expense : theme.income }]} />
+                    <View style={[styles.optFill, { width: `${Math.min(100, o.percentage)}%`, backgroundColor: 
+o.percentage > 20 ? theme.expense : theme.income }]} />
                   </View>
-                  <Text style={[styles.optSavings, { color: theme.income }]}>Potential savings: {formatCurrency(o.potentialSavings)}</Text>
+                  <Text style={[styles.optSavings, { color: theme.income }]}>Potential savings: 
+{formatCurrency(o.potentialSavings)}</Text>
                 </View>
               ))}
             </View>
           )}
         </ScrollView>
       )}
+        <View style={{ marginTop: 20, gap: 8 }}>
+          <QuickLink label="Unusual Expenses" href="/expenses/unusual" icon="alert-circle-outline" theme={theme} />
+          <QuickLink label="Emergency Fund Planner" href="/emergency-fund" icon="medkit-outline" theme={theme} />
+          <QuickLink label="Budget Wizard" href="/budgets" icon="wallet-outline" theme={theme} />
+          <QuickLink label="Learn" href="/learn" icon="book-outline" theme={theme} />
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
+function TabButton({ active, label, onPress, color }: { active: boolean; label: string; onPress: () => void; color: 
+string }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={{
+        flex: 1,
+        paddingVertical: 8,
+        alignItems: 'center',
+        borderRadius: 8,
+        backgroundColor: active ? color : 'transparent',
+      }}
+    >
+      <Text style={{ fontSize: 12, fontWeight: '600', color: active ? '#fff' : color }}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function IntelCard({ item, theme }: { item: IntelligenceItem; theme: any }) {
+  const sev = SEVERITY_META[item.severity];
+  const meta = KIND_META[item.kind] || KIND_META.anomaly;
+  return (
+    <View style={[styles.card, { backgroundColor: sev.bg, borderColor: sev.border }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+        <View style={[styles.iconBox, { backgroundColor: '#fff' }]}>
+          <Ionicons name={meta.icon as any} size={18} color={sev.text} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <Text style={{ color: sev.text, fontSize: 14, fontWeight: '700', flex: 1 }}>{item.title}</Text>
+            <Text style={{ color: sev.text, fontSize: 9, fontWeight: '700', textTransform: 'uppercase' 
+}}>{item.severity}</Text>
+          </View>
+          <Text style={{ color: sev.text, fontSize: 12, marginTop: 4, lineHeight: 17 }}>{item.description}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
+            <Text style={{ color: sev.text, fontSize: 12, fontFamily: 'monospace' }}>{item.metric}</Text>
+          </View>
+          <Text style={{ color: sev.text, fontSize: 11, marginTop: 6, fontWeight: '600' }}>ΓåÆ {item.actionable}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function RecCard({ item, theme }: { item: Recommendation; theme: any }) {
+  const priorityColor = item.priority === 'high' ? '#EF4444' : item.priority === 'medium' ? '#F59E0B' : 
+theme.textTertiary;
+  return (
+    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+        <View style={[styles.iconBox, { backgroundColor: theme.primaryLight }]}>
+          <Ionicons name="bulb" size={18} color={theme.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ color: theme.text, fontSize: 14, fontWeight: '600', flex: 1 }}>{item.title}</Text>
+            <Text style={{ color: priorityColor, fontSize: 9, fontWeight: '700', textTransform: 'uppercase' 
+}}>{item.priority}</Text>
+          </View>
+          <Text style={{ color: theme.textSecondary, fontSize: 12, marginTop: 4 }}>{item.description}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 4, marginTop: 6 }}>
+            <Ionicons name="arrow-forward" size={12} color={theme.primary} style={{ marginTop: 2 }} />
+            <Text style={{ color: theme.text, fontSize: 12, flex: 1 }}>{item.action}</Text>
+          </View>
+          {item.estimatedSavings != null && item.estimatedSavings > 0 && (
+            <Text style={{ color: '#10B981', fontSize: 11, marginTop: 4, fontWeight: '600' }}>
+              Est. annual savings: {formatCurrency(item.estimatedSavings * 12)}
+            </Text>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function QuickLink({ label, href, icon, theme }: { label: string; href: string; icon: any; theme: any }) {
+  return (
+    <TouchableOpacity
+      onPress={() => {/* navigation handled in pages */}}
+      style={[styles.quickLink, { backgroundColor: theme.card, borderColor: theme.border }]}
+    >
+      <Ionicons name={icon as any} size={18} color={theme.primary} />
+      <Text style={{ color: theme.text, fontSize: 14, fontWeight: '500', flex: 1 }}>{label}</Text>
+      <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { paddingTop: 56, paddingBottom: 16, paddingHorizontal: 20, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, flexDirection: 'row', alignItems: 'center' },
-  backBtn: { marginRight: 12, padding: 4 },
-  headerTitle: { fontSize: 22, fontWeight: '700', flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  emptyText: { fontSize: 15, fontWeight: '500' },
-  periodRow: { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 12, gap: 8 },
-  periodBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: 'transparent' },
-  periodText: { fontSize: 13, fontWeight: '600' },
-  content: { padding: 20, paddingBottom: 40 },
-  card: { borderRadius: 16, padding: 16, marginBottom: 12 },
-  cardTitle: { fontSize: 16, fontWeight: '700', marginBottom: 14 },
-  barChart: { height: 140, flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
-  barCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: '100%' },
-  barValue: { fontSize: 8, marginBottom: 2 },
-  bar: { width: '80%', borderRadius: 3, minHeight: 3 },
-  barLabel: { fontSize: 9, marginTop: 4 },
-  categoryRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 4 },
-  categoryDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
-  categoryName: { flex: 1, fontSize: 13 },
-  categoryAmount: { fontSize: 13, fontWeight: '600', marginRight: 4 },
-  categoryCount: { fontSize: 11 },
-  subList: { marginLeft: 18, paddingLeft: 10, marginBottom: 8 },
-  subRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  subName: { fontSize: 12 },
-  subAmount: { fontSize: 12, fontWeight: '600' },
-  personRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
-  personDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
-  personName: { flex: 1, fontSize: 13 },
-  personAmount: { fontSize: 13, fontWeight: '600' },
-  merchantRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, gap: 8 },
-  merchantName: { flex: 1, fontSize: 13 },
-  merchantAmount: { fontSize: 13, fontWeight: '600' },
-  optRow: { marginBottom: 14 },
-  optHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  optCategory: { fontSize: 13, fontWeight: '600' },
-  optPct: { fontSize: 13, fontWeight: '700' },
-  optBar: { height: 6, borderRadius: 3, overflow: 'hidden' },
-  optFill: { height: '100%', borderRadius: 3 },
-  optSavings: { fontSize: 11, fontWeight: '600', marginTop: 4 },
+  banner: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 
+12 },
+  tabBar: { flexDirection: 'row', gap: 4, marginBottom: 12, backgroundColor: 'rgba(0,0,0,0.04)', borderRadius: 10, 
+padding: 4 },
+  card: { padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 10 },
+  iconBox: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  empty: { padding: 32, borderRadius: 12, borderWidth: 1, alignItems: 'center', marginTop: 8 },
+  quickLink: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 10, borderWidth: 
+StyleSheet.hairlineWidth },
 });
+
+

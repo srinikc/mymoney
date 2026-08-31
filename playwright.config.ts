@@ -8,8 +8,16 @@ export default defineConfig({
   workers: 1,
   reporter: "list",
   globalSetup: "./e2e/global.setup.ts",
+  // E2E runs against a dedicated server backed by the TEST database
+  // (scripts/start-e2e.cjs). The dev/prod `mymoney` database is never touched.
+  webServer: {
+    command: "npm run dev:e2e",
+    url: "http://localhost:3100",
+    reuseExistingServer: !process.env.CI,
+    timeout: 180_000,
+  },
   use: {
-    baseURL: "http://localhost:3005",
+    baseURL: "http://localhost:3100",
     trace: "on-first-retry",
     storageState: "e2e/.auth.json",
   },

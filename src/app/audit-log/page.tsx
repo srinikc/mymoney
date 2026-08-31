@@ -453,9 +453,9 @@ export default function AuditLogPage() {
           {/* Data Table */}
           {!loading && !error && entries.length > 0 && (
             <>
-              <div className="overflow-x-auto">
+              <div className="max-h-[70vh] overflow-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 z-10 bg-background">
                     <TableRow>
                       <TableHead className="w-[180px]">Timestamp</TableHead>
                       <TableHead className="w-[140px]">Profile</TableHead>

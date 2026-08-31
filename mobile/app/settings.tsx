@@ -56,6 +56,12 @@ export default function SettingsScreen() {
 
   const sections: { title: string; items: SettingsItem[] }[] = [
     {
+      title: 'Profile',
+      items: [
+        { title: 'Profile Settings', icon: 'person-outline', type: 'action' as const, onPress: () => router.push('/settings/profile') },
+      ],
+    },
+    {
       title: 'Preferences',
       items: [
         { title: 'Push Notifications', icon: 'notifications-outline', type: 'toggle' as const, value: notifications, onToggle: (v: boolean) => { setNotifications(v); savePreference('notifications', v); } },

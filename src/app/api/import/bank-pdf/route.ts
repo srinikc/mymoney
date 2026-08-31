@@ -33,12 +33,14 @@ export async function POST(req: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
-    const parsed = await parseBankPdf(buffer)
+    const bankHint = String(formData.get("bank") || "").trim() || undefined
+    const parsed = await parseBankPdf(buffer, bankHint)
 
     if (parsed.rows.length === 0) {
       return NextResponse.json({
         error: "No transactions found in PDF. Ensure the file is a bank statement from HDFC, ICICI, or SBI.",
         format: parsed.format,
+        rawExcerpt: parsed.rawText?.slice(0, 500) || "",
       }, { status: 400 })
     }
 

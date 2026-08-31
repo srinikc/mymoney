@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
-import { isViewer, type AuthUser } from "@/lib/roles"
+import { withAuth } from "@/lib/with-auth"
 import { writeFile, mkdir, unlink } from "node:fs/promises"
 import path from "node:path"
 import type { Prisma } from "@prisma/client"
@@ -11,12 +10,9 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024
 const DOC_TYPES = ["form16", "form26as", "form10e", "capital_gains", "home_loan_cert", "rent_receipts", "donation_receipt", "other"] as const
 
 export async function GET(req: Request) {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
+    const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
     const { searchParams } = new URL(req.url)
     const fy = searchParams.get("fy")
 
@@ -28,21 +24,15 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
     })
     return NextResponse.json(documents)
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
 }
 
 export async function POST(req: Request) {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-    if (isViewer(session?.user as AuthUser)) {
+    const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId, role } = auth
+    if (role === "viewer") {
       return NextResponse.json({ error: "Viewers cannot modify data" }, { status: 403 })
     }
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
 
     const formData = await req.formData()
     const file = formData.get("file") as File | null
@@ -142,7 +132,4 @@ export async function POST(req: Request) {
         })
 
     return NextResponse.json({ message: existing ? "Document replaced" : "Document uploaded", document: doc }, { status: existing ? 200 : 201 })
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
 }

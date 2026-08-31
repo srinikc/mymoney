@@ -117,7 +117,7 @@ export default function IncomeScreen() {
       {loading ? <View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View>
       : error ? <View style={styles.center}><Ionicons name="alert-circle" size={40} color={theme.expense} /><Text style={{ color: theme.expense, fontSize: 14 }}>{error}</Text></View>
       : (
-        <FlatList data={sources} keyExtractor={(i, idx) => i.id || String(idx)}
+        <FlatList data={sources} keyExtractor={(i, idx) => String(i.id ?? idx)}
           ListHeaderComponent={summary ? (
             <View style={[styles.summaryCard, { backgroundColor: theme.primary }]}>
               <Text style={{ color: '#fff', opacity: 0.7, fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 }}>Income Summary</Text>

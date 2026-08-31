@@ -9,16 +9,21 @@ import { Colors } from '../constants/Colors';
 import api from '../api/client';
 
 const KEY_FIELDS = [
-  { key: 'LLM_PROVIDER', label: 'LLM Provider', type: 'select' as const, description: 'Choose AI provider for financial advisor' },
-  { key: 'OPENAI_API_KEY', label: 'OpenAI API Key', type: 'password' as const, description: 'Required if using OpenAI' },
+  { key: 'LLM_PROVIDER', label: 'LLM Provider', type: 'select' as const, description: 'Choose AI provider. Base URL + model suggestions auto-fill.' },
+  { key: 'LLM_MODEL', label: 'LLM Model', type: 'text' as const, description: 'Pick a suggested model or type any model ID.' },
+  { key: 'OPENAI_API_KEY', label: 'OpenAI-compatible API Key', type: 'password' as const, description: 'Used for OpenAI, Groq, Cerebras, OpenRouter, DeepSeek, Mistral, Gemini, Together, DeepInfra, xAI' },
   { key: 'ANTHROPIC_API_KEY', label: 'Anthropic API Key', type: 'password' as const, description: 'Required if using Claude' },
-  { key: 'LLM_MODEL', label: 'LLM Model', type: 'text' as const, description: 'e.g. gpt-4o-mini' },
-  { key: 'AUTH_RESEND_KEY', label: 'Resend API Key', type: 'password' as const, description: 'For welcome emails' },
-  { key: 'ZERODHA_API_KEY', label: 'Zerodha API Key', type: 'password' as const, description: 'For Zerodha Kite API' },
-  { key: 'ZERODHA_API_SECRET', label: 'Zerodha API Secret', type: 'password' as const, description: 'Zerodha Kite secret' },
-  { key: 'SHAREKHAN_API_KEY', label: 'Sharekhan API Key', type: 'password' as const, description: 'For Sharekhan API' },
-  { key: 'SHAREKHAN_API_SECRET', label: 'Sharekhan API Secret', type: 'password' as const, description: 'Sharekhan secret' },
+  { key: 'OPENCODE_API_KEY', label: 'OpenCode Zen API Key', type: 'password' as const, description: 'Required for the OpenCode Zen gateway. Get one at opencode.ai/auth' },
+  { key: 'LLM_BASE_URL', label: 'LLM Base URL', type: 'text' as const, description: 'Auto-filled when you pick a provider. Leave empty for OpenAI.com or Claude native.' },
+  { key: 'LOCAL_LLM_ENDPOINT', label: 'Local LLM Endpoint', type: 'text' as const, description: 'e.g. http://localhost:11434/v1 (Ollama)' },
+  { key: 'AUTH_RESEND_KEY', label: 'Resend API Key', type: 'password' as const, description: 'For welcome emails via resend.com' },
 ];
+
+interface LLMModelOption { value: string; label: string }
+interface LLMProviderOption {
+  value: string; label: string; apiKeyField: string; baseUrl: string; defaultModel: string;
+  models: LLMModelOption[]; description: string;
+}
 
 export default function ApiKeysScreen() {
   const colorScheme = useColorScheme();
@@ -26,16 +31,34 @@ export default function ApiKeysScreen() {
   const router = useRouter();
 
   const [keys, setKeys] = useState<Record<string, string>>({});
+  const [providers, setProviders] = useState<LLMProviderOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [visible, setVisible] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     api.get('/api/settings/api-keys')
-      .then((r) => setKeys(r.data?.keys || {}))
+      .then((r) => { setKeys(r.data?.keys || {}); setProviders(r.data?.catalog?.providers || []); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const setKey = (key: string, value: string) => setKeys({ ...keys, [key]: value });
+
+  const handleProviderChange = (value: string) => {
+    const prov = providers.find((p) => p.value === value);
+    const next: Record<string, string> = { ...keys, LLM_PROVIDER: value };
+    if (prov) {
+      next.LLM_MODEL = prov.defaultModel;
+      // Always set base URL (even empty) so switching providers clears
+      // any stale URL from the previous provider.
+      next.LLM_BASE_URL = prov.baseUrl;
+    }
+    setKeys(next);
+  };
+
+  const currentProvider = providers.find((p) => p.value === (keys.LLM_PROVIDER || 'openai'));
+  const modelOptions = currentProvider?.models || [];
 
   const handleSave = async () => {
     setSaving(true);
@@ -70,16 +93,50 @@ export default function ApiKeysScreen() {
             <Text style={[styles.fieldLabel, { color: theme.text }]}>{field.label}</Text>
             <Text style={[styles.fieldDesc, { color: theme.textTertiary }]}>{field.description}</Text>
             {field.type === 'select' ? (
-              <View style={styles.selectRow}>
-                {['openai', 'claude'].map((opt) => (
-                  <TouchableOpacity
-                    key={opt}
-                    style={[styles.selectOpt, { borderColor: (keys[field.key] || 'openai') === opt ? theme.primary : theme.border, backgroundColor: (keys[field.key] || 'openai') === opt ? theme.primaryLight : 'transparent' }]}
-                    onPress={() => setKeys({ ...keys, [field.key]: opt })}
-                  >
-                    <Text style={[styles.selectOptText, { color: (keys[field.key] || 'openai') === opt ? theme.primary : theme.text }]}>{opt === 'openai' ? 'OpenAI' : 'Claude'}</Text>
-                  </TouchableOpacity>
-                ))}
+              <View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selectRow}>
+                  {providers.map((p) => {
+                    const active = (keys[field.key] || 'openai') === p.value;
+                    return (
+                      <TouchableOpacity
+                        key={p.value}
+                        style={[styles.selectOpt, { borderColor: active ? theme.primary : theme.border, backgroundColor: active ? theme.primaryLight : 'transparent' }]}
+                        onPress={() => handleProviderChange(p.value)}
+                      >
+                        <Text style={[styles.selectOptText, { color: active ? theme.primary : theme.text }]}>{p.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+                {currentProvider && (
+                  <Text style={[styles.fieldDesc, { color: theme.textTertiary }]}>{currentProvider.description}</Text>
+                )}
+              </View>
+            ) : field.key === 'LLM_MODEL' ? (
+              <View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selectRow}>
+                  {modelOptions.map((m) => {
+                    const active = (keys[field.key] || '') === m.value;
+                    return (
+                      <TouchableOpacity
+                        key={m.value}
+                        style={[styles.selectOpt, { borderColor: active ? theme.primary : theme.border, backgroundColor: active ? theme.primaryLight : 'transparent' }]}
+                        onPress={() => setKey(field.key, m.value)}
+                      >
+                        <Text style={[styles.selectOptText, { color: active ? theme.primary : theme.text }]}>{m.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+                <View style={[styles.inputRow, { borderColor: theme.border, marginTop: 8 }]}>
+                  <TextInput
+                    style={[styles.input, { color: theme.text }]}
+                    value={keys[field.key] || ''}
+                    onChangeText={(v) => setKey(field.key, v)}
+                    placeholder="Or type any model ID"
+                    placeholderTextColor={theme.textTertiary}
+                  />
+                </View>
               </View>
             ) : (
               <View style={[styles.inputRow, { borderColor: theme.border }]}>
@@ -118,7 +175,7 @@ const styles = StyleSheet.create({
   fieldCard: { borderRadius: 14, padding: 16, marginBottom: 12 },
   fieldLabel: { fontSize: 15, fontWeight: '600', marginBottom: 2 },
   fieldDesc: { fontSize: 12, marginBottom: 10 },
-  selectRow: { flexDirection: 'row', gap: 8 },
+  selectRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
   selectOpt: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, borderWidth: 1 },
   selectOptText: { fontSize: 14, fontWeight: '600' },
   inputRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12 },

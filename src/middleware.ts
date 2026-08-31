@@ -1,7 +1,7 @@
 ﻿import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { jwtVerify } from "jose"
-import { getTierLimit } from "@/shared/middleware/rate-limit"
+import { getTierLimit } from "@/shared/middleware/rate-limit-config"
 
 const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET || "")
 
@@ -87,7 +87,9 @@ export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   // ── 1. Per-tier rate limiting ─────────────────────────────────────────
-  if (process.env.E2E !== "true") {
+  // Rate limiting is a production concern; skip it in dev to avoid
+  // throttling HMR, auth-session polling, and multi-request page loads.
+  if (process.env.E2E !== "true" && process.env.NODE_ENV === "production") {
     const rateLimitResult = checkRateLimit(req)
 
     if (!rateLimitResult.allowed) {
@@ -151,7 +153,9 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // Protected pages require a session cookie
+  // Protected pages require a session cookie. The cookie value is a JWE
+  // encrypted with an HKDF-derived key, so it can't be verified here with
+  // jwtVerify; presence check is enough (route handlers 401 as needed).
   if (!sessionCookie) {
     const loginUrl = new URL("/login", req.url)
     loginUrl.searchParams.set("callbackUrl", pathname)

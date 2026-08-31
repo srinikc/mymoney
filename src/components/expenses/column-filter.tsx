@@ -38,6 +38,8 @@ interface ColumnFilterProps {
   currentSort?: string
   sortDir?: "asc" | "desc"
   onSort?: () => void
+  /** Number of rows matching this filter (for badge display) */
+  matchCount?: number
 }
 
 export function ColumnFilter({
@@ -63,9 +65,17 @@ export function ColumnFilter({
   currentSort,
   sortDir,
   onSort,
+  matchCount,
 }: ColumnFilterProps) {
   const [open, setOpen] = useState(false)
   const hasSelection = value.length > 0 || (type === "amount" && (amountMin || amountMax)) || (type === "daterange" && (dateFrom || dateTo)) || (type === "text" && !!textValue)
+
+  const badgeLabel = (() => {
+    if (!hasSelection) return null
+    if (matchCount != null) return String(matchCount)
+    if (type === "amount" || type === "daterange" || type === "text") return "!"
+    return String(value.length)
+  })()
 
   return (
     <th className="px-1.5 py-1 select-none text-[10px] font-medium text-muted-foreground">
@@ -93,7 +103,7 @@ export function ColumnFilter({
             >
               {hasSelection ? (
                 <span className="inline-flex items-center justify-center h-3.5 min-w-3.5 rounded-full bg-primary/20 text-[8px] font-bold px-1 text-primary -mt-0.5">
-                  {type === "amount" || type === "daterange" || type === "text" ? "!" : value.length}
+                  {badgeLabel}
                 </span>
               ) : (
                 <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

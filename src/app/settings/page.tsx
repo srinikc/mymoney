@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Bell, Shield, Plug, Mail, Key, Server, Smartphone, FileText, Building2, Database, Download, Trash2, Loader2 } from "lucide-react"
+import { Bell, Shield, Plug, Mail, Key, Server, Smartphone, FileText, Building2, Database, Download, Trash2, Loader2, LogIn } from "lucide-react"
 import Link from "next/link"
 
 export default function SettingsPage() {
@@ -15,6 +15,17 @@ export default function SettingsPage() {
   const isAdmin = (session?.user as Record<string, unknown> | undefined)?.role === "admin"
   const [downloading, setDownloading] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [googleConnected, setGoogleConnected] = useState(false)
+  const [googleEmail, setGoogleEmail] = useState<string | null>(null)
+  const [googleLoading, setGoogleLoading] = useState(true)
+
+  useEffect(() => {
+    fetch("/api/auth/status").then(r => r.json()).then(data => {
+      setGoogleConnected(data.connected)
+      setGoogleEmail(data.email || null)
+      setGoogleLoading(false)
+    }).catch(() => setGoogleLoading(false))
+  }, [])
 
   const handleDownload = async () => {
     setDownloading(true)
@@ -76,24 +87,27 @@ export default function SettingsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">Configure LLM (OpenAI/Claude), Resend, Zerodha, and Sharekhan API keys</p>
+              <p className="text-sm text-muted-foreground">Configure LLM (OpenAI/Claude) and Resend API keys</p>
             </CardContent>
           </Card>
         </Link>
 
-        <Link href="/settings/environment">
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <Server className="h-5 w-5 text-primary" />
-                <CardTitle className="text-base">Environment</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">View and override env config: DB URL, Auth secret, Google OAuth, App URL</p>
-            </CardContent>
-          </Card>
-        </Link>
+        {isAdmin && (
+          <Link href="/settings/environment">
+            <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full border-amber-200 dark:border-amber-800">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <Server className="h-5 w-5 text-amber-500" />
+                  <CardTitle className="text-base">Environment</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">View and override env config: DB URL, Auth secret, Google OAuth, App URL</p>
+                <Badge variant="outline" className="mt-2 text-xs border-amber-200 text-amber-700">Admin only</Badge>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
 
         <Link href="/settings/bank-accounts">
           <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
@@ -136,6 +150,37 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </Link>
+
+        {/* Google Account */}
+        <Card className="h-full">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <Mail className="h-5 w-5 text-primary" />
+              <CardTitle className="text-base">Google Account</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {googleLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : googleConnected ? (
+              <>
+                <p className="text-sm text-emerald-600 font-medium">● Connected</p>
+                {googleEmail && <p className="text-sm text-muted-foreground mt-1">{googleEmail}</p>}
+                <p className="text-xs text-muted-foreground mt-2">Enables Gmail import and GPay sync</p>
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => window.location.href = "/api/auth/logout"}>
+                  Disconnect
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">Connect to enable Gmail import and GPay sync</p>
+                <Button size="sm" className="mt-3" onClick={() => window.location.href = "/api/auth/google"}>
+                  <LogIn className="h-4 w-4 mr-2" /> Connect Google Account
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
         <Link href="/settings/session-link">
           <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">

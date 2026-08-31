@@ -4,11 +4,11 @@ import { auth } from "@/lib/auth"
 
 export async function GET(req: NextRequest) {
   const session = await auth()
-  if (!session?.user?.id) {
+  if (!session?.user) {
     return new NextResponse("<html><body><h2>Unauthorized</h2></body></html>", {
-      status: 401,
-      headers: { "Content-Type": "text/html" },
-    })
+        status: 401,
+        headers: { "Content-Type": "text/html" },
+      })
   }
 
   const { searchParams } = new URL(req.url)
@@ -20,8 +20,9 @@ export async function GET(req: NextRequest) {
     })
   }
 
+  const userId = session.user.id
   const payment = await prisma.payment.findUnique({ where: { orderId } })
-  if (!payment || payment.userId !== Number(session.user.id)) {
+  if (!payment || payment.userId !== userId) {
     return new NextResponse("<html><body><h2>Order not found</h2></body></html>", {
       status: 404,
       headers: { "Content-Type": "text/html" },

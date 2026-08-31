@@ -56,13 +56,19 @@ export default function SettingsScreen() {
 
   const sections: { title: string; items: SettingsItem[] }[] = [
     {
+      title: 'Profile',
+      items: [
+        { title: 'Profile Settings', icon: 'person-outline', type: 'action' as const, onPress: () => router.push('/settings/profile') },
+      ],
+    },
+    {
       title: 'Preferences',
       items: [
         { title: 'Push Notifications', icon: 'notifications-outline', type: 'toggle' as const, value: notifications, onToggle: (v: boolean) => { setNotifications(v); savePreference('notifications', v); } },
         { title: 'Weekly Report', icon: 'document-text-outline', type: 'toggle' as const, value: weeklyReport, onToggle: (v: boolean) => { setWeeklyReport(v); savePreference('weeklyReport', v); } },
         { title: 'Compact Mode', icon: 'resize-outline', type: 'toggle' as const, value: compactMode, onToggle: (v: boolean) => { setCompactMode(v); savePreference('compactMode', v); } },
         { title: 'Gmail Parser Keywords', icon: 'mail-outline', type: 'action' as const, onPress: () => router.push('/gmail-parser') },
-        { title: 'Environment Config', icon: 'server-outline', type: 'action' as const, onPress: () => router.push('/environment') },
+        ...(user?.role === 'admin' ? [{ title: 'Environment Config', icon: 'server-outline', type: 'action' as const, onPress: () => router.push('/environment') } as SettingsItem] : []),
       ],
     },
     {

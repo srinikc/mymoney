@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { withAuth } from "@/lib/with-auth"
 import { sendPushToUser } from "@/lib/expo-push"
 import { validateBody } from "@/shared/validate"
 import { BudgetCreateSchema } from "@/shared/validation"
 
 export async function GET(req: Request) {
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
   const { searchParams } = new URL(req.url)
   const month = Number.parseInt(searchParams.get("month") || "")
   const year = Number.parseInt(searchParams.get("year") || "")
 
-  const where: Record<string, unknown> = {}
+  const where: Record<string, unknown> = { profileId }
   if (month) where.month = month
   if (year) where.year = year
 
@@ -25,11 +28,17 @@ export async function GET(req: Request) {
       const startDate = new Date(budget.year, budget.month - 1, 1)
       const endDate = new Date(budget.year, budget.month, 1)
 
+      const expenseWhere: Record<string, unknown> = {
+        categoryId: budget.categoryId,
+        date: { gte: startDate, lt: endDate },
+        profileId,
+      }
+      if (budget.subCategory) {
+        expenseWhere.subCategory = budget.subCategory
+      }
+
       const agg = await prisma.expense.aggregate({
-        where: {
-          categoryId: budget.categoryId,
-          date: { gte: startDate, lt: endDate },
-        },
+        where: expenseWhere,
         _sum: { amount: true },
       })
 
@@ -41,22 +50,28 @@ export async function GET(req: Request) {
   return NextResponse.json(budgetsWithSpent)
 }
 
-async function checkBudgetThreshold(budgetId: number, userId: number) {
+async function checkBudgetThreshold(budgetId: number, userId: number, profileId: number) {
   try {
     const budget = await prisma.budget.findUnique({
       where: { id: budgetId },
       include: { category: true },
     })
-    if (!budget) return
+    if (!budget || budget.profileId !== profileId) return
 
     const startDate = new Date(budget.year, budget.month - 1, 1)
     const endDate = new Date(budget.year, budget.month, 1)
 
+    const expenseWhere: Record<string, unknown> = {
+      categoryId: budget.categoryId,
+      date: { gte: startDate, lt: endDate },
+      profileId,
+    }
+    if (budget.subCategory) {
+      expenseWhere.subCategory = budget.subCategory
+    }
+
     const agg = await prisma.expense.aggregate({
-      where: {
-        categoryId: budget.categoryId,
-        date: { gte: startDate, lt: endDate },
-      },
+      where: expenseWhere,
       _sum: { amount: true },
     })
 
@@ -82,20 +97,23 @@ async function checkBudgetThreshold(budgetId: number, userId: number) {
 export async function POST(req: Request) {
   const { data: body, error } = await validateBody(req, BudgetCreateSchema)
   if (error) return error
-  const session = await auth()
-
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId, userId } = auth
   const budget = await prisma.budget.create({
     data: {
       categoryId: body.categoryId,
+      subCategory: body.subCategory ?? null,
       month: body.month,
       year: body.year,
       amount: body.amount,
+      profileId: profileId,
     },
     include: { category: true },
   })
 
-  if (session?.user?.id) {
-    checkBudgetThreshold(budget.id, Number(session.user.id)).catch(() => {})
+  if (userId) {
+    checkBudgetThreshold(budget.id, userId, profileId).catch(() => {})
   }
 
   return NextResponse.json(budget, { status: 201 })
@@ -104,16 +122,17 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   const body = await req.json()
   if (!body.id) return NextResponse.json({ error: "id required" }, { status: 400 })
-  const session = await auth()
-
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId, userId } = auth
   const budget = await prisma.budget.update({
     where: { id: Number.parseInt(body.id) },
     data: { amount: Number.parseFloat(body.amount) },
     include: { category: true },
   })
 
-  if (session?.user?.id) {
-    checkBudgetThreshold(budget.id, Number(session.user.id)).catch(() => {})
+  if (userId) {
+    checkBudgetThreshold(budget.id, userId, profileId).catch(() => {})
   }
 
   return NextResponse.json(budget)

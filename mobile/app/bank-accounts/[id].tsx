@@ -112,7 +112,7 @@ export default function BankAccountDetailScreen() {
     setBalanceLoading(true);
     try {
       await api.put(`/api/bank-accounts/${id}`, { balance: val });
-      setAccount((prev: AccountDetail | null) => ({ ...prev, balance: val }));
+      setAccount((prev) => (prev ? { ...prev, balance: val } : prev));
       setEditingBalance(false);
     } catch {
       Alert.alert('Error', 'Failed to update balance');

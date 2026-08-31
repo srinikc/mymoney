@@ -4,10 +4,11 @@ import { Sidebar } from "./sidebar"
 import { useUIStore } from "@/lib/store"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { Menu, LogOut, User, Moon, Sun, HelpCircle } from "lucide-react"
+import { Menu, LogOut, User, Moon, Sun, HelpCircle, Settings as SettingsIcon } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
+import Link from "next/link"
 import { HelpDrawer } from "@/components/help/HelpDrawer"
 import { getHelpForPath } from "@/components/help/help-content"
 import type { HelpSection } from "@/components/help/help-content"
@@ -58,6 +59,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Menu className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-1 ml-auto">
+            <Link
+              href="/settings"
+              className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex items-center justify-center"
+              title="Settings"
+            >
+              <SettingsIcon className="h-4 w-4" />
+            </Link>
             <button
               onClick={() => setHelpOpen(true)}
               className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex items-center justify-center"

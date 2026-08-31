@@ -1,0 +1,469 @@
+[
+  {
+    "name": "dining-groceries",
+    "type": "expense",
+    "icon": "utensils",
+    "color": "#ef4444",
+    "keywords": [
+      { "pattern": "swiggy", "subCategory": "Restaurant", "priority": 100 },
+      { "pattern": "zomato", "subCategory": "Restaurant", "priority": 100 },
+      { "pattern": "dominos", "subCategory": "Restaurant", "priority": 100 },
+      { "pattern": "pizza hut", "subCategory": "Restaurant", "priority": 100 },
+      { "pattern": "mcdonald", "subCategory": "Restaurant", "priority": 100 },
+      { "pattern": "kfc", "subCategory": "Restaurant", "priority": 100 },
+      { "pattern": "baskin robbins", "subCategory": "Icecream", "priority": 100 },
+      { "pattern": "subway", "subCategory": "Restaurant", "priority": 100 },
+      { "pattern": "chef", "subCategory": "Restaurant", "priority": 95 },
+      { "pattern": "restaurant", "subCategory": "Restaurant", "priority": 95 },
+      { "pattern": "mess", "subCategory": "Mess", "priority": 95 },
+      { "pattern": "tiffin", "subCategory": "Tiffin", "priority": 95 },
+      { "pattern": "dhaba", "subCategory": "Restaurant", "priority": 95 },
+      { "pattern": "cafe", "subCategory": "Cafe", "priority": 95 },
+      { "pattern": "biryani", "subCategory": "Restaurant", "priority": 95 },
+      { "pattern": "paratha", "subCategory": "Restaurant", "priority": 95 },
+      { "pattern": "meals", "subCategory": "Mess", "priority": 95 },
+      { "pattern": "darshini", "subCategory": "Restaurant", "priority": 95 },
+      { "pattern": "darshinis", "subCategory": "Restaurant", "priority": 95 },
+      { "pattern": "udupi", "subCategory": "Restaurant", "priority": 95 },
+      { "pattern": "thali", "subCategory": "Restaurant", "priority": 95 },
+      { "pattern": "bhojan", "subCategory": "Mess", "priority": 95 },
+      { "pattern": "khanavali", "subCategory": "Restaurant", "priority": 95 },
+      { "pattern": "hotel", "subCategory": "Hotel", "priority": 90 },
+      { "pattern": "eatery", "subCategory": "Restaurant", "priority": 90 },
+      { "pattern": "food court", "subCategory": "Restaurant", "priority": 90 },
+      { "pattern": "food point", "subCategory": "Restaurant", "priority": 90 },
+      { "pattern": "food center", "subCategory": "Restaurant", "priority": 90 },
+      { "pattern": "food zone", "subCategory": "Restaurant", "priority": 90 },
+      { "pattern": "food express", "subCategory": "Restaurant", "priority": 90 },
+      { "pattern": "chinna", "subCategory": "Restaurant", "priority": 90 },
+      { "pattern": "sweet", "subCategory": "Sweets", "priority": 90 },
+      { "pattern": "sweets", "subCategory": "Sweets", "priority": 90 },
+      { "pattern": "namkeen", "subCategory": "Snacks", "priority": 90 },
+      { "pattern": "chaat", "subCategory": "Snacks", "priority": 90 },
+      { "pattern": "snacks", "subCategory": "Snacks", "priority": 90 },
+      { "pattern": "bakery", "subCategory": "Bakery", "priority": 90 },
+      { "pattern": "pastry", "subCategory": "Bakery", "priority": 90 },
+      { "pattern": "ice cream", "subCategory": "Icecream", "priority": 90 },
+      { "pattern": "icecream", "subCategory": "Icecream", "priority": 90 },
+      { "pattern": "juice", "subCategory": "Drinks", "priority": 85 },
+      { "pattern": "provision", "subCategory": "Groceries", "priority": 95 },
+      { "pattern": "provisions", "subCategory": "Groceries", "priority": 95 },
+      { "pattern": "general store", "subCategory": "Groceries", "priority": 95 },
+      { "pattern": "grocery", "subCategory": "Groceries", "priority": 95 },
+      { "pattern": "groceries", "subCategory": "Groceries", "priority": 95 },
+      { "pattern": "supermarket", "subCategory": "Groceries", "priority": 95 },
+      { "pattern": "super market", "subCategory": "Groceries", "priority": 95 },
+      { "pattern": "dmart", "subCategory": "Groceries", "priority": 95 },
+      { "pattern": "reliance fresh", "subCategory": "Groceries", "priority": 95 },
+      { "pattern": "bigbasket", "subCategory": "Groceries", "priority": 95 },
+      { "pattern": "blinkit", "subCategory": "Groceries", "priority": 95 },
+      { "pattern": "zepto", "subCategory": "Groceries", "priority": 95 },
+      { "pattern": "more supermarket", "subCategory": "Groceries", "priority": 95 },
+      { "pattern": "vegetable", "subCategory": "Vegetables", "priority": 95 },
+      { "pattern": "veggies", "subCategory": "Vegetables", "priority": 95 },
+      { "pattern": "sabzi", "subCategory": "Vegetables", "priority": 95 },
+      { "pattern": "fruit", "subCategory": "Fruits", "priority": 95 },
+      { "pattern": "fruits", "subCategory": "Fruits", "priority": 95 },
+      { "pattern": "milk", "subCategory": "Dairy", "priority": 95 },
+      { "pattern": "dairy", "subCategory": "Dairy", "priority": 95 },
+      { "pattern": "chicken", "subCategory": "Non-Veg", "priority": 90 },
+      { "pattern": "mutton", "subCategory": "Non-Veg", "priority": 90 },
+      { "pattern": "meat", "subCategory": "Non-Veg", "priority": 90 },
+      { "pattern": "fish", "subCategory": "Non-Veg", "priority": 85 },
+      { "pattern": "egg", "subCategory": "Non-Veg", "priority": 85 }
+    ]
+  },
+  {
+    "name": "healthcare",
+    "type": "expense",
+    "icon": "heart",
+    "color": "#ec4899",
+    "keywords": [
+      { "pattern": "medical", "subCategory": "Medicines", "priority": 95 },
+      { "pattern": "medicals", "subCategory": "Medicines", "priority": 95 },
+      { "pattern": "medicines", "subCategory": "Medicines", "priority": 95 },
+      { "pattern": "pharmacy", "subCategory": "Medicines", "priority": 95 },
+      { "pattern": "chemist", "subCategory": "Medicines", "priority": 95 },
+      { "pattern": "health care", "subCategory": "Health", "priority": 95 },
+      { "pattern": "healthcare", "subCategory": "Health", "priority": 95 },
+      { "pattern": "apollo", "subCategory": "Medicines", "priority": 95 },
+      { "pattern": "pharmeasy", "subCategory": "Medicines", "priority": 95 },
+      { "pattern": "1mg", "subCategory": "Medicines", "priority": 95 },
+      { "pattern": "netmeds", "subCategory": "Medicines", "priority": 95 },
+      { "pattern": "doctor", "subCategory": "Doctor", "priority": 95 },
+      { "pattern": "clinic", "subCategory": "Doctor", "priority": 95 },
+      { "pattern": "hospital", "subCategory": "Hospital", "priority": 95 },
+      { "pattern": "diagnostic", "subCategory": "Diagnostic", "priority": 90 },
+      { "pattern": "pathology", "subCategory": "Diagnostic", "priority": 90 },
+      { "pattern": "nursing home", "subCategory": "Hospital", "priority": 90 },
+      { "pattern": "dental", "subCategory": "Dental", "priority": 90 },
+      { "pattern": "eye care", "subCategory": "Eye Care", "priority": 90 },
+      { "pattern": "optical", "subCategory": "Eye Care", "priority": 90 },
+      { "pattern": "physio", "subCategory": "Physio", "priority": 90 }
+    ]
+  },
+  {
+    "name": "commute",
+    "type": "expense",
+    "icon": "car",
+    "color": "#f97316",
+    "keywords": [
+      { "pattern": "ola", "subCategory": "Auto", "priority": 95 },
+      { "pattern": "uber", "subCategory": "Auto", "priority": 95 },
+      { "pattern": "rapido", "subCategory": "Auto", "priority": 95 },
+      { "pattern": "metro", "subCategory": "Metro", "priority": 95 },
+      { "pattern": "irctc", "subCategory": "Train", "priority": 95 },
+      { "pattern": "railway", "subCategory": "Train", "priority": 90 },
+      { "pattern": "ksrtc", "subCategory": "Bus", "priority": 90 },
+      { "pattern": "bmrtc", "subCategory": "Bus", "priority": 90 },
+      { "pattern": "flight", "subCategory": "Flight", "priority": 90 },
+      { "pattern": "indigo", "subCategory": "Flight", "priority": 90 },
+      { "pattern": "spicejet", "subCategory": "Flight", "priority": 90 },
+      { "pattern": "parking", "subCategory": "Parking", "priority": 85 },
+      { "pattern": "toll", "subCategory": "Toll", "priority": 85 },
+      { "pattern": "fastag", "subCategory": "Toll", "priority": 85 }
+    ]
+  },
+  {
+    "name": "fuel-topup",
+    "type": "expense",
+    "icon": "fuel",
+    "color": "#f59e0b",
+    "keywords": [
+      { "pattern": "petrol", "subCategory": "Fuel", "priority": 95 },
+      { "pattern": "diesel", "subCategory": "Fuel", "priority": 95 },
+      { "pattern": "fuel", "subCategory": "Fuel", "priority": 95 },
+      { "pattern": "hpcl", "subCategory": "Fuel", "priority": 95 },
+      { "pattern": "bpcl", "subCategory": "Fuel", "priority": 95 },
+      { "pattern": "iocl", "subCategory": "Fuel", "priority": 95 },
+      { "pattern": "indian oil", "subCategory": "Fuel", "priority": 95 },
+      { "pattern": "bharat petroleum", "subCategory": "Fuel", "priority": 95 },
+      { "pattern": "shell", "subCategory": "Fuel", "priority": 90 }
+    ]
+  },
+  {
+    "name": "shopping-general",
+    "type": "expense",
+    "icon": "shopping-bag",
+    "color": "#eab308",
+    "keywords": [
+      { "pattern": "amazon", "subCategory": "Online Shopping", "priority": 95 },
+      { "pattern": "flipkart", "subCategory": "Online Shopping", "priority": 95 },
+      { "pattern": "myntra", "subCategory": "Online Shopping", "priority": 95 },
+      { "pattern": "ajio", "subCategory": "Online Shopping", "priority": 95 },
+      { "pattern": "meesho", "subCategory": "Online Shopping", "priority": 95 },
+      { "pattern": "electronics", "subCategory": "Electronics", "priority": 85 }
+    ]
+  },
+  {
+    "name": "apparel",
+    "type": "expense",
+    "icon": "shirt",
+    "color": "#8b5cf6",
+    "keywords": [
+      { "pattern": "clothing", "subCategory": "Clothes", "priority": 90 },
+      { "pattern": "clothes", "subCategory": "Clothes", "priority": 90 },
+      { "pattern": "apparel", "subCategory": "Clothes", "priority": 90 },
+      { "pattern": "fashion", "subCategory": "Clothes", "priority": 85 },
+      { "pattern": "laundry", "subCategory": "Laundry", "priority": 85 },
+      { "pattern": "dry clean", "subCategory": "Dry Clean", "priority": 85 }
+    ]
+  },
+  {
+    "name": "footwear",
+    "type": "expense",
+    "icon": "footprints",
+    "color": "#78716c",
+    "keywords": [
+      { "pattern": "shoe", "subCategory": "Shoes", "priority": 90 },
+      { "pattern": "shoes", "subCategory": "Shoes", "priority": 90 }
+    ]
+  },
+  {
+    "name": "fine-gold",
+    "type": "expense",
+    "icon": "gem",
+    "color": "#ca8a04",
+    "keywords": [
+      { "pattern": "jewel", "subCategory": "Gold", "priority": 90 },
+      { "pattern": "gold", "subCategory": "Gold", "priority": 85 },
+      { "pattern": "diamond", "subCategory": "Diamond", "priority": 85 }
+    ]
+  },
+  {
+    "name": "home-furnishing",
+    "type": "expense",
+    "icon": "home",
+    "color": "#64748b",
+    "keywords": [
+      { "pattern": "furniture", "subCategory": "Furniture", "priority": 80 },
+      { "pattern": "kitchen", "subCategory": "Kitchen", "priority": 80 }
+    ]
+  },
+  {
+    "name": "utility-bills",
+    "type": "expense",
+    "icon": "zap",
+    "color": "#22c55e",
+    "keywords": [
+      { "pattern": "electricity", "subCategory": "Electricity", "priority": 95 },
+      { "pattern": "electric", "subCategory": "Electricity", "priority": 90 },
+      { "pattern": "bescom", "subCategory": "Electricity", "priority": 95 },
+      { "pattern": "water bill", "subCategory": "Water", "priority": 95 },
+      { "pattern": "gas bill", "subCategory": "Gas", "priority": 95 },
+      { "pattern": "lpg", "subCategory": "Gas", "priority": 90 }
+    ]
+  },
+  {
+    "name": "telecom",
+    "type": "expense",
+    "icon": "phone",
+    "color": "#3b82f6",
+    "keywords": [
+      { "pattern": "broadband", "subCategory": "Internet", "priority": 95 },
+      { "pattern": "internet", "subCategory": "Internet", "priority": 90 },
+      { "pattern": "airtel", "subCategory": "Mobile", "priority": 95 },
+      { "pattern": "jio", "subCategory": "Mobile", "priority": 95 },
+      { "pattern": "bsnl", "subCategory": "Mobile", "priority": 95 },
+      { "pattern": "recharge", "subCategory": "Mobile", "priority": 90 }
+    ]
+  },
+  {
+    "name": "leisure",
+    "type": "expense",
+    "icon": "film",
+    "color": "#06b6d4",
+    "keywords": [
+      { "pattern": "dth", "subCategory": "DTH", "priority": 85 },
+      { "pattern": "netflix", "subCategory": "Streaming", "priority": 95 },
+      { "pattern": "prime video", "subCategory": "Streaming", "priority": 95 },
+      { "pattern": "hotstar", "subCategory": "Streaming", "priority": 95 },
+      { "pattern": "sony liv", "subCategory": "Streaming", "priority": 95 },
+      { "pattern": "zee5", "subCategory": "Streaming", "priority": 95 },
+      { "pattern": "movie", "subCategory": "Movie", "priority": 90 },
+      { "pattern": "cinema", "subCategory": "Movie", "priority": 90 },
+      { "pattern": "theatre", "subCategory": "Movie", "priority": 90 },
+      { "pattern": "bookmyshow", "subCategory": "Movie", "priority": 95 },
+      { "pattern": "spotify", "subCategory": "Music", "priority": 95 }
+    ]
+  },
+  {
+    "name": "learning",
+    "type": "expense",
+    "icon": "book",
+    "color": "#8b5cf6",
+    "keywords": [
+      { "pattern": "school", "subCategory": "School", "priority": 90 },
+      { "pattern": "college", "subCategory": "College", "priority": 90 },
+      { "pattern": "university", "subCategory": "University", "priority": 90 },
+      { "pattern": "tuition", "subCategory": "Tuition", "priority": 90 },
+      { "pattern": "coaching", "subCategory": "Coaching", "priority": 90 },
+      { "pattern": "udemy", "subCategory": "Online Course", "priority": 95 },
+      { "pattern": "coursera", "subCategory": "Online Course", "priority": 95 }
+    ]
+  },
+  {
+    "name": "rent-housing",
+    "type": "expense",
+    "icon": "building",
+    "color": "#64748b",
+    "keywords": [
+      { "pattern": "rent", "subCategory": "Rent", "priority": 95 },
+      { "pattern": "maintenance", "subCategory": "Maintenance", "priority": 90 },
+      { "pattern": "society", "subCategory": "Society", "priority": 85 }
+    ]
+  },
+  {
+    "name": "home-fixes",
+    "type": "expense",
+    "icon": "wrench",
+    "color": "#78716c",
+    "keywords": [
+      { "pattern": "repair", "subCategory": "Repair", "priority": 90 },
+      { "pattern": "plumber", "subCategory": "Plumber", "priority": 90 },
+      { "pattern": "electrician", "subCategory": "Electrician", "priority": 90 }
+    ]
+  },
+  {
+    "name": "auto-maintenance",
+    "type": "expense",
+    "icon": "car",
+    "color": "#f97316",
+    "keywords": [
+      { "pattern": "car service", "subCategory": "Service", "priority": 95 },
+      { "pattern": "bike service", "subCategory": "Service", "priority": 95 },
+      { "pattern": "vehicle service", "subCategory": "Service", "priority": 95 },
+      { "pattern": "car wash", "subCategory": "Wash", "priority": 85 }
+    ]
+  },
+  {
+    "name": "protection-premiums",
+    "type": "expense",
+    "icon": "shield",
+    "color": "#0ea5e9",
+    "keywords": [
+      { "pattern": "insurance", "subCategory": "Insurance", "priority": 85 }
+    ]
+  },
+  {
+    "name": "grooming",
+    "type": "expense",
+    "icon": "scissors",
+    "color": "#d946ef",
+    "keywords": [
+      { "pattern": "haircut", "subCategory": "Haircut", "priority": 95 },
+      { "pattern": "salon", "subCategory": "Salon", "priority": 90 },
+      { "pattern": "beauty", "subCategory": "Beauty", "priority": 85 },
+      { "pattern": "spa", "subCategory": "Spa", "priority": 85 }
+    ]
+  },
+  {
+    "name": "personal-care",
+    "type": "expense",
+    "icon": "droplets",
+    "color": "#06b6d4",
+    "keywords": [
+      { "pattern": "toiletries", "subCategory": "Toiletries", "priority": 90 },
+      { "pattern": "cosmetic", "subCategory": "Cosmetics", "priority": 85 }
+    ]
+  },
+  {
+    "name": "religious-worship",
+    "type": "expense",
+    "icon": "landmark",
+    "color": "#f59e0b",
+    "keywords": [
+      { "pattern": "temple", "subCategory": "Temple", "priority": 95 },
+      { "pattern": "pooja", "subCategory": "Pooja", "priority": 90 },
+      { "pattern": "puja", "subCategory": "Pooja", "priority": 90 }
+    ]
+  },
+  {
+    "name": "flowers-garlands",
+    "type": "expense",
+    "icon": "flower-2",
+    "color": "#f472b6",
+    "keywords": [
+      { "pattern": "flower", "subCategory": "Flowers", "priority": 90 },
+      { "pattern": "flowers", "subCategory": "Flowers", "priority": 90 },
+      { "pattern": "garland", "subCategory": "Garland", "priority": 90 }
+    ]
+  },
+  {
+    "name": "festive-occasions",
+    "type": "expense",
+    "icon": "party-popper",
+    "color": "#eab308",
+    "keywords": [
+      { "pattern": "festival", "subCategory": "Festival", "priority": 85 },
+      { "pattern": "diwali", "subCategory": "Diwali", "priority": 85 },
+      { "pattern": "ganesha", "subCategory": "Ganesha", "priority": 85 }
+    ]
+  },
+  {
+    "name": "charity-giving",
+    "type": "expense",
+    "icon": "heart-handshake",
+    "color": "#ef4444",
+    "keywords": [
+      { "pattern": "donation", "subCategory": "Donation", "priority": 95 },
+      { "pattern": "charity", "subCategory": "Charity", "priority": 90 }
+    ]
+  },
+  {
+    "name": "gifting",
+    "type": "expense",
+    "icon": "gift",
+    "color": "#a855f7",
+    "keywords": [
+      { "pattern": "gift", "subCategory": "Gift", "priority": 85 }
+    ]
+  },
+  {
+    "name": "wealth-building",
+    "type": "expense",
+    "icon": "trending-up",
+    "color": "#22c55e",
+    "keywords": [
+      { "pattern": "mutual fund", "subCategory": "Mutual Fund", "priority": 95 },
+      { "pattern": "sip", "subCategory": "SIP", "priority": 90 }
+    ]
+  },
+  {
+    "name": "equity",
+    "type": "expense",
+    "icon": "bar-chart",
+    "color": "#6366f1",
+    "keywords": [
+      { "pattern": "stock", "subCategory": "Stocks", "priority": 90 }
+    ]
+  },
+  {
+    "name": "debt-repayment",
+    "type": "expense",
+    "icon": "credit-card",
+    "color": "#dc2626",
+    "keywords": [
+      { "pattern": "loan", "subCategory": "Loan", "priority": 85 },
+      { "pattern": "emi", "subCategory": "EMI", "priority": 85 }
+    ]
+  },
+  {
+    "name": "card-fees",
+    "type": "expense",
+    "icon": "credit-card",
+    "color": "#9333ea",
+    "keywords": [
+      { "pattern": "credit card", "subCategory": "Credit Card", "priority": 90 }
+    ]
+  },
+  {
+    "name": "tax-govt",
+    "type": "expense",
+    "icon": "landmark",
+    "color": "#1d4ed8",
+    "keywords": [
+      { "pattern": "income tax", "subCategory": "Income Tax", "priority": 95 },
+      { "pattern": "gst", "subCategory": "GST", "priority": 90 }
+    ]
+  },
+  {
+    "name": "daily-essentials",
+    "type": "expense",
+    "icon": "newspaper",
+    "color": "#78716c",
+    "keywords": [
+      { "pattern": "newspaper", "subCategory": "Newspaper", "priority": 90 }
+    ]
+  },
+  {
+    "name": "adult-indulgence",
+    "type": "expense",
+    "icon": "wine",
+    "color": "#be123c",
+    "keywords": [
+      { "pattern": "alcohol", "subCategory": "Alcohol", "priority": 90 },
+      { "pattern": "wine", "subCategory": "Wine", "priority": 90 },
+      { "pattern": "beer", "subCategory": "Beer", "priority": 90 }
+    ]
+  },
+  {
+    "name": "memory-keeping",
+    "type": "expense",
+    "icon": "camera",
+    "color": "#0891b2",
+    "keywords": [
+      { "pattern": "photo", "subCategory": "Photos", "priority": 80 }
+    ]
+  },
+  {
+    "name": "office-supplies",
+    "type": "expense",
+    "icon": "pencil",
+    "color": "#475569",
+    "keywords": [
+      { "pattern": "stationery", "subCategory": "Stationery", "priority": 85 },
+      { "pattern": "book", "subCategory": "Books", "priority": 80 }
+    ]
+  }
+]

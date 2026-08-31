@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getAuthContext } from "@/lib/with-auth"
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     const { id } = await params
 
     const fds = await prisma.fixedDeposit.findMany({
@@ -21,12 +19,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
+    const { profileId } = await getAuthContext()
+    // userId auto-checked by getAuthContext
+    // profileId from getAuthContext
     const { id } = await params
     const body = await req.json()
-
     if (body.maturityDate && body.startDate && new Date(body.maturityDate) <= new Date(body.startDate)) {
       return NextResponse.json({ error: "Maturity date must be after start date" }, { status: 400 })
     }

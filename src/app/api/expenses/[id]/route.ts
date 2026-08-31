@@ -2,9 +2,22 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { validateBody } from "@/shared/validate"
 import { ExpenseUpdateSchema } from "@/shared/validation"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  let profileId: number
+  let userId: number
+  try {
+    const ctx = await getAuthContext()
+    profileId = ctx.profileId
+    userId = ctx.userId
+  } catch (e) {
+    return handleAuthError(e)
+  }
+
   const { id } = await params
+  const owned = await prisma.expense.findFirst({ where: { id: Number.parseInt(id), profileId } })
+  if (!owned) return NextResponse.json({ error: "Not found" }, { status: 404 })
   const { data: body, error } = await validateBody(req, ExpenseUpdateSchema)
   if (error) return error
 
@@ -34,28 +47,29 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     include: { category: true },
   })
 
-  // Always upsert merchant mapping when vendor is present
+  // Always upsert vendor mapping when vendor is present
   if (body.vendor) {
     const key = String(body.vendor).toLowerCase().trim()
     if (key) {
-      let expenseType = ""
+      let category = ""
       const catId = body.categoryId ? Number(body.categoryId) : 0
       if (catId) {
         const cat = await prisma.category.findUnique({ where: { id: catId } })
-        if (cat) expenseType = cat.name
+        if (cat) category = cat.name
       }
-      await prisma.merchantMapping.upsert({
-        where: { merchantKey: key },
+      await prisma.vendorMapping.upsert({
+        where: { userId_vendorKey: { userId, vendorKey: key } },
         update: {
           description: body.vendor,
-          expenseType: expenseType || undefined,
+          category: category || undefined,
           subCategory: body.subCategory || undefined,
           person: body.person || undefined,
         },
         create: {
-          merchantKey: key,
+          userId,
+          vendorKey: key,
           description: body.vendor,
-          expenseType: expenseType || "",
+          category: category || "",
           subCategory: body.subCategory || "",
           person: body.person || "",
           source: "user_edit",

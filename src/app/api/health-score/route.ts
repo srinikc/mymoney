@@ -1,18 +1,22 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { withAuth } from "@/lib/with-auth"
 
 export async function GET() {
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
   const now = new Date()
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth() + 1
 
   // --- Savings Rate (30% of score) ---
   const totalIncomeAgg = await prisma.expense.aggregate({
-    where: { date: { gte: new Date(currentYear, 0, 1), lt: new Date(currentYear + 1, 0, 1) }, amount: { lt: 0 } },
+    where: { profileId, date: { gte: new Date(currentYear, 0, 1), lt: new Date(currentYear + 1, 0, 1) }, amount: { lt: 0 } },
     _sum: { amount: true },
   })
   const totalExpenseAgg = await prisma.expense.aggregate({
-    where: { date: { gte: new Date(currentYear, 0, 1), lt: new Date(currentYear + 1, 0, 1) }, amount: { gt: 0 } },
+    where: { profileId, date: { gte: new Date(currentYear, 0, 1), lt: new Date(currentYear + 1, 0, 1) }, amount: { gt: 0 } },
     _sum: { amount: true },
   })
   const totalIncome = Math.abs(totalIncomeAgg._sum.amount || 0)
@@ -21,11 +25,11 @@ export async function GET() {
 
   // --- Budget Adherence (25% of score) ---
   const budgets = await prisma.budget.findMany({
-    where: { month: currentMonth, year: currentYear },
+    where: { profileId, month: currentMonth, year: currentYear },
   })
   const totalBudget = budgets.reduce((s, b) => s + b.amount, 0)
   const monthlyExpenseAgg = await prisma.expense.aggregate({
-    where: { date: { gte: new Date(currentYear, currentMonth - 1, 1), lt: new Date(currentYear, currentMonth, 1) }, amount: { gt: 0 } },
+    where: { profileId, date: { gte: new Date(currentYear, currentMonth - 1, 1), lt: new Date(currentYear, currentMonth, 1) }, amount: { gt: 0 } },
     _sum: { amount: true },
   })
   const monthlyExpense = monthlyExpenseAgg._sum.amount || 0
@@ -36,7 +40,7 @@ export async function GET() {
   const categoryExpenses = await Promise.all(
     categories.map(async (cat) => {
       const agg = await prisma.expense.aggregate({
-        where: { categoryId: cat.id, date: { gte: new Date(currentYear, 0, 1), lt: new Date(currentYear + 1, 0, 1) } },
+        where: { profileId, categoryId: cat.id, date: { gte: new Date(currentYear, 0, 1), lt: new Date(currentYear + 1, 0, 1) } },
         _sum: { amount: true },
       })
       return { name: cat.name, amount: agg._sum.amount || 0 }
@@ -49,8 +53,12 @@ export async function GET() {
 
   // --- Emergency Fund (20% of score) ---
   // Approximate: if investments exist, score is higher
-  const investments = await prisma.investment.findMany()
-  const totalInvestments = investments.reduce((s, i) => s + i.currentValue, 0)
+  // B10: replaced findMany + JS-reduce with single aggregate.
+  const investmentsAgg = await prisma.investment.aggregate({
+    where: { profileId },
+    _sum: { currentValue: true },
+  })
+  const totalInvestments = Number(investmentsAgg._sum.currentValue || 0)
   const monthlyAvg = monthlyExpense || 1
   const monthsOfCoverage = monthlyAvg > 0 ? totalInvestments / monthlyAvg : 0
   // Target: 6 months of expenses

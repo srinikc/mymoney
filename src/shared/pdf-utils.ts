@@ -1,13 +1,20 @@
 /**
  * Shared PDF text extraction utility.
- * Uses pdf-parse (class-based PDFParse API with getText()).
+ * Uses pdf-parse with proper Next.js worker setup.
  */
 
 export async function extractPdfText(buffer: Buffer): Promise<string> {
-  const { PDFParse } = await import("pdf-parse")
-  const parser = new PDFParse({ data: buffer, verbosity: 0 })
-
-  // getText() internally calls load() and returns all page text
-  const result = await parser.getText()
-  return result.text || ""
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require("pdf-parse/worker")
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { PDFParse } = require("pdf-parse")
+    const parser = new PDFParse({ data: buffer, verbosity: 0 })
+    const result = await parser.getText()
+    console.log("[pdf-utils] extractPdfText OK, length:", (result.text || "").length)
+    return result.text || ""
+  } catch (err) {
+    console.error("[pdf-utils] extractPdfText FAILED:", err)
+    throw err
+  }
 }

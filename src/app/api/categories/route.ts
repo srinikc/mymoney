@@ -19,12 +19,31 @@ const defaultCategories = [
   { name: "Other", type: "expense", icon: "more-horizontal", color: "#a1a1aa" },
 ]
 
-export async function GET() {
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url)
+  const includeSubs = searchParams.get("include") === "subCategories"
+
   let categories = await prisma.category.findMany({ orderBy: { name: "asc" } })
 
   if (categories.length === 0) {
     await prisma.category.createMany({ data: defaultCategories })
     categories = await prisma.category.findMany({ orderBy: { name: "asc" } })
+  }
+
+  if (includeSubs) {
+    const expenseSubCats = await prisma.expense.findMany({
+      where: { subCategory: { not: null }, deletedAt: null },
+      select: { subCategory: true }, distinct: ["subCategory"], orderBy: { subCategory: "asc" },
+    })
+    const budgetSubCats = await prisma.budget.findMany({
+      where: { subCategory: { not: null } },
+      select: { subCategory: true }, distinct: ["subCategory"], orderBy: { subCategory: "asc" },
+    })
+    const all = new Set([
+      ...expenseSubCats.map((s) => s.subCategory).filter(Boolean),
+      ...budgetSubCats.map((s) => s.subCategory).filter(Boolean),
+    ])
+    return NextResponse.json({ categories, subCategories: [...all] })
   }
 
   return NextResponse.json(categories)

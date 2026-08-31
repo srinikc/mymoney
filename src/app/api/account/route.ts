@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { withAuth } from "@/lib/with-auth"
 import { logAudit } from "@/shared/middleware/audit"
 
 export async function DELETE() {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  const sUser = session.user as unknown as { profileId?: number }
-  const profileId = sUser.profileId
-  const userId = Number(session.user.id)
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId, userId } = auth
+  // userId auto-checked by getAuthContext
 
   if (!profileId) {
     return NextResponse.json({ error: "No profile found" }, { status: 400 })

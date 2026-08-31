@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { withAuth } from "@/lib/with-auth"
 import { sendWelcomeEmail } from "@/lib/email"
 
 export async function POST(_req: Request) {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  const userId = Number(session.user.id)
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { userId } = auth
+  // userId auto-checked by getAuthContext
 
   const profile = await prisma.profile.findFirst({
     where: { userId, isDefault: true },

@@ -71,6 +71,12 @@ export default function BankAccountsScreen() {
   const [fdMaturity, setFdMaturity] = useState('');
   const [fdMaturityAmt, setFdMaturityAmt] = useState('');
 
+  // Cash state
+  const [cashAmount, setCashAmount] = useState('');
+  const [cashNotes, setCashNotes] = useState('');
+  const [savingCash, setSavingCash] = useState(false);
+  const [showCashForm, setShowCashForm] = useState(false);
+
   const fetchAccounts = useCallback(async () => {
     setError(null);
     try {
@@ -81,7 +87,28 @@ export default function BankAccountsScreen() {
     finally { setLoading(false); setRefreshing(false); }
   }, []);
 
-  useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
+  const fetchCash = useCallback(async () => {
+    try {
+      const res = await api.get('/api/cash-balance');
+      const c = res.data?.cash;
+      if (c) {
+        setCashAmount(c.amount != null ? String(c.amount) : '');
+        setCashNotes(c.notes || '');
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => { fetchAccounts(); fetchCash(); }, [fetchAccounts, fetchCash]);
+
+  const handleSaveCash = async () => {
+    setSavingCash(true);
+    try {
+      await api.put('/api/cash-balance', { amount: parseFloat(cashAmount || '0') || 0, notes: cashNotes || null });
+      setShowCashForm(false);
+      fetchCash();
+    } catch { Alert.alert('Error', 'Failed to save cash'); }
+    finally { setSavingCash(false); }
+  };
 
   const fetchTransactions = async (accountId: number, q?: string) => {
     const params: Record<string, number | string | undefined> = { pageSize: 50 };
@@ -215,14 +242,40 @@ export default function BankAccountsScreen() {
               data={accounts}
               keyExtractor={(a) => String(a.id)}
               ListHeaderComponent={
-                <View style={styles.summaryRow}>
-                  <View style={[styles.summaryCard, { backgroundColor: theme.primary }]}>
-                    <Text style={{ color: '#fff', opacity: 0.7, fontSize: 11 }}>Total Balance</Text>
-                    <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>{formatCurrency(totals.balance)}</Text>
+                <View>
+                  <View style={styles.summaryRow}>
+                    <View style={[styles.summaryCard, { backgroundColor: theme.primary }]}>
+                      <Text style={{ color: '#fff', opacity: 0.7, fontSize: 11 }}>Total Balance</Text>
+                      <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>{formatCurrency(totals.balance)}</Text>
+                    </View>
+                    <View style={[styles.summaryCard, { backgroundColor: theme.income }]}>
+                      <Text style={{ color: '#fff', opacity: 0.7, fontSize: 11 }}>Total FD Value</Text>
+                      <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>{formatCurrency(totals.fdValue)}</Text>
+                    </View>
                   </View>
-                  <View style={[styles.summaryCard, { backgroundColor: theme.income }]}>
-                    <Text style={{ color: '#fff', opacity: 0.7, fontSize: 11 }}>Total FD Value</Text>
-                    <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>{formatCurrency(totals.fdValue)}</Text>
+                  <View style={[styles.cashCard, { backgroundColor: theme.surface }]}>
+                    <View style={styles.cashHeader}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.cashTitle, { color: theme.text }]}>Cash</Text>
+                        <Text style={[styles.cashValue, { color: theme.income }]}>
+                          {formatCurrency(parseFloat(cashAmount || '0') || 0)}
+                        </Text>
+                        {cashNotes ? <Text style={{ color: theme.textTertiary, fontSize: 11, marginTop: 2 }}>{cashNotes}</Text> : null}
+                      </View>
+                      <TouchableOpacity onPress={() => setShowCashForm(!showCashForm)} style={[styles.actionBtn, { borderColor: theme.primary, marginBottom: 0 }]}>
+                        <Ionicons name="wallet-outline" size={16} color={theme.primary} />
+                        <Text style={{ color: theme.primary, fontWeight: '600', fontSize: 13 }}>{showCashForm ? 'Cancel' : 'Update'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {showCashForm && (
+                      <View style={styles.cashForm}>
+                        <TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={cashAmount} onChangeText={setCashAmount} keyboardType="numeric" placeholder="Cash amount (₹)" placeholderTextColor={theme.textTertiary} />
+                        <TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={cashNotes} onChangeText={setCashNotes} placeholder="Comments" placeholderTextColor={theme.textTertiary} />
+                        <TouchableOpacity onPress={handleSaveCash} disabled={savingCash} style={[styles.saveBtn, { backgroundColor: theme.primary }]}>
+                          <Text style={{ color: '#fff', fontWeight: '700' }}>{savingCash ? 'Saving...' : 'Save Cash'}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   </View>
                 </View>
               }
@@ -285,6 +338,11 @@ const styles = StyleSheet.create({
   scrollContent: { padding: 16, paddingBottom: 40 },
   summaryRow: { flexDirection: 'row', gap: 10, padding: 16, paddingBottom: 8 },
   summaryCard: { flex: 1, borderRadius: 14, padding: 16 },
+  cashCard: { marginHorizontal: 16, marginBottom: 10, borderRadius: 14, padding: 16 },
+  cashHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  cashTitle: { fontSize: 13, fontWeight: '600' },
+  cashValue: { fontSize: 20, fontWeight: '800', marginTop: 2 },
+  cashForm: { gap: 10, marginTop: 12 },
   listContent: { paddingBottom: 20 }, card: { borderRadius: 14, padding: 16, marginHorizontal: 16, marginBottom: 10 },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 }, cardIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   cardTitle: { fontSize: 14, fontWeight: '600' }, cardSubtext: { fontSize: 12, fontWeight: '500', marginTop: 2 },

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatCurrency, formatDate } from "@/lib/utils"
@@ -18,10 +18,90 @@ const defaultForm = {
   type: "mutual_funds", name: "", symbol: "", quantity: "", buyPrice: "", amount: "", currentValue: "", purchaseDate: new Date().toISOString().split("T")[0], returnRate: "", notes: "",
 }
 
+function InvestmentForm({
+  form,
+  setForm,
+  editing,
+  onCancel,
+  onSubmit,
+}: {
+  form: typeof defaultForm
+  setForm: (next: typeof defaultForm) => void
+  editing: boolean
+  onCancel: () => void
+  onSubmit: () => void
+}) {
+  return (
+    <div className="grid gap-4">
+      <div>
+        <label className="text-sm font-medium">Type</label>
+        <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="stocks">Stocks / Shares</SelectItem>
+            <SelectItem value="mutual_funds">Mutual Funds</SelectItem>
+            <SelectItem value="fixed_deposit">Fixed Deposit</SelectItem>
+            <SelectItem value="ppf">PPF</SelectItem>
+            <SelectItem value="nps">NPS</SelectItem>
+            <SelectItem value="gold">Gold ETF</SelectItem>
+            <SelectItem value="real_estate">Real Estate</SelectItem>
+            <SelectItem value="crypto">Cryptocurrency</SelectItem>
+            <SelectItem value="bonds">Bonds</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <label className="text-sm font-medium">Investment Name</label>
+        <Input placeholder="e.g. HDFC Mid-cap Fund" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <label className="text-sm font-medium">Symbol</label>
+          <Input placeholder="e.g. RELIANCE" value={form.symbol} onChange={(e) => setForm({ ...form, symbol: e.target.value })} />
+        </div>
+        <div>
+          <label className="text-sm font-medium">Qty</label>
+          <Input type="number" placeholder="10" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
+        </div>
+        <div>
+          <label className="text-sm font-medium">Buy Price</label>
+          <Input type="number" placeholder="2500" value={form.buyPrice} onChange={(e) => setForm({ ...form, buyPrice: e.target.value })} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="text-sm font-medium">Invested Amount (₹)</label>
+          <Input type="number" placeholder="0" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+        </div>
+        <div>
+          <label className="text-sm font-medium">Current Value (₹)</label>
+          <Input type="number" placeholder="0" value={form.currentValue} onChange={(e) => setForm({ ...form, currentValue: e.target.value })} />
+        </div>
+      </div>
+      <div>
+        <label className="text-sm font-medium">Purchase Date</label>
+        <Input type="date" value={form.purchaseDate} onChange={(e) => setForm({ ...form, purchaseDate: e.target.value })} />
+      </div>
+      <div>
+        <label className="text-sm font-medium">Return Rate (%)</label>
+        <Input type="number" placeholder="e.g. 12" value={form.returnRate} onChange={(e) => setForm({ ...form, returnRate: e.target.value })} />
+      </div>
+      <div className="flex justify-end gap-3 pt-2">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button onClick={onSubmit}>{editing ? "Update Investment" : "Add Investment"}</Button>
+      </div>
+    </div>
+  )
+}
+
 export default function InvestmentsPage() {
   const [investments, setInvestments] = useState<Investment[]>([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
+  const [showAddForm, setShowAddForm] = useState(false)
   const [editInv, setEditInv] = useState<Investment | null>(null)
   const [form, setForm] = useState(defaultForm)
 
@@ -49,6 +129,7 @@ export default function InvestmentsPage() {
       if (!res.ok) throw new Error((await res.json()).error || "Failed to save investment")
       toast.success(editInv ? "Investment updated" : "Investment added")
       setOpen(false)
+      setShowAddForm(false)
       setEditInv(null)
       setForm(defaultForm)
       loadData()
@@ -58,6 +139,7 @@ export default function InvestmentsPage() {
   }
 
   const handleEdit = (inv: Investment) => {
+    setShowAddForm(false)
     setEditInv(inv)
     setForm({
       type: inv.type, name: inv.name, symbol: inv.symbol || "",
@@ -110,74 +192,41 @@ export default function InvestmentsPage() {
           <p className="text-muted-foreground">Track your investment portfolio across types</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button onClick={() => { setOpen(false); setEditInv(null); setForm(defaultForm); setShowAddForm(true) }}>
+            <Plus className="mr-2 h-4 w-4" /> Add Investment
+          </Button>
           <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditInv(null); setForm(defaultForm) } }}>
-            <DialogTrigger asChild>
-              <Button><Plus className="mr-2 h-4 w-4" /> Add Investment</Button>
-            </DialogTrigger>
             <DialogContent className="max-h-[85vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editInv ? "Edit Investment" : "Add Investment"}</DialogTitle></DialogHeader>
-              <div className="grid gap-4">
-                <div>
-                  <label className="text-sm font-medium">Type</label>
-                  <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="stocks">Stocks / Shares</SelectItem>
-                      <SelectItem value="mutual_funds">Mutual Funds</SelectItem>
-                      <SelectItem value="fixed_deposit">Fixed Deposit</SelectItem>
-                      <SelectItem value="ppf">PPF</SelectItem>
-                      <SelectItem value="nps">NPS</SelectItem>
-                      <SelectItem value="gold">Gold ETF</SelectItem>
-                      <SelectItem value="real_estate">Real Estate</SelectItem>
-                      <SelectItem value="crypto">Cryptocurrency</SelectItem>
-                      <SelectItem value="bonds">Bonds</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Investment Name</label>
-                  <Input placeholder="e.g. HDFC Mid-cap Fund" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Symbol</label>
-                    <Input placeholder="e.g. RELIANCE" value={form.symbol} onChange={(e) => setForm({ ...form, symbol: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Qty</label>
-                    <Input type="number" placeholder="10" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Buy Price</label>
-                    <Input type="number" placeholder="2500" value={form.buyPrice} onChange={(e) => setForm({ ...form, buyPrice: e.target.value })} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Invested Amount (₹)</label>
-                    <Input type="number" placeholder="0" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Current Value (₹)</label>
-                    <Input type="number" placeholder="0" value={form.currentValue} onChange={(e) => setForm({ ...form, currentValue: e.target.value })} />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Purchase Date</label>
-                  <Input type="date" value={form.purchaseDate} onChange={(e) => setForm({ ...form, purchaseDate: e.target.value })} />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Return Rate (%)</label>
-                  <Input type="number" placeholder="e.g. 12" value={form.returnRate} onChange={(e) => setForm({ ...form, returnRate: e.target.value })} />
-                </div>
-                <Button onClick={handleSubmit}>{editInv ? "Update Investment" : "Add Investment"}</Button>
-              </div>
+              <InvestmentForm
+                form={form}
+                setForm={(next) => setForm(next)}
+                editing={!!editInv}
+                onCancel={() => { setOpen(false); setEditInv(null); setForm(defaultForm) }}
+                onSubmit={handleSubmit}
+              />
             </DialogContent>
           </Dialog>
           <Button variant="outline" onClick={handleExport}><Download className="mr-2 h-4 w-4" /> Export</Button>
         </div>
       </div>
+
+      {showAddForm && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>Add Investment</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <InvestmentForm
+              form={form}
+              setForm={(next) => setForm(next)}
+              editing={false}
+              onCancel={() => { setShowAddForm(false); setForm(defaultForm) }}
+              onSubmit={handleSubmit}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>

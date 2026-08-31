@@ -1,12 +1,11 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { withAuth } from "@/lib/with-auth"
 
 export async function GET() {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
+    const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
 
     const accounts = await prisma.bankAccount.findMany({
       where: profileId ? { profileId } : {},
@@ -26,17 +25,12 @@ export async function GET() {
     )
 
     return NextResponse.json({ accounts: enriched, totals })
-  } catch (error) {
-    console.error("Bank accounts GET error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
 }
 
 export async function POST(req: Request) {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
+    const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
 
     const body = await req.json()
     if (!body.bankName?.trim()) return NextResponse.json({ error: "Bank name is required" }, { status: 400 })
@@ -58,8 +52,4 @@ export async function POST(req: Request) {
     })
 
     return NextResponse.json(account, { status: 201 })
-  } catch (error) {
-    console.error("Bank accounts POST error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
 }

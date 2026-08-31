@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma"
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const now = new Date()
-  const currentMonth = now.getMonth()
   const currentYear = now.getFullYear()
 
   const yearParam = searchParams.get("year")
@@ -35,10 +34,10 @@ export async function GET(request: Request) {
     investments,
     recentExpenses,
     incomeSources,
+    loans,
+    pfInvestments,
   ] = await Promise.all([
-    yearParam
-      ? prisma.expense.aggregate({ where: { date: yearFilter }, _sum: { amount: true } })
-      : prisma.expense.aggregate({ _sum: { amount: true } }),
+    prisma.expense.aggregate({ where: { date: monthlyFilter }, _sum: { amount: true } }),
     prisma.expense.aggregate({
       where: { date: monthlyFilter },
       _sum: { amount: true },
@@ -49,18 +48,23 @@ export async function GET(request: Request) {
     }),
     prisma.category.findMany({ where: { type: "expense" } }),
     prisma.budget.findMany({
-      where: { month: currentMonth + 1, year: currentYear },
+      where: { month: (month ?? 0) + 1, year },
       include: { category: true },
     }),
     prisma.goal.findMany({ where: { status: "active" } }),
     prisma.investment.findMany(),
     prisma.expense.findMany({
-      where: { date: yearFilter },
+      where: { date: monthlyFilter },
       include: { category: true },
       orderBy: { date: "desc" },
       take: 10,
     }),
     prisma.incomeSource.findMany(),
+    prisma.loan.findMany({ select: { principal: true } }),
+    prisma.investment.findMany({
+      where: { type: { in: ["ppf", "nps"] } },
+      select: { amount: true, currentValue: true },
+    }),
   ])
 
   const totalExpenses = totalExpensesAgg._sum.amount || 0
@@ -73,13 +77,24 @@ export async function GET(request: Request) {
   const totalInvestments = investments.reduce((s, i) => s + i.amount, 0)
   const totalCurrentValue = investments.reduce((s, i) => s + i.currentValue, 0)
   const investmentReturns = totalCurrentValue - totalInvestments
+  const totalPF = pfInvestments.reduce((s, i) => s + (i.currentValue || i.amount), 0)
+  const totalLoans = loans.reduce((s, l) => s + l.principal, 0)
 
+  const incomeStart = monthlyFilter.gte
+  const incomeEnd = monthlyFilter.lt
+  const isSpecificPeriod = month !== undefined || quarter !== undefined
+  const periodMultiplier = month !== undefined ? 1 : (quarter !== undefined ? 3 : 12)
   let totalIncome = 0
   for (const source of incomeSources) {
-    switch (source.type) {
-      case "monthly": totalIncome += source.amount * 12; break
-      case "yearly": case "onetime": totalIncome += source.amount; break
-      case "variable": totalIncome += (source.amount || 0) * 12; break
+    if (source.type === "monthly") {
+      totalIncome += source.amount * periodMultiplier
+    } else if (source.type === "variable") {
+      totalIncome += (source.amount || 0) * periodMultiplier
+    } else {
+      // yearly / onetime — only counted when the source start date falls in the selected period
+      if (!isSpecificPeriod || (source.startDate && new Date(source.startDate) >= incomeStart && new Date(source.startDate) < incomeEnd)) {
+        totalIncome += source.amount
+      }
     }
   }
 
@@ -91,7 +106,7 @@ export async function GET(request: Request) {
   const categoryExpenses = await Promise.all(
     categories.map(async (cat) => {
       const agg = await prisma.expense.aggregate({
-        where: { categoryId: cat.id, date: yearFilter },
+        where: { categoryId: cat.id, date: monthlyFilter },
         _sum: { amount: true },
       })
       return { name: cat.name, amount: agg._sum.amount || 0, color: cat.color }
@@ -152,6 +167,8 @@ export async function GET(request: Request) {
     goalProgress: Math.round(goalProgress),
     totalInvestments,
     investmentReturns,
+    totalPF,
+    totalLoans,
     topCategories,
     monthlyTrend,
     incomeTrend,

@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { CardGridSkeleton } from "@/components/ui/page-skeleton"
@@ -37,13 +36,15 @@ function calcNextBillingDate(dueDate: string | null, cycle: string): string | nu
   return date.toISOString()
 }
 
+const defaultForm = {
+  name: "", provider: "", amount: "", billingCycle: "monthly", nextDueDate: "", category: "entertainment", notes: "",
+}
+
 export default function SubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [loading, setLoading] = useState(true)
-  const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({
-    name: "", provider: "", amount: "", billingCycle: "monthly", nextDueDate: "", category: "entertainment", notes: "",
-  })
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [form, setForm] = useState(defaultForm)
 
   const loadData = async () => {
     const res = await fetch("/api/subscriptions")
@@ -64,8 +65,8 @@ export default function SubscriptionsPage() {
       const res = await fetch("/api/subscriptions", { method: "POST", body: JSON.stringify(form) })
       if (!res.ok) throw new Error((await res.json()).error || "Failed to add subscription")
       toast.success("Subscription added")
-      setOpen(false)
-      setForm({ name: "", provider: "", amount: "", billingCycle: "monthly", nextDueDate: "", category: "entertainment", notes: "" })
+      setShowAddForm(false)
+      setForm(defaultForm)
       loadData()
     } catch (err: unknown) {
       toast.error((err as Error).message || "Failed to add subscription")
@@ -129,65 +130,69 @@ export default function SubscriptionsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Subscriptions</h1>
           <p className="text-muted-foreground">Manage OTT, apps and other recurring subscriptions</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button><Plus className="mr-2 h-4 w-4" /> Add Subscription</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>New Subscription</DialogTitle></DialogHeader>
-              <div className="grid gap-4">
-                <div>
-                  <label className="text-sm font-medium">Subscription Name</label>
-                  <Input placeholder="e.g. Netflix" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Provider</label>
-                  <Input placeholder="e.g. Netflix Inc." value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })} />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Amount (₹)</label>
-                  <Input type="number" placeholder="0" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Billing Cycle</label>
-                  <Select value={form.billingCycle} onValueChange={(v) => setForm({ ...form, billingCycle: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                      <SelectItem value="yearly">Yearly</SelectItem>
-                      <SelectItem value="quarterly">Quarterly</SelectItem>
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Next Due Date</label>
-                  <Input type="date" value={form.nextDueDate} onChange={(e) => setForm({ ...form, nextDueDate: e.target.value })} />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Category</label>
-                  <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="entertainment">Entertainment (OTT, Music)</SelectItem>
-                      <SelectItem value="productivity">Productivity (Apps, SaaS)</SelectItem>
-                      <SelectItem value="utilities">Utilities (Internet, Phone)</SelectItem>
-                      <SelectItem value="health">Health (Gym, Wellness)</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Notes</label>
-                  <Input placeholder="Optional notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-                </div>
-                <Button onClick={handleSubmit}>Add Subscription</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
+        <Button onClick={() => { setForm(defaultForm); setShowAddForm((v) => !v) }}>
+          <Plus className="mr-2 h-4 w-4" /> Add Subscription
+        </Button>
       </div>
+
+      {showAddForm && (
+        <Card>
+          <CardHeader className="pb-3"><CardTitle className="text-lg">Add Subscription</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="text-sm font-medium">Subscription Name</label>
+                <Input placeholder="e.g. Netflix" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Provider</label>
+                <Input placeholder="e.g. Netflix Inc." value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Amount (₹)</label>
+                <Input type="number" placeholder="0" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Billing Cycle</label>
+                <Select value={form.billingCycle} onValueChange={(v) => setForm({ ...form, billingCycle: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="yearly">Yearly</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Next Due Date</label>
+                <Input type="date" value={form.nextDueDate} onChange={(e) => setForm({ ...form, nextDueDate: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Category</label>
+                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="entertainment">Entertainment (OTT, Music)</SelectItem>
+                    <SelectItem value="productivity">Productivity (Apps, SaaS)</SelectItem>
+                    <SelectItem value="utilities">Utilities (Internet, Phone)</SelectItem>
+                    <SelectItem value="health">Health (Gym, Wellness)</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-sm font-medium">Notes</label>
+                <Input placeholder="Optional notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-2">
+              <Button onClick={handleSubmit}><Plus className="mr-2 h-4 w-4" /> Add Subscription</Button>
+              <Button variant="ghost" onClick={() => { setShowAddForm(false); setForm(defaultForm) }}>Cancel</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {dueSoon.length > 0 && (
         <Card className="border-amber-500/30 bg-amber-500/5">

@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
+import { getAuthContext } from "@/lib/with-auth"
 import { getConfig, setConfig, BOOT_CONFIG_KEYS, type ConfigKey } from "@/lib/get-config"
 
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-    const userId = Number(session.user.id)
+    const { userId } = await getAuthContext()
+    // userId auto-checked by getAuthContext
 
     const vars: Record<string, { value: string | undefined; envValue: string | undefined }> = {}
     for (const cfg of BOOT_CONFIG_KEYS) {
@@ -28,11 +26,10 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { userId } = await getAuthContext()
+    // userId auto-checked by getAuthContext
 
     const body = await req.json()
-    const userId = Number(session.user.id)
 
     for (const [key, value] of Object.entries(body.vars || {})) {
       const def = BOOT_CONFIG_KEYS.find((d) => d.key === key)

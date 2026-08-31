@@ -243,6 +243,14 @@ export default function LoansPage() {
   const [error, setError] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [addName, setAddName] = useState("")
+  const [addType, setAddType] = useState("Other")
+  const [addPrincipal, setAddPrincipal] = useState("")
+  const [addInterestRate, setAddInterestRate] = useState("")
+  const [addTenureMonths, setAddTenureMonths] = useState("")
+  const [addLender, setAddLender] = useState("")
+  const [addError, setAddError] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
     try {
@@ -323,8 +331,69 @@ export default function LoansPage() {
   }
 
   const openAdd = () => {
-    setEditingLoan(null)
-    setDialogOpen(true)
+    setAdding(true)
+    setAddName("")
+    setAddType("Other")
+    setAddPrincipal("")
+    setAddInterestRate("")
+    setAddTenureMonths("")
+    setAddLender("")
+    setAddError(null)
+  }
+
+  const cancelAdd = () => {
+    setAdding(false)
+    setAddName("")
+    setAddType("Other")
+    setAddPrincipal("")
+    setAddInterestRate("")
+    setAddTenureMonths("")
+    setAddLender("")
+    setAddError(null)
+  }
+
+  const addPrincipalNum = parseFloat(addPrincipal)
+  const addInterestRateNum = parseFloat(addInterestRate)
+  const addTenureNum = parseInt(addTenureMonths, 10)
+  const addEMI = calculateEMI(
+    isNaN(addPrincipalNum) ? 0 : addPrincipalNum,
+    isNaN(addInterestRateNum) ? 0 : addInterestRateNum,
+    isNaN(addTenureNum) ? 0 : addTenureNum,
+  )
+
+  const handleAddInline = async () => {
+    if (!addName.trim() || isNaN(addPrincipalNum) || addPrincipalNum <= 0) {
+      setAddError("Name and principal are required")
+      return
+    }
+    const payload = {
+      name: addName.trim(),
+      type: addType,
+      principal: addPrincipalNum,
+      interestRate: isNaN(addInterestRateNum) ? 0 : addInterestRateNum,
+      tenureMonths: isNaN(addTenureNum) ? 1 : addTenureNum,
+      startDate: new Date().toISOString().split("T")[0],
+      lender: addLender.trim() || null,
+      notes: null,
+    }
+    try {
+      const res = await fetch("/api/loans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || "Failed to save loan")
+      }
+      setAdding(false)
+      cancelAdd()
+      toast.success("Loan saved")
+      setLoading(true)
+      fetchData()
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : "Failed to save")
+    }
   }
 
   const typeBadgeColor = (type: string) => {
@@ -451,7 +520,7 @@ export default function LoansPage() {
               <CardTitle className="text-sm font-semibold">Loan List</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              {loans.length === 0 ? (
+              {loans.length === 0 && !adding ? (
                 <div className="py-12 text-center text-muted-foreground text-sm">
                   <Landmark className="mx-auto h-8 w-8 mb-3 opacity-50" />
                   <p>No loans yet. Add your first loan!</p>
@@ -472,6 +541,48 @@ export default function LoansPage() {
                       </tr>
                     </thead>
                     <tbody>
+                      {adding && (
+                        <tr className="border-b bg-muted/30 text-sm">
+                          <td className="px-4 py-3">
+                            <Input name="name" value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Name" className="h-8 min-w-[120px]" />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Select value={addType} onValueChange={setAddType}>
+                              <SelectTrigger className="h-8 w-[120px]"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Home">Home</SelectItem>
+                                <SelectItem value="Car">Car</SelectItem>
+                                <SelectItem value="Vehicle">Vehicle</SelectItem>
+                                <SelectItem value="Electronics">Electronics</SelectItem>
+                                <SelectItem value="Equipment">Equipment</SelectItem>
+                                <SelectItem value="Other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Input name="principal" type="number" value={addPrincipal} onChange={(e) => setAddPrincipal(e.target.value)} placeholder="0" className="h-8 w-[110px] ml-auto text-right" />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Input name="interestRate" type="number" value={addInterestRate} onChange={(e) => setAddInterestRate(e.target.value)} placeholder="0" className="h-8 w-[90px] ml-auto text-right" />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Input value={addEMI > 0 ? String(addEMI) : ""} readOnly className="h-8 w-[100px] ml-auto text-right bg-muted cursor-not-allowed" />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Input name="tenureMonths" type="number" value={addTenureMonths} onChange={(e) => setAddTenureMonths(e.target.value)} placeholder="12" className="h-8 w-[80px] ml-auto text-right" />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Input value={addLender} onChange={(e) => setAddLender(e.target.value)} placeholder="Optional" className="h-8 min-w-[100px]" />
+                          </td>
+                          <td className="px-4 py-3 text-right whitespace-nowrap">
+                            {addError && <p className="text-xs text-red-500 mb-1">{addError}</p>}
+                            <div className="flex items-center justify-end gap-1">
+                              <Button variant="outline" size="sm" onClick={cancelAdd}>Cancel</Button>
+                              <Button size="sm" onClick={handleAddInline}>Add</Button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
                       {loans.map((loan) => (
                         <tr key={loan.id} className="border-b text-sm hover:bg-muted/30 transition-colors">
                           <td className="px-4 py-3 font-medium">{loan.name}</td>

@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 
 export async function GET() {
+  let profileId: number
+  try {
+    const ctx = await getAuthContext()
+    profileId = ctx.profileId
+  } catch (e) {
+    return handleAuthError(e)
+  }
+
   const dates = await prisma.expense.findMany({
+    where: { profileId },
     select: { date: true },
     orderBy: { date: "asc" },
   })

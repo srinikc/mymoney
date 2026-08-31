@@ -5,6 +5,7 @@ import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
+import PurposePicker from '../components/PurposePicker';
 
 interface InvestmentItem {
   id: number;
@@ -15,9 +16,15 @@ interface InvestmentItem {
   value?: number;
   currentValue?: number;
   purchaseDate?: string;
+  employeeContribution?: number | null;
+  employerContribution?: number | null;
+  returnRate?: number | null;
+  projectionYears?: number | null;
+  purpose?: string | null;
 }
 
-const INVESTMENT_TYPES = ['stocks', 'mutual_funds', 'fd', 'ppf', 'nps', 'gold', 'real_estate', 'crypto', 'bonds', 'other'];
+const INVESTMENT_TYPES = ['stocks', 'mutual_funds', 'epf', 'ppf', 'nps', 'pension', 'gold', 'real_estate', 'crypto', 'bonds', 'other'];
+const PF_TYPES = new Set(['epf', 'ppf', 'nps', 'pension']);
 
 export default function InvestmentsScreen() {
   const colorScheme = useColorScheme();
@@ -29,6 +36,7 @@ export default function InvestmentsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [totalValue, setTotalValue] = useState(0);
   const [showForm, setShowForm] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [editItem, setEditItem] = useState<InvestmentItem | null>(null);
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -37,6 +45,11 @@ export default function InvestmentsScreen() {
   const [formAmount, setFormAmount] = useState('');
   const [formCurrentValue, setFormCurrentValue] = useState('');
   const [formPurchaseDate, setFormPurchaseDate] = useState('');
+  const [formEmpContribution, setFormEmpContribution] = useState('');
+  const [formEmprContribution, setFormEmprContribution] = useState('');
+  const [formRate, setFormRate] = useState('');
+  const [formProjectionYears, setFormProjectionYears] = useState('');
+  const [formPurpose, setFormPurpose] = useState('');
 
   const fetch = useCallback(async () => {
     setError(null);
@@ -53,11 +66,12 @@ export default function InvestmentsScreen() {
   useEffect(() => { fetch(); }, [fetch]);
 
   const openAdd = () => {
-    setEditItem(null); setFormName(''); setFormType('stocks'); setFormAmount(''); setFormCurrentValue(''); setFormPurchaseDate(new Date().toISOString().split('T')[0]);
-    setFormError(null); setShowForm(true);
+    setEditItem(null); setShowForm(false); setFormName(''); setFormType('stocks'); setFormAmount(''); setFormCurrentValue(''); setFormPurchaseDate(new Date().toISOString().split('T')[0]); setFormEmpContribution(''); setFormEmprContribution(''); setFormRate(''); setFormProjectionYears(''); setFormPurpose('');
+    setFormError(null); setShowAddForm(true);
   };
 
   const openEdit = (item: InvestmentItem) => {
+    setShowAddForm(false);
     setEditItem(item); setFormName(item.name || ''); setFormType(item.type || 'stocks'); setFormAmount(String(item.amount || ''));
     setFormCurrentValue(String(item.currentValue || item.value || '')); setFormPurchaseDate(item.purchaseDate?.split('T')[0] || new Date().toISOString().split('T')[0]);
     setFormError(null); setShowForm(true);
@@ -67,10 +81,16 @@ export default function InvestmentsScreen() {
     if (!formName.trim() || !formAmount || isNaN(parseFloat(formAmount))) { setFormError('Name and amount are required'); return; }
     setFormLoading(true); setFormError(null);
     try {
-      const payload = { name: formName.trim(), type: formType, amount: parseFloat(formAmount), currentValue: parseFloat(formCurrentValue || formAmount), purchaseDate: formPurchaseDate };
+      const payload: Record<string, unknown> = { name: formName.trim(), type: formType, amount: parseFloat(formAmount), currentValue: parseFloat(formCurrentValue || formAmount), purchaseDate: formPurchaseDate, purpose: formPurpose || undefined };
+      if (PF_TYPES.has(formType)) {
+        if (formEmpContribution) payload.employeeContribution = parseFloat(formEmpContribution);
+        if (formEmprContribution) payload.employerContribution = parseFloat(formEmprContribution);
+        if (formRate) payload.returnRate = parseFloat(formRate);
+        if (formProjectionYears) payload.projectionYears = parseFloat(formProjectionYears);
+      }
       if (editItem) { await api.put(`/api/investments/${editItem.id}`, payload); }
       else { await api.post('/api/investments', payload); }
-      setShowForm(false); fetch();
+      setShowForm(false); setShowAddForm(false); fetch();
     } catch (err) { const apiErr = err as { response?: { data?: { error?: string } }; message?: string }; setFormError(apiErr?.response?.data?.error || 'Failed to save'); }
     finally { setFormLoading(false); }
   };
@@ -94,6 +114,35 @@ export default function InvestmentsScreen() {
       {loading ? <View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View>
       : error ? <View style={styles.center}><Ionicons name="alert-circle" size={40} color={theme.expense} /><Text style={{ color: theme.expense, fontSize: 14 }}>{error}</Text></View>
       : (
+        <View style={{ flex: 1 }}>
+          {showAddForm && (
+            <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={[styles.inlineCardWrap, { backgroundColor: theme.surface }]}>
+              <Text style={[styles.inlineTitle, { color: theme.text }]}>Add Investment</Text>
+              {formError && <Text style={{ color: theme.expense, fontSize: 13, marginBottom: 12 }}>{formError}</Text>}
+              <Text style={styles.label}>Name</Text><TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formName} onChangeText={setFormName} placeholder="Investment name" placeholderTextColor={theme.textTertiary} />
+              <Text style={styles.label}>Type</Text>
+              <View style={styles.typeRow}>{INVESTMENT_TYPES.map((t) => (
+                <TouchableOpacity key={t} onPress={() => setFormType(t)} style={[styles.typeBtn, { backgroundColor: formType === t ? theme.primary : theme.background }]}>
+                  <Text style={{ color: formType === t ? '#fff' : theme.text, fontSize: 11 }}>{t.replace('_', ' ')}</Text>
+                </TouchableOpacity>
+              ))}</View>
+              <Text style={styles.label}>Invested Amount (₹)</Text><TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formAmount} onChangeText={setFormAmount} keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textTertiary} />
+              <Text style={styles.label}>Current Value (₹)</Text><TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formCurrentValue} onChangeText={setFormCurrentValue} keyboardType="numeric" placeholder="Same as invested" placeholderTextColor={theme.textTertiary} />
+              {PF_TYPES.has(formType) && (<>
+                <Text style={styles.label}>Employee Contribution (₹/month)</Text><TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formEmpContribution} onChangeText={setFormEmpContribution} keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textTertiary} />
+                <Text style={styles.label}>Employer Contribution (₹/month)</Text><TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formEmprContribution} onChangeText={setFormEmprContribution} keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textTertiary} />
+                <Text style={styles.label}>Expected Return Rate (% p.a.)</Text><TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formRate} onChangeText={setFormRate} keyboardType="numeric" placeholder="e.g. 8.5" placeholderTextColor={theme.textTertiary} />
+                <Text style={styles.label}>Projection Years</Text><TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formProjectionYears} onChangeText={setFormProjectionYears} keyboardType="numeric" placeholder="e.g. 25" placeholderTextColor={theme.textTertiary} />
+              </>)}
+              <Text style={styles.label}>Purchase Date</Text><TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formPurchaseDate} onChangeText={setFormPurchaseDate} placeholder="YYYY-MM-DD" placeholderTextColor={theme.textTertiary} />
+              <Text style={styles.label}>Purpose</Text>
+              <PurposePicker value={formPurpose} onChange={setFormPurpose} theme={theme} />
+              <View style={styles.modalActions}>
+                <TouchableOpacity onPress={() => { setShowAddForm(false); setFormError(null); }} style={styles.cancelBtn}><Text style={{ color: theme.textSecondary, fontWeight: '600' }}>Cancel</Text></TouchableOpacity>
+                <TouchableOpacity onPress={handleSave} disabled={formLoading} style={[styles.saveBtn, { backgroundColor: theme.primary }]}>{formLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>Add</Text>}</TouchableOpacity>
+              </View>
+            </ScrollView>
+          )}
         <FlatList data={data} keyExtractor={(i, idx) => String(i.id ?? idx)}
           ListHeaderComponent={
             <View style={[styles.summaryCard, { backgroundColor: theme.primary }]}>
@@ -129,6 +178,7 @@ export default function InvestmentsScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetch(); }} tintColor={theme.primary} />}
           ListEmptyComponent={<View style={styles.empty}><Ionicons name="trending-up-outline" size={48} color={theme.textTertiary} /><Text style={{ color: theme.textSecondary, fontSize: 15 }}>No investments yet</Text></View>}
         />
+        </View>
       )}
 
       <Modal visible={showForm} animationType="slide" transparent>
@@ -161,6 +211,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 }, header: { paddingTop: 56, paddingBottom: 16, paddingHorizontal: 20, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, flexDirection: 'row', alignItems: 'center' },
   headerTitle: { fontSize: 22, fontWeight: '700', flex: 1 }, addBtn: { backgroundColor: 'rgba(255,255,255,0.2)', width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  inlineCardWrap: { margin: 20, borderRadius: 16, padding: 20 },
+  inlineTitle: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
   summaryCard: { margin: 20, marginBottom: 4, borderRadius: 16, padding: 20 },
   listContent: { paddingBottom: 20 }, card: { borderRadius: 14, padding: 16, marginHorizontal: 20, marginBottom: 10 },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 }, cardIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },

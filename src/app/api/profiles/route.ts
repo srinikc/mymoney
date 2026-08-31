@@ -1,18 +1,16 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { withAuth } from "@/lib/with-auth"
 import { PLANS, type PlanId } from "@/lib/pricing"
 
 /**
  * GET /api/profiles — List all profiles for the authenticated user.
  */
 export async function GET(_req: Request) {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  const userId = Number(session.user.id)
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { userId } = auth
+  // userId auto-checked by getAuthContext
 
   const profiles = await prisma.profile.findMany({
     where: { userId },
@@ -32,12 +30,10 @@ export async function GET(_req: Request) {
  * POST /api/profiles — Create a new profile for the authenticated user.
  */
 export async function POST(req: Request) {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  const userId = Number(session.user.id)
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { userId } = auth
+  // userId auto-checked by getAuthContext
 
   let body: { name?: string }
   try {

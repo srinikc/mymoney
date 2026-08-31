@@ -1,12 +1,8 @@
-import { getStoredToken, storeToken } from "./token-store"
 import { refreshAccessToken } from "./oauth"
 
 const BASE = "https://takeout-pa.googleapis.com"
-// Service name confirmed from Takeout page data-id attribute:
-// <div data-id="google_pay">Google Pay</div>
 const SERVICE_NAMES = [
   "google_pay",
-  // Historical/alternative names (kept as fallbacks)
   "pay", "gpay", "payments", "wallet", "google_payments",
   "paisa", "tez", "payment", "googlepay", "google_payment",
 ]
@@ -35,12 +31,39 @@ export interface ExportStatusResult {
   error?: string
 }
 
-export async function tryCreateTakeoutExport(): Promise<CreateExportResult> {
-  const token = await getStoredToken()
-  if (!token) return { success: false, error: "No Drive token" }
-  if (!token.accessToken) return { success: false, error: "No access token" }
+export interface ServiceDiscoveryResult {
+  serviceName: string
+  status: number
+  ok: boolean
+  body?: string
+  error?: string
+}
 
-  let accessToken = token.accessToken
+async function refreshAndRetry(
+  url: string,
+  options: RequestInit,
+  accessToken: string,
+  refreshToken: string,
+): Promise<Response> {
+  let res = await fetch(url, {
+    ...options,
+    headers: { ...options.headers, Authorization: `Bearer ${accessToken}` },
+  })
+  if (res.status === 401 && refreshToken) {
+    const refreshed = await refreshAccessToken(refreshToken)
+    accessToken = refreshed.access_token
+    res = await fetch(url, {
+      ...options,
+      headers: { ...options.headers, Authorization: `Bearer ${refreshed.access_token}` },
+    })
+  }
+  return res
+}
+
+export async function tryCreateTakeoutExport(
+  accessToken: string,
+  refreshToken: string,
+): Promise<CreateExportResult> {
   const tried: ServiceTryResult[] = []
 
   for (const serviceName of SERVICE_NAMES) {
@@ -52,28 +75,12 @@ export async function tryCreateTakeoutExport(): Promise<CreateExportResult> {
         locale: "en-US",
       })
 
-      let res = await fetch(`${BASE}/v2/${serviceName}/exports`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body,
-      })
-
-      if (res.status === 401 && token.refreshToken) {
-        const refreshed = await refreshAccessToken(token.refreshToken)
-        accessToken = refreshed.access_token
-        await storeToken({ ...token, accessToken: refreshed.access_token })
-        res = await fetch(`${BASE}/v2/${serviceName}/exports`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body,
-        })
-      }
+      const res = await refreshAndRetry(
+        `${BASE}/v2/${serviceName}/exports`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body },
+        accessToken,
+        refreshToken,
+      )
 
       const text = await res.text()
       let parsed = null
@@ -93,20 +100,10 @@ export async function tryCreateTakeoutExport(): Promise<CreateExportResult> {
   return { success: false, error: "No working service name found for GPay Takeout API", tried }
 }
 
-export interface ServiceDiscoveryResult {
-  serviceName: string
-  status: number
-  ok: boolean
-  body?: string
-  error?: string
-}
-
-export async function discoverServices(): Promise<ServiceDiscoveryResult[]> {
-  const token = await getStoredToken()
-  if (!token) return []
-  if (!token.accessToken) return []
-
-  let accessToken = token.accessToken
+export async function discoverServices(
+  accessToken: string,
+  refreshToken: string,
+): Promise<ServiceDiscoveryResult[]> {
   const results: ServiceDiscoveryResult[] = []
 
   for (const serviceName of SERVICE_NAMES) {
@@ -118,36 +115,15 @@ export async function discoverServices(): Promise<ServiceDiscoveryResult[]> {
         locale: "en-US",
       })
 
-      let res = await fetch(`${BASE}/v2/${serviceName}/exports`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body,
-      })
-
-      if (res.status === 401 && token.refreshToken) {
-        const refreshed = await refreshAccessToken(token.refreshToken)
-        accessToken = refreshed.access_token
-        await storeToken({ ...token, accessToken: refreshed.access_token })
-        res = await fetch(`${BASE}/v2/${serviceName}/exports`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body,
-        })
-      }
+      const res = await refreshAndRetry(
+        `${BASE}/v2/${serviceName}/exports`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body },
+        accessToken,
+        refreshToken,
+      )
 
       const text = await res.text()
-      results.push({
-        serviceName,
-        status: res.status,
-        ok: res.ok,
-        body: text.slice(0, 500),
-      })
+      results.push({ serviceName, status: res.status, ok: res.ok, body: text.slice(0, 500) })
     } catch (err: unknown) {
       results.push({
         serviceName,
@@ -163,14 +139,12 @@ export async function discoverServices(): Promise<ServiceDiscoveryResult[]> {
 
 export async function getExportStatus(
   serviceName: string,
-  exportId: string
+  exportId: string,
+  accessToken: string,
 ): Promise<ExportStatusResult> {
-  const token = await getStoredToken()
-  if (!token) return { status: "unknown", done: false }
-
   try {
     const res = await fetch(`${BASE}/v2/${serviceName}/exports/${exportId}`, {
-      headers: { Authorization: `Bearer ${token.accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
     })
     if (res.ok) {
       const data = await res.json()

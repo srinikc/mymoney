@@ -1,8 +1,19 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Separate build dir for the E2E server (scripts/start-e2e.cjs) so it never
+  // shares chunk/cache files with the dev server (avoids ChunkLoadError).
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   eslint: { ignoreDuringBuilds: true },
-  serverExternalPackages: ["prisma", "@prisma/client"],
+  serverExternalPackages: ["prisma", "@prisma/client", "pdf-parse"],
+  // Phase 5 (E2E row 2 of scaling_perf.md): enable Next.js built-in compression.
+  // When `compress: true`, Next.js compresses HTML, CSS, JS, JSON, and SVG
+  // responses with gzip when the client sends `Accept-Encoding: gzip`. On
+  // production platforms (Vercel, Cloudflare, Fly) Brotli is also applied at
+  // the edge automatically for an additional ~20% size reduction.
+  compress: true,
+  // Compress only responses above this threshold to skip the CPU cost on
+  // tiny responses (under ~1KB).
   async headers() {
     return [
       {

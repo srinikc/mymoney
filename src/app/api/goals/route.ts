@@ -1,27 +1,27 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { withAuth } from "@/lib/with-auth"
 import { validateBody } from "@/shared/validate"
 import { GoalCreateSchema } from "@/shared/validation"
 
 export async function GET() {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
+  // userId auto-checked by getAuthContext
 
   const goals = await prisma.goal.findMany({
-    where: { profileId: session.user.profileId },
+    where: { profileId: profileId },
     orderBy: { createdAt: "desc" },
   })
   return NextResponse.json(goals)
 }
 
 export async function POST(req: Request) {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
+  // userId auto-checked by getAuthContext
 
   const { data: body, error } = await validateBody(req, GoalCreateSchema)
   if (error) return error
@@ -34,12 +34,14 @@ export async function POST(req: Request) {
       category: body.category || "savings",
       term: body.term || "medium",
       priority: body.priority || "P1",
-      type: body.type || "Other",
+      type: body.type || "Functions",
+      targetUnit: body.targetUnit || "₹",
+      goldQuantity: body.goldQuantity ? Number(body.goldQuantity) : null,
       description: body.description || null,
       monthlyContribution: body.monthlyContribution ? Number(body.monthlyContribution) : null,
       notes: body.notes || null,
       status: body.status || "active",
-      profileId: session.user.profileId,
+      profileId: profileId,
     },
   })
   return NextResponse.json(goal, { status: 201 })

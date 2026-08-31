@@ -29,6 +29,28 @@ async function main() {
   })
   console.log(`  Created user: ${user.email}`)
 
+  const regularUser = await prisma.user.create({
+    data: {
+      email: "regular@example.com",
+      name: "Regular User",
+      role: "user",
+      tier: "free",
+      hashedPassword,
+    },
+  })
+  console.log(`  Created user: ${regularUser.email}`)
+
+  const adminUser = await prisma.user.create({
+    data: {
+      email: "admin@test.com",
+      name: "Admin User",
+      role: "admin",
+      tier: "premium",
+      hashedPassword: await bcrypt.hash("admin123", 10),
+    },
+  })
+  console.log(`  Created user: ${adminUser.email}`)
+
   const profile = await prisma.profile.create({
     data: {
       name: "Default Profile",

@@ -2,7 +2,7 @@
   "cookies": [
     {
       "name": "authjs.csrf-token",
-      "value": "c552739dd7444d87ace2d74805fbc20f2f9b955731c9f5afd72d3a074fcc0fe2%7Ca3465f2ab206308a86ad5bab0fac8ce5ea7ce449751179894c43ba6faa681a33",
+      "value": "1cca53c4a902b30d53681babf7ffc008932b85f5192c86bbbcfb292d98e2a0a9%7C9bf79a06d3b9500dc1f7c35aeab6daff3bab2bf8b8ec8880275d63011ebc0190",
       "domain": "localhost",
       "path": "/",
       "expires": -1,
@@ -12,7 +12,7 @@
     },
     {
       "name": "authjs.callback-url",
-      "value": "http%3A%2F%2Flocalhost%3A3005%2Flogin",
+      "value": "http%3A%2F%2Flocalhost%3A3005%2F",
       "domain": "localhost",
       "path": "/",
       "expires": -1,
@@ -22,14 +22,24 @@
     },
     {
       "name": "authjs.session-token",
-      "value": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2Q0JDLUhTNTEyIiwia2lkIjoiSFkxcS1QOHctM1FiM19lV3dVUkNXVUJZTXJ4UFZzYl8xYXVMVmgzaEJhd0czREJULXRoZUlrUmM5bGl6SGU0bnhjWUpNUHJ2ZTl3RVlGejNIRzhHLVEifQ..4Hwko8aavD3WZhpXXXMrtQ.wyFdfsLQNbeSuU5nx6VbM-0f9CkviI13EfpJfq4xrXijgYlPBj1sGA5Br3s_Me2Mzw1Hay9cPbTt1GGIQ-0WNETZRFLoUW_1HlbKwIbHGi9cIHm1YAOTa2JqjADuXRMHnnS9FeNEUczNHb0TrklAaG54ZBiQpZJRfq80Z1a_KaFRotAkMtTzY7NbNQCLgxjpPPXvomltNy171Ak5WybRrDfvOE-68Nd3L7B_s9udJb-5JyGuEGwUU5NSLuWLjwoswclsnG6FKpG0DqHj7CX38387Zk1EfXjmcYBz44hLHRw.vG-3uwnOC2jR0ujsbhVPrCQbBRKNwnpEzFABj5CtkL4",
+      "value": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2Q0JDLUhTNTEyIiwia2lkIjoiSFkxcS1QOHctM1FiM19lV3dVUkNXVUJZTXJ4UFZzYl8xYXVMVmgzaEJhd0czREJULXRoZUlrUmM5bGl6SGU0bnhjWUpNUHJ2ZTl3RVlGejNIRzhHLVEifQ..MkwaEsgQCLtPuaJrA_z0yQ.UxHCKwdtTTGYYiGFqyVXnAx7wPut3ew65d77nRIUugymmU-nD9XdcnGGWsdYXp73sSQT7SeUx-QDqA4_pXrOxSTK9cYYhOPFGHW_can2g-wvnjNmIP_qplXmQV3eCp57ZGLx_tq88nykMuwvPNoDaHh-ThAP-t54rp_N2TVUsIWlIocKRExB9FmHx1QLsh2SlJ7cmAzldnj0H7RXIE-6-yynoFeYMmyrEzQJJPbQhwE6XquKscYDSbi6vQOg1F0JoxYXNpcj2U13d11OVkX0kSzSLZNOmfVUSRKiOWN2yveE_0ULKnlqWxfbIaeztpZUkUaf_BUqbkbJ_ShavlfqrQ.-cGhzuPWjL1ogjgrydz3INl8wVm5vG9pobvl7ndUyDs",
       "domain": "localhost",
       "path": "/",
-      "expires": 1787236908.495621,
+      "expires": 1787313409.056239,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Lax"
     }
   ],
-  "origins": []
+  "origins": [
+    {
+      "origin": "http://localhost:3005",
+      "localStorage": [
+        {
+          "name": "mymoney-ui-store",
+          "value": "{\"state\":{\"activeProfileId\":null,\"activeProfileName\":null,\"sidebarOpen\":true},\"version\":0}"
+        }
+      ]
+    }
+  ]
 }

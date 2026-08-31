@@ -37,6 +37,7 @@ export interface Budget {
   id: number
   categoryId: number
   category: Category
+  subCategory?: string | null
   month: number
   year: number
   amount: number
@@ -54,11 +55,35 @@ export interface Goal {
   term: string
   priority: string
   type: string
+  targetUnit: string | null
+  goldQuantity: number | null
   description: string | null
   monthlyContribution: number | null
   notes: string | null
   status: string
   progress: number
+}
+
+export interface Loan {
+  id: number
+  name: string
+  type: string
+  principal: number
+  interestRate: number
+  tenureMonths: number
+  emiAmount: number
+  lender: string | null
+  startDate: string
+  notes: string | null
+  linkedGoalId: number | null
+  emiActive: boolean
+  emiStartDate: string | null
+  emiFrequency: string | null
+  remainingAmount: number | null
+  status: string
+  closedDate: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Asset {
@@ -72,6 +97,7 @@ export interface Asset {
   unit: string | null
   location: string | null
   status: string
+  purpose: string | null
   notes: string | null
   createdAt: string
   updatedAt: string
@@ -94,6 +120,17 @@ export interface Investment {
   linkedGoalId: number | null
   notes: string | null
   status: string
+  employeeContribution: number | null
+  employerContribution: number | null
+  passbookUrl: string | null
+  projectionYears: number | null
+  fdNumber: string | null
+  bankName: string | null
+  maturityDate: string | null
+  paymentMode: string | null
+  monthlyContribution: number | null
+  totalMonths: number | null
+  completedMonths: number | null
   returnPercent: number
 }
 
@@ -128,6 +165,17 @@ export interface Subscription {
 }
 
 export interface DashboardInsights {
+  periodLabel: string
+  periodExpense: number
+  periodIncome: number
+  periodNetSavings: number
+  overallExpense: number
+  overallIncome: number
+  overallNetSavings: number
+  currentMonthBudget: number
+  currentMonthSpent: number
+  currentMonthOverUnder: { amount: number; pct: number; status: "over" | "under" } | null
+  trendByYear: { year: number; months: { month: string; amount: number }[] }[]
   totalExpenses: number
   totalIncome: number
   monthlyExpense: number
@@ -137,6 +185,8 @@ export interface DashboardInsights {
   goalProgress: number
   totalInvestments: number
   investmentReturns: number
+  totalPF: number
+  totalLoans: number
   yearlyExpense: number
   topCategories: { name: string; amount: number; percentage: number }[]
   monthlyTrend: { month: string; amount: number }[]

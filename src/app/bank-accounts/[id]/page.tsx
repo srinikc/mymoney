@@ -135,11 +135,11 @@ export default function BankAccountDetailPage() {
               <CardContent className="p-4 space-y-3">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Input placeholder="FD Number" value={fdForm.fdNumber} onChange={(e) => setFdForm({ ...fdForm, fdNumber: e.target.value })} />
-                  <Input placeholder="Principal (₹)" value={fdForm.principal} onChange={(e) => setFdForm({ ...fdForm, principal: e.target.value })} />
-                  <Input placeholder="Interest Rate (%)" value={fdForm.interestRate} onChange={(e) => setFdForm({ ...fdForm, interestRate: e.target.value })} />
+                  <Input type="number" placeholder="Principal (₹)" value={fdForm.principal} onChange={(e) => setFdForm({ ...fdForm, principal: e.target.value })} />
+                  <Input type="number" placeholder="Interest Rate (%)" value={fdForm.interestRate} onChange={(e) => setFdForm({ ...fdForm, interestRate: e.target.value })} />
                   <Input placeholder="Start Date (YYYY-MM-DD)" value={fdForm.startDate} onChange={(e) => setFdForm({ ...fdForm, startDate: e.target.value })} />
                   <Input placeholder="Maturity Date" value={fdForm.maturityDate} onChange={(e) => setFdForm({ ...fdForm, maturityDate: e.target.value })} />
-                  <Input placeholder="Maturity Amount (₹)" value={fdForm.maturityAmount} onChange={(e) => setFdForm({ ...fdForm, maturityAmount: e.target.value })} />
+                  <Input type="number" placeholder="Maturity Amount (₹)" value={fdForm.maturityAmount} onChange={(e) => setFdForm({ ...fdForm, maturityAmount: e.target.value })} />
                 </div>
                 <Button onClick={handleAddFd}>Save FD</Button>
               </CardContent>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
+import { getAuthContext } from "@/lib/with-auth"
 import { prisma } from "@/lib/prisma"
 import { buildFinancialPrompt, type FinancialContext } from "@/lib/prompt-builder"
 import { queryLLM } from "@/lib/llm"
@@ -7,10 +7,7 @@ import { formatResponse } from "@/lib/response-formatter"
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const { profileId, userId } = await getAuthContext()
 
     const { message, conversationId } = await req.json()
 
@@ -18,9 +15,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Message is required" }, { status: 400 })
     }
 
-    const profileId = (session.user as { profileId?: number }).profileId
-
-    // Scope data queries to the user's profile if available
     const profileFilter = profileId ? { profileId } : {}
 
     const now = new Date()
@@ -175,7 +169,7 @@ export async function POST(req: NextRequest) {
     const prompt = buildFinancialPrompt(message, context)
 
     // Query the LLM
-    const rawResponse = await queryLLM(prompt, Number(session.user.id))
+    const rawResponse = await queryLLM(prompt, Number(userId))
 
     // Format the response
     const formattedResponse = formatResponse(rawResponse)

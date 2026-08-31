@@ -1,0 +1,170 @@
+export interface Book {
+  id: string
+  title: string
+  author: string
+  yearPublished: number
+  pages: number
+  difficulty: "beginner" | "intermediate" | "advanced"
+  category: "budgeting" | "investing" | "mindset" | "tax" | "retirement" | "general"
+  rating: number
+  description: string
+  keyTakeaway: string
+  amazonLink: string
+  ageRecommendation: "young" | "all" | "experienced"
+}
+
+export const TOP_BOOKS: Book[] = [
+  {
+    id: "lets-talk-money",
+    title: "Let's Talk Money",
+    author: "Monika Halan",
+    yearPublished: 2018,
+    pages: 296,
+    difficulty: "beginner",
+    category: "general",
+    rating: 4.5,
+    description: "India's most recommended personal finance book. Covers banking, mutual funds, insurance, taxes, and real estate with a practical, no-jargon approach. Written by a former banker turned financial journalist.",
+    keyTakeaway: "Build a 6-month emergency fund first. Then invest 40% in equity, 30% in debt, 20% in gold, 10% in real estate.",
+    amazonLink: "https://www.amazon.in/dp/9353024958",
+    ageRecommendation: "all",
+  },
+  {
+    id: "mango-millionaire",
+    title: "The Mango Millionaire",
+    author: "Prasad Nivrutti Tanpure",
+    yearPublished: 2020,
+    pages: 200,
+    difficulty: "beginner",
+    category: "investing",
+    rating: 4.3,
+    description: "A simple, story-driven approach to building wealth from scratch. The protagonist turns ₹1 lakh into ₹10 Cr through consistent SIP investing. Easy read for first-generation investors.",
+    keyTakeaway: "Consistency beats timing. ₹5,000/month SIP in Nifty for 25 years at 12% = ₹1 Cr. The maths works only if you don't stop.",
+    amazonLink: "https://www.amazon.in/dp/9390356231",
+    ageRecommendation: "young",
+  },
+  {
+    id: "make-epic-money",
+    title: "Make Epic Money",
+    author: "Ankur Warikoo",
+    yearPublished: 2023,
+    pages: 248,
+    difficulty: "beginner",
+    category: "mindset",
+    rating: 4.2,
+    description: "Warrikoo's framework for building wealth through practical actions, not get-rich-quick schemes. Strong on the psychology of spending, saving, and investing for Indian millennials and Gen Z.",
+    keyTakeaway: "Invest in index funds. Build 12 income streams. Don't try to time the market. Increase income, not just savings.",
+    amazonLink: "https://www.amazon.in/dp/9391165486",
+    ageRecommendation: "young",
+  },
+  {
+    id: "rise-to-the-1",
+    title: "Rise to the 1%",
+    author: "Ankur Warikoo",
+    yearPublished: 2022,
+    pages: 220,
+    difficulty: "beginner",
+    category: "mindset",
+    rating: 4.1,
+    description: "Practical roadmap for the middle class to reach financial independence. Strong on habits, financial discipline, and the difference between being rich and looking rich.",
+    keyTakeaway: "Spend on experiences, not things. Buy term insurance, not endowment. Invest in yourself first, then index funds.",
+    amazonLink: "https://www.amazon.in/dp/9390356304",
+    ageRecommendation: "all",
+  },
+  {
+    id: "psychology-of-money",
+    title: "The Psychology of Money",
+    author: "Morgan Housel",
+    yearPublished: 2020,
+    pages: 256,
+    difficulty: "beginner",
+    category: "mindset",
+    rating: 4.7,
+    description: "Timeless lessons on wealth, greed, and happiness. Not India-specific, but the principles are universal. Explains why some people stay rich while others don't.",
+    keyTakeaway: "Wealth is what you don't see. It's the car not bought, the upgrade postponed. Saving is the gap between income and ego.",
+    amazonLink: "https://www.amazon.in/dp/9390166268",
+    ageRecommendation: "all",
+  },
+  {
+    id: "personal-finance-indians-2026",
+    title: "Personal Finance for Indians 2026",
+    author: "Puneet Dwivedi",
+    yearPublished: 2023,
+    pages: 320,
+    difficulty: "intermediate",
+    category: "general",
+    rating: 4.4,
+    description: "Most up-to-date India-specific guide. Covers new tax regime (2023+), 80CCD(1B), REIT, InvIT, digital gold, and the latest SEBI mutual fund categorization rules.",
+    keyTakeaway: "Old vs new tax regime decision framework. When NPS + 80CCD(1B) + health insurance + HRA beats the new regime's lower slabs.",
+    amazonLink: "https://www.amazon.in/dp/8119833421",
+    ageRecommendation: "all",
+  },
+  {
+    id: "start-early-finish-rich",
+    title: "Start Early, Finish Rich",
+    author: "Manish Chauhan",
+    yearPublished: 2005,
+    pages: 280,
+    difficulty: "beginner",
+    category: "investing",
+    rating: 4.0,
+    description: "India's original personal finance classic. Slightly dated on specifics (written pre-2008) but timeless on philosophy. Strong on the 'why start now' argument.",
+    keyTakeaway: "Starting at 25 vs 35: a 10-year delay costs you 60% of your final corpus. Time in market > timing the market.",
+    amazonLink: "https://www.amazon.in/dp/8184000850",
+    ageRecommendation: "young",
+  },
+  {
+    id: "desi-retirement-plan",
+    title: "The Desi Retirement Plan",
+    author: "Harshvardhan Jain",
+    yearPublished: 2022,
+    pages: 232,
+    difficulty: "intermediate",
+    category: "retirement",
+    rating: 4.3,
+    description: "Practical retirement planning for India. Covers NPS, EPF, VPF, annuity products, SWP strategy, and the 4% withdrawal rule in the Indian context.",
+    keyTakeaway: "4% rule: 25× annual expenses is your retirement number. NPS Tier 1 + 80CCD(1B) for the extra ₹50K. Annuity ≠ retirement income.",
+    amazonLink: "https://www.amazon.in/dp/9356291241",
+    ageRecommendation: "experienced",
+  },
+  {
+    id: "i-am-my-own-laxmi",
+    title: "I Am My Own Laxmi",
+    author: "Bela Bhatia",
+    yearPublished: 2021,
+    pages: 200,
+    difficulty: "beginner",
+    category: "investing",
+    rating: 4.2,
+    description: "Written specifically for Indian women investors. Addresses the gender gap in financial literacy, social pressure, and practical investment strategies.",
+    keyTakeaway: "Women live longer but save less. Start investing early. Don't defer financial decisions to a spouse. You are your own safety net.",
+    amazonLink: "https://www.amazon.in/dp/0143452699",
+    ageRecommendation: "all",
+  },
+  {
+    id: "lets-talk-mutual-funds",
+    title: "Let's Talk Mutual Funds",
+    author: "Monika Halan",
+    yearPublished: 2023,
+    pages: 280,
+    difficulty: "intermediate",
+    category: "investing",
+    rating: 4.4,
+    description: "Follow-up to Let's Talk Money. Deep dive on mutual funds specifically — types, expense ratios, benchmarking, the new SEBI categorization, and how to actually pick a fund.",
+    keyTakeaway: "Don't chase last year's topper. Look for consistency in 3Y and 5Y returns. Expense ratio matters — 0.5% vs 2% compounds to crores over 20 years.",
+    amazonLink: "https://www.amazon.in/dp/9357026840",
+    ageRecommendation: "all",
+  },
+]
+
+export const BOOK_CATEGORIES = [
+  { value: "general", label: "General", color: "#3B82F6" },
+  { value: "investing", label: "Investing", color: "#10B981" },
+  { value: "mindset", label: "Mindset", color: "#8B5CF6" },
+  { value: "retirement", label: "Retirement", color: "#F59E0B" },
+] as const
+
+export const READING_AGES = [
+  { value: "young", label: "Young (18-30)", desc: "Starting out, first salary, build habits" },
+  { value: "all", label: "All ages", desc: "Universal principles, suitable for anyone" },
+  { value: "experienced", label: "Experienced (40+)", desc: "Pre-retirement and retirement planning" },
+] as const

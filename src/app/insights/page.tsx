@@ -420,7 +420,7 @@ export default function InsightsPage() {
         </Card>
       )}
 
-      {/* Person-wise + Top Merchants */}
+      {/* Person-wise + Top Vendors */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-4 w-4" /> Person-wise</CardTitle></CardHeader>
@@ -440,7 +440,7 @@ export default function InsightsPage() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2"><Store className="h-4 w-4" /> Top Merchants</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="flex items-center gap-2"><Store className="h-4 w-4" /> Top Vendors</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-2">
               {data.topMerchants.slice(0, 10).map((m, i) => (
@@ -520,11 +520,11 @@ export default function InsightsPage() {
       {/* Deals */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Deals Matching Your Merchants</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Deals Matching Your Vendors</CardTitle>
         </CardHeader>
         <CardContent>
           {data.deals.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No active deals found for your top merchants. Deals will appear here when available.</p>
+            <p className="text-sm text-muted-foreground">No active deals found for your top vendors. Deals will appear here when available.</p>
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {data.deals.map((deal, i) => (

@@ -6,21 +6,42 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
+import { useAuthStore } from '../store/auth';
 import api from '../api/client';
+
+interface EnvVarDef {
+  key: string;
+  label: string;
+  description: string;
+  sensitive: boolean;
+  editable: boolean;
+}
+
+interface EnvVarInfo {
+  value?: string;
+  envValue?: string;
+}
 
 export default function EnvironmentScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
+  const { user } = useAuthStore();
 
-  const [vars, setVars] = useState<Record<string, unknown>>({});
-  const [definitions, setDefinitions] = useState<Record<string, unknown>[]>([]);
+  const [vars, setVars] = useState<Record<string, EnvVarInfo>>({});
+  const [definitions, setDefinitions] = useState<EnvVarDef[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [visible, setVisible] = useState<Record<string, boolean>>({});
+  const [forbidden, setForbidden] = useState(false);
 
   useEffect(() => {
+    if (user?.role !== 'admin') {
+      setForbidden(true);
+      setLoading(false);
+      return;
+    }
     api.get('/api/settings/environment')
       .then((r) => {
         setVars(r.data?.vars || {});
@@ -30,9 +51,11 @@ export default function EnvironmentScreen() {
         for (const d of defs) if (d.editable) ov[d.key] = r.data?.vars[d.key]?.value || '';
         setOverrides(ov);
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (err?.response?.status === 403) setForbidden(true);
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [user]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -47,6 +70,24 @@ export default function EnvironmentScreen() {
   };
 
   if (loading) return <View style={[styles.container, { backgroundColor: theme.background }]}><View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View></View>;
+
+  if (forbidden) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <View style={[styles.header, { backgroundColor: theme.surface }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color={theme.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Environment</Text>
+        </View>
+        <View style={styles.center}>
+          <Ionicons name="lock-closed" size={48} color={theme.expense} />
+          <Text style={[styles.forbiddenText, { color: theme.textSecondary }]}>Admin access required</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -63,7 +104,7 @@ export default function EnvironmentScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={[styles.description, { color: theme.textTertiary }]}>View and override environment configuration.</Text>
         {definitions.map((def) => {
-          const info = vars[def.key] || {};
+          const info: EnvVarInfo = vars[def.key] || {};
           return (
             <View key={def.key} style={[styles.card, { backgroundColor: theme.surface }]}>
               <View style={styles.cardHeader}>
@@ -121,5 +162,6 @@ const styles = StyleSheet.create({
   inputRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12 },
   input: { flex: 1, fontSize: 14, paddingHorizontal: 12, paddingVertical: 10 },
   eyeBtn: { padding: 10 },
+  forbiddenText: { fontSize: 16, fontWeight: '600', marginTop: 12 },
   value: { fontSize: 13, fontFamily: 'monospace', paddingVertical: 8 },
 });

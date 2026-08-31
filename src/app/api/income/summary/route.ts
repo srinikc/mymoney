@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
-import { isViewer, type AuthUser } from "@/lib/roles"
+import { getAuthContext } from "@/lib/with-auth"
 
-export async function GET(_req: Request) {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-    if (isViewer(session?.user as AuthUser)) {
+export async function GET(req: Request) {
+    const { profileId, role } = await getAuthContext()
+    if (role === "viewer") {
       return NextResponse.json({ error: "Viewers cannot view summary" }, { status: 403 })
     }
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
+
+    const { searchParams } = new URL(req.url)
+    const reqMonth = Number.parseInt(searchParams.get("month") || "")
+    const reqYear = Number.parseInt(searchParams.get("year") || "")
+    const now = new Date()
+    const month = reqMonth >= 1 && reqMonth <= 12 ? reqMonth - 1 : now.getMonth()
+    const year = reqYear >= 1970 ? reqYear : now.getFullYear()
+    const monthStart = new Date(year, month, 1)
+    const monthEnd = new Date(year, month + 1, 1)
 
     const where = profileId ? { profileId } : {}
 
@@ -21,11 +24,7 @@ export async function GET(_req: Request) {
     let totalMonthly = 0
     let totalYearly = 0
     const bySourceMap: Record<string, { type: string; total: number; count: number }> = {}
-    let currentMonth = 0
-
-    const now = new Date()
-    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    let monthIncome = 0
 
     for (const source of sources) {
       const amount = source.amount
@@ -50,7 +49,7 @@ export async function GET(_req: Request) {
         case "variable": {
           if (source.startDate) {
             const monthsActive = Math.max(1, Math.ceil(
-              ((source.endDate || currentMonthEnd).getTime() - source.startDate.getTime()) / (30 * 24 * 60 * 60 * 1000)
+              ((source.endDate || monthEnd).getTime() - source.startDate.getTime()) / (30 * 24 * 60 * 60 * 1000)
             ))
             totalYearly += (amount / monthsActive) * 12
           } else {
@@ -67,30 +66,30 @@ export async function GET(_req: Request) {
       bySourceMap[type].total += amount
       bySourceMap[type].count += 1
 
-      // Current month contribution
+      // Selected month contribution
       switch (type) {
         case "monthly": {
-          currentMonth += amount
+          monthIncome += amount
           break
         }
         case "yearly": {
           if (source.startDate) {
             const startMonth = source.startDate.getMonth()
             const startYear = source.startDate.getFullYear()
-            if (startMonth === now.getMonth() && startYear === now.getFullYear()) {
-              currentMonth += amount
+            if (startMonth === month && startYear === year) {
+              monthIncome += amount
             }
           }
           break
         }
         case "onetime": {
-          if (source.startDate && source.startDate >= currentMonthStart && source.startDate < currentMonthEnd) {
-            currentMonth += amount
+          if (source.startDate && source.startDate >= monthStart && source.startDate < monthEnd) {
+            monthIncome += amount
           }
           break
         }
         case "variable": {
-          currentMonth += amount
+          monthIncome += amount
           break
         }
       }
@@ -102,9 +101,9 @@ export async function GET(_req: Request) {
       totalMonthly,
       totalYearly,
       bySource,
-      currentMonth,
+      currentMonth: monthIncome,
+      monthIncome,
+      month: month + 1,
+      year,
     })
-    } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
 }

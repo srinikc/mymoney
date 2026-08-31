@@ -17,6 +17,7 @@ export interface HelpSection {
   controls?: ControlItem[]
   workflow?: WorkflowStep[]
   relatedFeatures?: { name: string; description: string }[]
+  diagramKey?: string // maps to DIAGRAMS in workflow-diagrams.tsx
 }
 
 export const helpContent: Record<string, HelpSection> = {
@@ -87,7 +88,6 @@ export const helpContent: Record<string, HelpSection> = {
     controls: [
       { name: "Add button", description: "Opens a dialog to create a new expense manually.", location: "Top toolbar" },
       { name: "Bulk Import button", description: "Navigates to the /expenses/import page for batch uploads.", location: "Top toolbar" },
-      { name: "Review button", description: "Navigates to /expenses/review-duplicates to merge duplicate entries.", location: "Top toolbar" },
       { name: "Drive button", description: "Opens a file picker to import from Google Drive.", location: "Top toolbar" },
       { name: "Refresh GPay button", description: "Pulls the latest GPay transactions for import.", location: "Top toolbar" },
       { name: "Refresh button", description: "Reloads the expense list from the server.", location: "Top toolbar" },
@@ -134,10 +134,10 @@ export const helpContent: Record<string, HelpSection> = {
 
   "/expenses/import": {
     title: "Bulk Import",
-    summary: "Import many expenses at once from KCExpenses format or GPay export files.",
-    details: "Use this page when you have a file full of expenses to bring in at once. Two import types are supported: KCExpenses (a CSV/XLSX format for bank/credit card statements) and GPay (Google Pay transaction history export). Upload the file, preview the parsed data with checkboxes for merchant name mapping, then import everything in one click. After import, visit Review Duplicates to clean up any overlapping entries.",
+    summary: "Import many expenses at once from a spreadsheet or GPay export files.",
+    details: "Use this page when you have a file full of expenses to bring in at once. Two import types are supported: Upload Spreadsheet (a CSV/XLSX format for bank/credit card statements) and GPay (Google Pay transaction history export). Upload the file, preview the parsed data, then import everything in one click. Vendors are auto-learned from the file (deduped), and the spreadsheet also learns each vendor's category, sub-category, and person.",
     controls: [
-      { name: "Tab selector — KCExpenses", description: "Switch to the KCExpenses format importer for bank/credit card statement files.", location: "Top of the import area" },
+      { name: "Tab selector — Upload Spreadsheet", description: "Switch to the spreadsheet importer for bank/credit card statement files.", location: "Top of the import area" },
       { name: "Tab selector — GPay", description: "Switch to the GPay importer for Google Pay transaction exports.", location: "Top of the import area" },
       { name: "Choose File button", description: "Opens a file picker dialog to select a CSV, XLSX, or GPay export file.", location: "Import area" },
       { name: "Checkbox for merchant mappings", description: "Toggle individual merchant name mappings on or off before importing.", location: "Preview table, after file is parsed" },
@@ -147,40 +147,15 @@ export const helpContent: Record<string, HelpSection> = {
       { name: "Import Another button", description: "Clears the current import and lets you upload a new file.", location: "Shown after a successful import" },
     ],
     workflow: [
-      { step: "Select import type", description: "Choose KCExpenses (for bank/CC statements) or GPay (for Google Pay exports)." },
+      { step: "Select import type", description: "Choose Upload Spreadsheet (for bank/CC statements) or GPay (for Google Pay exports)." },
       { step: "Upload your file", description: "Click 'Choose File' and select your CSV, XLSX, or GPay export.", example: "Upload 'January_Bank_Statement.csv' from your HDFC account." },
-      { step: "Preview and configure", description: "Review the parsed transactions. Check or uncheck merchant mappings as needed.", example: "Uncheck 'STARBUCKS INDIA → Starbucks' if you prefer the raw name." },
+      { step: "Preview and configure", description: "Review the parsed transactions before importing.", example: "Check dates, amounts, and categories look correct." },
       { step: "Confirm import", description: "Click 'Import All' to add everything to your expenses ledger." },
       { step: "Post-import actions", description: "Use 'View Imported' to verify results, or 'Import Another' to start a new batch." },
     ],
     relatedFeatures: [
       { name: "Expenses Ledger", description: "Imported expenses appear in the main expense list." },
       { name: "Merchants", description: "Merchant name mappings from imports can be reviewed and saved." },
-      { name: "Review Duplicates", description: "Always check this page after import to merge any duplicate entries." },
-    ],
-  },
-
-  "/expenses/review-duplicates": {
-    title: "Review Duplicates",
-    summary: "Catch and resolve expense entries that may have been imported twice.",
-    details: "After bulk imports or GPay syncs, the same transaction may appear twice. This page automatically flags potential duplicates based on matching date, amount, and vendor. Review each set, select which ones to keep or delete, and clean up your ledger. Use the search input to find specific duplicates, and navigate through pages using the pagination controls.",
-    controls: [
-      { name: "Search input", description: "Free-text search across flagged duplicate entries.", location: "Top of the page" },
-      { name: "Keep (N) button", description: "Marks the selected entries as legitimate (not duplicates) and removes them from the review list.", location: "Next to each duplicate group, N = number of selected rows" },
-      { name: "Delete (N) button", description: "Permanently deletes the selected entries from the expense ledger.", location: "Next to each duplicate group, N = number of selected rows" },
-      { name: "Checkboxes (per row)", description: "Select individual expense rows within a duplicate group.", location: "Left side of each row" },
-      { name: "Select All checkbox", description: "Toggle all rows in the current duplicate group on or off.", location: "Top of each duplicate group" },
-      { name: "Pagination Prev button", description: "Go to the previous page of duplicate groups.", location: "Bottom of the page" },
-      { name: "Pagination Next button", description: "Go to the next page of duplicate groups.", location: "Bottom of the page" },
-    ],
-    workflow: [
-      { step: "Review flagged duplicates", description: "Each group shows 2+ expenses that look similar. Compare date, amount, and vendor side by side.", example: "₹500 'Swiggy' on 15-Jan appears twice — one from manual entry, one from GPay sync." },
-      { step: "Keep legitimate ones", description: "Select the genuine entries and click 'Keep' to leave them in your ledger.", example: "Keep the original ₹500 Swiggy expense and delete the GPay duplicate." },
-      { step: "Delete true duplicates", description: "Select the extra entries and click 'Delete' to permanently remove them." },
-    ],
-    relatedFeatures: [
-      { name: "Expenses Ledger", description: "Changes here update your main expense list." },
-      { name: "Bulk Import", description: "Always check this page after a bulk import to clean up." },
     ],
   },
 
@@ -207,31 +182,32 @@ export const helpContent: Record<string, HelpSection> = {
     ],
   },
 
-  "/expenses/merchants": {
-    title: "Merchant Mappings",
-    summary: "Standardize vendor names from imports — map raw names to clean, categorized merchants.",
-    details: "When you import from a bank statement or GPay, vendor names can be inconsistent ('STARBUCKS INDIA', 'Starbucks Coffee'). This page lets you view unmapped merchants in one tab and see all existing mappings in another. Assign an expense type, sub-category, and person to each merchant so future imports are automatically categorized. Use the upload button to bulk-import a mappings file.",
+  "/expenses/vendors": {
+    title: "Vendors",
+    summary: "Manage your vendors — vendors are auto-learned from spreadsheet and GPay imports, and you assign each one a category, sub-category, and person.",
+    details: "Every vendor you spend money with is learned automatically when you import from a spreadsheet or GPay, or add expenses manually. Vendors are per-account — you only see your own. The Unmapped tab shows vendors from your expenses that don't have a vendor entry yet (assign a category, sub-category, and person so future imports are automatically categorized). The All Mappings tab lists every vendor you've learned; search, edit, select, or delete them. Use the upload button to bulk-import a vendor mappings file.",
     controls: [
-      { name: "Unmapped tab", description: "Shows merchants that have not been mapped yet — needs your attention.", location: "Tab bar at the top" },
-      { name: "All Mappings tab", description: "Shows all existing merchant mappings for review and editing.", location: "Tab bar at the top" },
-      { name: "Upload mappings button", description: "Upload a CSV/XLSX file with pre-defined merchant mappings.", location: "Top toolbar" },
-      { name: "Dismiss (N) button", description: "Removes selected unmapped merchants from the review list without saving mappings.", location: "Top toolbar, Unmapped tab, N = number selected" },
-      { name: "Save Mappings (N) button", description: "Saves the selected merchant mappings with their assigned categories.", location: "Top toolbar, Unmapped tab, N = number selected" },
-      { name: "Checkboxes", description: "Select individual merchants to map or dismiss.", location: "Left side of each row" },
-      { name: "Expense Type dropdown (per row)", description: "Assign an expense category to each merchant (e.g., Food, Transport, Utilities).", location: "Each row in Unmapped tab" },
-      { name: "Sub Category input (per row)", description: "Assign a sub-category to each merchant for granular tracking.", location: "Each row in Unmapped tab" },
-      { name: "Person input (per row)", description: "Assign a default person/contact to each merchant.", location: "Each row in Unmapped tab" },
-      { name: "Search input", description: "Search across all merchant mappings.", location: "Top of the All Mappings tab" },
-      { name: "Edit icon (per row)", description: "Opens an edit dialog to modify an existing merchant mapping.", location: "Each row in All Mappings tab" },
+      { name: "Unmapped tab", description: "Shows vendors from your expenses that have no vendor entry yet — assign category/sub-category/person or dismiss.", location: "Tab bar at the top" },
+      { name: "All Mappings tab", description: "Shows all of your vendor mappings for review and editing, with select + delete options.", location: "Tab bar at the top" },
+      { name: "Upload mappings button", description: "Upload a CSV/XLSX file with pre-defined vendor mappings (vendor, category, sub-category, person).", location: "Top toolbar" },
+      { name: "Dismiss (N) button", description: "Removes selected unmapped vendors from the review list without saving mappings.", location: "Top toolbar, Unmapped tab, N = number selected" },
+      { name: "Save Mappings (N) button", description: "Saves the selected vendor mappings with their assigned categories.", location: "Top toolbar, Unmapped tab, N = number selected" },
+      { name: "Delete Selected / Delete All", description: "Permanently deletes selected vendor mappings (or all of them) from your account.", location: "Top toolbar, All Mappings tab" },
+      { name: "Checkboxes", description: "Select individual vendors to map, dismiss, or delete.", location: "Left side of each row" },
+      { name: "Category dropdown (per row)", description: "Assign a category to each vendor (e.g., Food, Transport, Utilities).", location: "Each row in Unmapped tab" },
+      { name: "Sub Category input (per row)", description: "Assign a sub-category to each vendor for granular tracking.", location: "Each row in Unmapped tab" },
+      { name: "Person input (per row)", description: "Assign a default person/contact to each vendor.", location: "Each row in Unmapped tab" },
+      { name: "Search input", description: "Search across all of your vendor mappings.", location: "Top of the All Mappings tab" },
+      { name: "Edit icon (per row)", description: "Opens an edit dialog to modify an existing vendor mapping.", location: "Each row in All Mappings tab" },
     ],
     workflow: [
-      { step: "View unmapped merchants", description: "Go to the Unmapped tab to see all merchants from imports that have no mapping yet.", example: "See 'SWIGGY BLR', 'ZOMATO MUM' as unmapped." },
-      { step: "Assign categories", description: "For each merchant, select an expense type (e.g., Food), optional sub-category and person.", example: "Map 'SWIGGY BLR' → Type: Food, Sub: Restaurant Delivery." },
-      { step: "Save mappings", description: "Select the rows you have configured and click 'Save Mappings'.", example: "Save 15 merchant mappings at once." },
+      { step: "View unmapped vendors", description: "Go to the Unmapped tab to see vendors from your expenses that have no vendor entry yet.", example: "See 'SWIGGY BLR', 'ZOMATO MUM' as unmapped." },
+      { step: "Assign categories", description: "For each vendor, select a category (e.g., Food), optional sub-category and person.", example: "Map 'SWIGGY BLR' → Category: Food, Sub: Restaurant Delivery." },
+      { step: "Save mappings", description: "Select the rows you have configured and click 'Save Mappings'.", example: "Save 15 vendor mappings at once." },
     ],
     relatedFeatures: [
-      { name: "Expenses Ledger", description: "Merchant mappings auto-categorize expenses during import." },
-      { name: "Bulk Import", description: "Import checks merchant mappings to clean up vendor names." },
+      { name: "Expenses Ledger", description: "Vendor mappings auto-categorize expenses during import." },
+      { name: "Bulk Import", description: "Imports auto-learn vendors to keep your vendor list current." },
       { name: "Reports", description: "Clean vendor data means more accurate category reports." },
     ],
   },
@@ -240,6 +216,7 @@ export const helpContent: Record<string, HelpSection> = {
     title: "Budgets",
     summary: "Set monthly spending limits for each category and track your progress with visual bars.",
     details: "Budgets help you plan how much to spend on each category every month. Set a limit for Food, Transport, Shopping, and more. Each budget shows a progress bar (green → yellow → red) indicating how much you have spent vs your limit, plus what percentage of your total income it represents. Use the month/year selectors to review past months or plan future ones. Export your budget data to XLSX for offline review.",
+    diagramKey: "/budgets",
     controls: [
       { name: "Add Budget button", description: "Opens a dialog to create a new budget for a category.", location: "Top-right of the page" },
       { name: "Export button", description: "Downloads budget data as an XLSX file.", location: "Top toolbar" },
@@ -551,6 +528,7 @@ export const helpContent: Record<string, HelpSection> = {
     title: "Deep Insights",
     summary: "Visual analysis of your finances — trends, category breakdowns, YoY comparisons, and AI suggestions.",
     details: "Insights goes beyond the Dashboard with deeper, interactive charts. Filter by period (All Time, Year, Quarter, Month, or Custom) to analyze specific timeframes. Click any category in a chart to drill into its details. Use the Year-over-Year comparison to see how your finances have changed. The AI suggests optimization opportunities — like 'Set a budget for Dining Out' — with a direct 'Set Budget' action.",
+    diagramKey: "/insights",
     controls: [
       { name: "Period dropdown", description: "Filter analysis by All Time, Year, Quarter, Month, or Custom date range.", location: "Top of the page" },
       { name: "Year dropdown", description: "Select a specific year for analysis.", location: "Next to Period dropdown" },
@@ -576,6 +554,7 @@ export const helpContent: Record<string, HelpSection> = {
     title: "Reports",
     summary: "Comprehensive reports across all financial dimensions — exportable to XLSX and PDF.",
     details: "Reports provides seven tabbed sections: Overview (key financial stats), Income (trends and comparisons), Expenses (category breakdown and trends), Investments (portfolio performance and returns), Goals (progress toward targets), Recurrence (recurring transaction analysis), and Data (raw table view with search and category filter). Use the Year/Month/Quarter selectors at the top to set the reporting period. Each tab can be exported independently to XLSX, or generate a consolidated PDF report.",
+    diagramKey: "/reports",
     controls: [
       { name: "Enhanced XLSX button", description: "Exports the current tab's data as a detailed Excel file with formatting.", location: "Top toolbar" },
       { name: "Export as... dropdown", description: "Choose export format — XLSX or other options per tab.", location: "Top toolbar" },
@@ -1161,21 +1140,6 @@ export const helpContent: Record<string, HelpSection> = {
     ],
   },
 
-  "/onboarding": {
-    title: "Onboarding Wizard",
-    summary: "Step-by-step setup to get you started with MyMoney after your first login.",
-    details: "The Onboarding Wizard appears after your first login (or when you reset onboarding). It walks you through essential setup: enter your name and preferences, optionally connect your Gmail for auto-import, link bank accounts, and set up key integrations. Completing the wizard unlocks the full Dashboard experience. You can skip any step and configure it later from Settings.",
-    workflow: [
-      { step: "Fill in your details", description: "Enter your name, preferred currency (INR/USD/etc.), and timezone.", example: "Name: Srinivas, Currency: INR, Timezone: Asia/Kolkata." },
-      { step: "Connect accounts (optional)", description: "Optionally link your Gmail, bank accounts, or broker accounts during setup.", example: "Sign in with Google to enable Gmail import." },
-      { step: "Finish setup", description: "Complete the wizard to go to your Dashboard, now fully configured." },
-    ],
-    relatedFeatures: [
-      { name: "Dashboard", description: "The final step of onboarding takes you to the Dashboard." },
-      { name: "Settings Hub", description: "Configure anything you skipped during onboarding from Settings." },
-    ],
-  },
-
   "/login": {
     title: "Login",
     summary: "Sign in to MyMoney with email/password or Google OAuth.",
@@ -1210,6 +1174,94 @@ export const helpContent: Record<string, HelpSection> = {
     relatedFeatures: [
       { name: "Login", description: "After setup, sign in with your new admin credentials." },
       { name: "Onboarding", description: "After first login, the Onboarding Wizard helps you configure the app." },
+    ],
+  },
+
+  "/expenses/unusual": {
+    title: "Unusual Expenses",
+    summary: "Review and tag expenses over ₹5,000 for better spending insights.",
+    details: "Expenses over ₹5,000 that don't fall in regular categories (rent, utility, EMI) are automatically flagged as unusual. This page lists all flagged expenses with their vendor, amount, date, and purpose. Use bulk actions to tag multiple expenses with a purpose (wedding, medical, festival, etc.) or dismiss them as not unusual. Tagging enables better intelligence in Insights — anomaly detection, tax optimization, lifestyle creep analysis.",
+    diagramKey: "/expenses/unusual",
+    workflow: [
+      { step: "Open the page", description: "Navigate to /expenses/unusual. All flagged expenses are shown, sorted by date.", example: "8 expenses over ₹5,000 from the last 3 months are listed." },
+      { step: "Select expenses", description: "Use checkboxes to select one or more expenses for bulk action." },
+      { step: "Tag or dismiss", description: "Choose 'Mark as not unusual' to dismiss, or 'Tag with purpose' and pick from 28 options like wedding, medical, festival." },
+      { step: "Use purpose breakdown", description: "The chips at the top show spending by purpose — click any chip to filter the list." },
+    ],
+  },
+
+  "/emergency-fund": {
+    title: "Emergency Fund Planner",
+    summary: "Build your 3-12 month safety net based on your job type, dependents, and essential expenses.",
+    details: "The Emergency Fund Planner computes how much you need based on (1) job stability (govt 3mo, private 6mo, self-employed 9mo, business 12mo), (2) number of dependents, and (3) average essential expenses over the last 3 months. It shows your current liquid savings (cash + savings bank accounts), the gap, and a monthly run-up plan to close the gap. Update inputs as your situation changes — the plan recalculates instantly.",
+    diagramKey: "/emergency-fund",
+    workflow: [
+      { step: "Set job type and dependents", description: "Pick your job type from the dropdown and enter number of dependents. The recommended months is auto-computed." },
+      { step: "Review computed target", description: "The target = essential monthly expenses × recommended months. Your current savings is auto-detected from cash + bank accounts." },
+      { step: "Follow the run-up plan", description: "If you have a gap, follow the 4-step plan: open a separate savings account, set up auto-debit, don't touch for non-emergencies, and review annually." },
+      { step: "Re-evaluate in January", description: "Inflation is ~6%/year. Top up your target by that amount each January." },
+    ],
+  },
+
+  "/learn": {
+    title: "Learn Hub",
+    summary: "Age-appropriate money tips, financial education, and planning tools — all in one place.",
+    details: "The Learn hub has 3 tabs. 'For you' shows 17 tips filtered to your age bucket (Early Career ≤25, Growth 26-35, Mid-Career 36-50, Pre-Retirement 51-60, Retirement 61+). Each tip includes a step-by-step workflow and a CTA. 'Explore all' links to 8 tools: Mutual Funds, ETFs, Gold & Silver, NPS, Retirement, Books, Emergency Fund, and Tax. 'Tools' lists calculators and planners you can use right away.",
+    diagramKey: "/learn",
+    workflow: [
+      { step: "Set your date of birth", description: "Go to /settings/profile and set DOB. Age bucket is auto-computed." },
+      { step: "Browse For You", description: "Click any tip to see the full content, workflow steps, and CTA." },
+      { step: "Try the tools", description: "Open Tools tab for SIP calculator, retirement calculator, mutual fund research, commodity prices, NPS research, and book recommendations." },
+    ],
+  },
+
+  "/learn/mutual-funds": {
+    title: "Mutual Fund Research",
+    summary: "Browse 50 top Indian mutual funds, compare CAGR, and plan SIP / lumpsum / goal-based investments.",
+    details: "The Mutual Funds page has two tabs. 'Research' lets you search 50 curated top Indian MFs by name, AMC, or category (Large Cap, Mid Cap, Small Cap, Flexi Cap, Index, ELSS, Liquid, Gold, International, etc.). Each card shows NAV, 3Y CAGR, AUM, risk level, expense ratio, and minimum SIP. Click a fund for full details. 'Calculator' has three modes: SIP (with optional step-up), Lumpsum, and Reverse-SIP (goal-based). All calculations show inflation-adjusted real value.",
+    diagramKey: "/learn/mutual-funds",
+    workflow: [
+      { step: "Search or filter", description: "Use the search bar and category filter to find funds that match your goal." },
+      { step: "Compare funds", description: "Look at 3Y and 5Y CAGR, not just last year. Check AUM (above ₹10K Cr is institutional). Compare expense ratios (below 1% is good for equity)." },
+      { step: "Plan your SIP", description: "Switch to Calculator tab. Choose SIP mode, enter monthly amount, expected return, and years. See the inflation-adjusted real value." },
+    ],
+  },
+
+  "/learn/commodities": {
+    title: "Commodities & ETFs",
+    summary: "Live prices for gold, silver, and Indian ETFs with value calculator.",
+    details: "Track 14 instruments across 6 categories: Gold ETFs (GOLDBEES, GOLDSHARE, SETFGOLD, ITI Gold ETF), Silver ETFs, physical gold and silver, Broad ETFs (NIFTYBEES), Sector ETFs (BANKBEES), International ETFs (Nasdaq, S&P 500), and Debt ETFs (LIQUIDBEES, GSEC10BEES). Each card shows the latest price, day's change, and 30-day sparkline. Use the Value Calculator tab to compute what your gold, silver, or ETF holding is worth right now.",
+    diagramKey: "/learn/commodities",
+    workflow: [
+      { step: "Browse instruments", description: "Filter by category (Gold, Silver, Broad, Sector, International, Debt). Each card has a 30-day trend sparkline." },
+      { step: "Compare gold instruments", description: "Compare GOLDBEES (expense 1.0%) vs ITI Gold ETF (expense 0.45%) for the same gold exposure." },
+      { step: "Use the Value Calculator", description: "Switch to Value Calculator tab. Enter your holding in grams, kg, or units to see current value." },
+    ],
+  },
+
+  "/learn/retirement": {
+    title: "Retirement & NPS",
+    summary: "Plan retirement with the 4% rule and explore NPS fund managers.",
+    details: "Two tabs. 'Calculator' uses the 4% safe-withdrawal rule to compute your retirement corpus target (25× annual expenses), projects your current SIP forward, simulates retirement-phase withdrawals, and tells you if you're on track. Adjust pre/post-retirement returns, inflation, and SIP step-up. 'NPS Funds' shows 6 fund managers (SBI, HDFC, ICICI, Kotak, LIC, UTI) with their age-based glide path, 3Y/5Y CAGR, AUM, and pros/cons. NPS gives an extra ₹50K deduction under Section 80CCD(1B).",
+    diagramKey: "/learn/retirement",
+    workflow: [
+      { step: "Set your age, expenses, and current corpus", description: "Include EPF, PPF, NPS, investments, FDs in your current corpus. Exclude your primary home." },
+      { step: "Set expected returns", description: "Pre-retirement 11% (equity-heavy), post-retirement 7% (debt-heavy) are typical." },
+      { step: "Calculate", description: "See your projected corpus at retirement, real value in today's money, and monthly income from the 4% rule." },
+      { step: "Compare NPS funds", description: "SBI is largest and most conservative. HDFC has strongest equity returns. Pick by your risk tolerance." },
+    ],
+  },
+
+  "/settings/profile": {
+    title: "Profile Settings",
+    summary: "Set date of birth, annual income, occupation, and language for personalized advice.",
+    details: "Your profile drives personalization across MyMoney. Date of birth determines your age bucket for tips and the age-adaptive budget split (50/30/20 for mid-career, 40/30/30 for growth, etc.). Annual income drives the income tier (Starter/Standard/Growth/High Earner/VHNW) and budget recommendations. Occupation is used for emergency fund defaults (govt 3mo, private 6mo, business 12mo). Language preference is stored (English content shown in v1, 6 languages supported).",
+    diagramKey: "/settings/profile",
+    workflow: [
+      { step: "Open Settings > Profile", description: "Navigate to /settings/profile from the gear icon in the top nav." },
+      { step: "Set your date of birth", description: "Use MM/YYYY format. Pick month and year from the dropdowns. Day is auto-set to 1." },
+      { step: "Set your annual income", description: "Use the toggle to switch between yearly and monthly. The conversion is automatic." },
+      { step: "Save", description: "All features — age tips, budget split, emergency fund, income tier — activate immediately." },
     ],
   },
 

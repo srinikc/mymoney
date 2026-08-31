@@ -1,104 +1,162 @@
-import { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme, RefreshControl, ActivityIndicator } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
-import { formatCurrency } from '../utils/format';
 import api from '../api/client';
 
 interface Suggestion {
-  expenseId: string;
-  matchType: string;
-  targetId?: string;
-  targetName?: string;
-  expenseVendor: string;
+  expenseId: number;
   expenseDate: string;
   expenseAmount: number;
-  matchLabel?: string;
+  expenseVendor: string;
+  matchType: 'income' | 'investment' | 'insurance' | 'loan';
+  matchLabel: string;
+  targetId?: number;
+  targetName: string;
 }
+
+const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
+  income: { bg: '#d1fae5', text: '#059669' },
+  investment: { bg: '#dbeafe', text: '#2563eb' },
+  insurance: { bg: '#f3e8ff', text: '#9333ea' },
+  loan: { bg: '#fef3c7', text: '#d97706' },
+};
 
 export default function AutoLinkScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
+
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [accepted, setAccepted] = useState<Set<string>>(new Set());
+  const [accepting, setAccepting] = useState<Set<string>>(new Set());
 
-  const fetch = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('/api/auto-link/suggestions');
-      setSuggestions(res.data?.suggestions || []);
-    } catch { /* ignore */ }
-    finally { setLoading(false); setRefreshing(false); }
+  useEffect(() => {
+    api.get('/api/auto-link/suggestions')
+      .then((r) => setSuggestions(r.data?.suggestions || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
-
-  useEffect(() => { fetch(); }, [fetch]);
 
   const handleAccept = async (s: Suggestion) => {
     const key = `${s.expenseId}-${s.matchType}-${s.targetId || s.targetName}`;
+    setAccepting((prev) => new Set(prev).add(key));
     try {
-      await api.post('/api/auto-link/accept', { expenseId: s.expenseId, linkType: s.matchType, targetId: s.targetId || s.expenseId });
+      await api.post('/api/auto-link/accept', {
+        expenseId: s.expenseId,
+        linkType: s.matchType,
+        targetId: s.targetId || s.expenseId,
+      });
       setAccepted((prev) => new Set(prev).add(key));
-    } catch { /* ignore */ }
+    } catch {
+      Alert.alert('Error', 'Failed to accept link');
+    } finally {
+      setAccepting((prev) => { const next = new Set(prev); next.delete(key); return next; });
+    }
   };
 
-  const typeColors: Record<string, string> = { income: '#22c55e', investment: '#3b82f6', insurance: '#a855f7', loan: '#f59e0b' };
+  if (loading) return <View style={[styles.container, { backgroundColor: theme.background }]}><View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View></View>;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={[styles.header, { backgroundColor: theme.surface }]}>
-        <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12, padding: 4 }}><Ionicons name="arrow-back" size={24} color={theme.text} /></TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
+        </TouchableOpacity>
+        <Ionicons name="link" size={22} color={theme.primary} style={{ marginRight: 8 }} />
         <Text style={[styles.headerTitle, { color: theme.text }]}>Auto-Link</Text>
       </View>
 
-      {loading ? <View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View>
-      : suggestions.length === 0 ? (
-        <View style={styles.empty}><Ionicons name="link-outline" size={48} color={theme.textTertiary} /><Text style={{ color: theme.textSecondary, fontSize: 15 }}>No suggestions found</Text></View>
-      ) : (
-        <FlatList data={suggestions} keyExtractor={(_, i) => String(i)}
-          renderItem={({ item }) => {
-            const key = `${item.expenseId}-${item.matchType}-${item.targetId || item.targetName}`;
+      <ScrollView contentContainerStyle={styles.content}>
+        {suggestions.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="link" size={48} color={theme.textTertiary} />
+            <Text style={[styles.emptyTitle, { color: theme.textSecondary }]}>No suggestions found</Text>
+            <Text style={[styles.emptySubtitle, { color: theme.textTertiary }]}>
+              Add expenses and income sources to generate auto-link suggestions.
+            </Text>
+          </View>
+        ) : (
+          suggestions.map((s, i) => {
+            const key = `${s.expenseId}-${s.matchType}-${s.targetId || s.targetName}`;
             const isAccepted = accepted.has(key);
+            const isAccepting = accepting.has(key);
+            const colors = TYPE_COLORS[s.matchType] || TYPE_COLORS.income;
+
             return (
-              <View style={[styles.card, { backgroundColor: theme.surface, opacity: isAccepted ? 0.5 : 1 }]}>
+              <View key={i} style={[styles.card, { backgroundColor: theme.surface, opacity: isAccepted ? 0.5 : 1 }]}>
                 <View style={styles.cardRow}>
-                  <View style={[styles.badge, { backgroundColor: typeColors[item.matchType] + '20' }]}>
-                    <Text style={{ color: typeColors[item.matchType], fontSize: 11, fontWeight: '700', textTransform: 'uppercase' }}>{item.matchType}</Text>
+                  <View style={styles.cardLeft}>
+                    <View style={[styles.badge, { backgroundColor: colors.bg }]}>
+                      <Text style={[styles.badgeText, { color: colors.text }]}>{s.matchType}</Text>
+                    </View>
+                    <View style={styles.cardInfo}>
+                      <Text style={[styles.vendor, { color: theme.text }]}>{s.expenseVendor}</Text>
+                      <Text style={[styles.meta, { color: theme.textTertiary }]}>
+                        {s.expenseDate} — ₹{s.expenseAmount?.toLocaleString('en-IN')}
+                      </Text>
+                      <Text style={[styles.matchInfo, { color: theme.textTertiary }]}>
+                        {s.matchLabel}: <Text style={{ fontWeight: '600', color: theme.textSecondary }}>{s.targetName}</Text>
+                      </Text>
+                    </View>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.cardTitle, { color: theme.text }]}>{item.expenseVendor}</Text>
-                    <Text style={[styles.cardSubtext, { color: theme.textTertiary }]}>{item.expenseDate} · {formatCurrency(item.expenseAmount)}</Text>
-                    <Text style={{ fontSize: 11, color: theme.textTertiary, marginTop: 2 }}>{item.matchLabel}: <Text style={{ fontWeight: '600' }}>{item.targetName}</Text></Text>
+                  <View style={styles.cardRight}>
+                    {isAccepted ? (
+                      <View style={[styles.linkedBadge, { backgroundColor: theme.primaryLight }]}>
+                        <Text style={[styles.linkedText, { color: theme.primary }]}>Linked</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={[styles.acceptBtn, { borderColor: theme.primary }]}
+                        onPress={() => handleAccept(s)}
+                        disabled={isAccepting}
+                      >
+                        {isAccepting ? (
+                          <ActivityIndicator size="small" color={theme.primary} />
+                        ) : (
+                          <>
+                            <Ionicons name="checkmark" size={14} color={theme.primary} />
+                            <Text style={[styles.acceptText, { color: theme.primary }]}>Accept</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    )}
                   </View>
-                  {isAccepted ? (
-                    <Ionicons name="checkmark-circle" size={24} color={theme.income} />
-                  ) : (
-                    <TouchableOpacity onPress={() => handleAccept(item)} style={[styles.acceptBtn, { backgroundColor: theme.primary }]}>
-                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>Accept</Text>
-                    </TouchableOpacity>
-                  )}
                 </View>
               </View>
             );
-          }}
-          contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetch(); }} tintColor={theme.primary} />}
-        />
-      )}
+          })
+        )}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 }, header: { paddingTop: 56, paddingBottom: 16, paddingHorizontal: 20, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, flexDirection: 'row', alignItems: 'center' },
-  headerTitle: { fontSize: 22, fontWeight: '700' }, center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  listContent: { padding: 20 }, card: { borderRadius: 14, padding: 16, marginBottom: 10 },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 }, badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  cardTitle: { fontSize: 14, fontWeight: '600' }, cardSubtext: { fontSize: 12, fontWeight: '500', marginTop: 2 },
-  acceptBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  container: { flex: 1 },
+  header: { paddingTop: 56, paddingBottom: 16, paddingHorizontal: 20, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, flexDirection: 'row', alignItems: 'center' },
+  backBtn: { marginRight: 12, padding: 4 },
+  headerTitle: { fontSize: 22, fontWeight: '700', flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  content: { padding: 20, paddingBottom: 40 },
+  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
+  emptyTitle: { fontSize: 18, fontWeight: '600', marginTop: 12 },
+  emptySubtitle: { fontSize: 13, textAlign: 'center', marginTop: 4, paddingHorizontal: 40 },
+  card: { borderRadius: 14, padding: 16, marginBottom: 10 },
+  cardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardLeft: { flexDirection: 'row', alignItems: 'flex-start', flex: 1, gap: 10 },
+  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  badgeText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
+  cardInfo: { flex: 1 },
+  vendor: { fontSize: 15, fontWeight: '600' },
+  meta: { fontSize: 12, marginTop: 2 },
+  matchInfo: { fontSize: 11, marginTop: 2 },
+  cardRight: { marginLeft: 8 },
+  linkedBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  linkedText: { fontSize: 12, fontWeight: '600' },
+  acceptBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1.5 },
+  acceptText: { fontSize: 13, fontWeight: '600' },
 });

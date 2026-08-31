@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { CardGridSkeleton } from "@/components/ui/page-skeleton"
 import { toast } from "sonner"
-import { useForm } from "react-hook-form"
+import { useForm, type UseFormRegister, type UseFormWatch, type UseFormSetValue, type FieldErrors } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import type { Goal, Investment } from "@/types"
@@ -102,6 +102,119 @@ function priorityBadgeClass(priority: string) {
   return map[priority] || map.P1
 }
 
+function GoalFormBody({
+  register,
+  errors,
+  watch,
+  setValue,
+  isSubmitting,
+  editing,
+  onCancel,
+  onSubmit,
+}: {
+  register: UseFormRegister<GoalFormValues>
+  errors: FieldErrors<GoalFormValues>
+  watch: UseFormWatch<GoalFormValues>
+  setValue: UseFormSetValue<GoalFormValues>
+  isSubmitting: boolean
+  editing: Goal | null
+  onCancel: () => void
+  onSubmit: () => void
+}) {
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="name">Goal Name</Label>
+          <Input id="name" placeholder="e.g. Emergency Fund" {...register("name")} />
+          {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="targetAmount">Target Amount (₹)</Label>
+          <Input id="targetAmount" type="number" placeholder="0" {...register("targetAmount")} />
+          {errors.targetAmount && <p className="text-xs text-red-500">{errors.targetAmount.message}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="currentAmount">Current Savings (₹)</Label>
+          <Input id="currentAmount" type="number" placeholder="0" {...register("currentAmount")} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="deadline">Target Date</Label>
+          <Input id="deadline" type="date" {...register("deadline")} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="category">Category</Label>
+          <Select value={watch("category")} onValueChange={(v) => setValue("category", v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {categoryOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Term</Label>
+          <Select value={watch("term")} onValueChange={(v) => setValue("term", v)}>
+            <SelectTrigger><SelectValue placeholder="Select term" /></SelectTrigger>
+            <SelectContent>
+              {termOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Priority</Label>
+          <Select value={watch("priority")} onValueChange={(v) => setValue("priority", v)}>
+            <SelectTrigger><SelectValue placeholder="Select priority" /></SelectTrigger>
+            <SelectContent>
+              {priorityOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="type">Type</Label>
+          <Input
+            id="type"
+            list="goalTypeOptions"
+            placeholder="Select or type a type"
+            {...register("type")}
+          />
+          <datalist id="goalTypeOptions">
+            {goalTypeOptions.map((opt) => (
+              <option key={opt} value={opt} />
+            ))}
+          </datalist>
+        </div>
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="description">Description</Label>
+          <textarea
+            id="description"
+            {...register("description")}
+            className="flex h-20 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            placeholder="Describe your goal"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="monthlyContribution">Monthly Contribution (₹)</Label>
+          <Input id="monthlyContribution" type="number" placeholder="0" {...register("monthlyContribution")} />
+        </div>
+      </div>
+      <div className="flex justify-end gap-3 pt-2">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Saving..." : editing ? "Update" : "Create Goal"}
+        </Button>
+      </div>
+    </form>
+  )
+}
+
 function GoalFormDialog({
   open,
   onOpenChange,
@@ -151,98 +264,58 @@ function GoalFormDialog({
         <DialogHeader>
           <DialogTitle>{editing ? "Edit Goal" : "New Savings Goal"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSave)} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="name">Goal Name</Label>
-              <Input id="name" placeholder="e.g. Emergency Fund" {...register("name")} />
-              {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="targetAmount">Target Amount (₹)</Label>
-              <Input id="targetAmount" type="number" placeholder="0" {...register("targetAmount")} />
-              {errors.targetAmount && <p className="text-xs text-red-500">{errors.targetAmount.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="currentAmount">Current Savings (₹)</Label>
-              <Input id="currentAmount" type="number" placeholder="0" {...register("currentAmount")} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="deadline">Target Date</Label>
-              <Input id="deadline" type="date" {...register("deadline")} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <Select value={watch("category")} onValueChange={(v) => setValue("category", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {categoryOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Term</Label>
-              <Select value={watch("term")} onValueChange={(v) => setValue("term", v)}>
-                <SelectTrigger><SelectValue placeholder="Select term" /></SelectTrigger>
-                <SelectContent>
-                  {termOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Priority</Label>
-              <Select value={watch("priority")} onValueChange={(v) => setValue("priority", v)}>
-                <SelectTrigger><SelectValue placeholder="Select priority" /></SelectTrigger>
-                <SelectContent>
-                  {priorityOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="type">Type</Label>
-              <Input
-                id="type"
-                list="goalTypeOptions"
-                placeholder="Select or type a type"
-                {...register("type")}
-              />
-              <datalist id="goalTypeOptions">
-                {goalTypeOptions.map((opt) => (
-                  <option key={opt} value={opt} />
-                ))}
-              </datalist>
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="description">Description</Label>
-              <textarea
-                id="description"
-                {...register("description")}
-                className="flex h-20 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                placeholder="Describe your goal"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="monthlyContribution">Monthly Contribution (₹)</Label>
-              <Input id="monthlyContribution" type="number" placeholder="0" {...register("monthlyContribution")} />
-            </div>
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : editing ? "Update" : "Create Goal"}
-            </Button>
-          </div>
-        </form>
+        <GoalFormBody
+          register={register}
+          errors={errors}
+          watch={watch}
+          setValue={setValue}
+          isSubmitting={isSubmitting}
+          editing={editing}
+          onCancel={() => onOpenChange(false)}
+          onSubmit={handleSubmit(onSave)}
+        />
       </DialogContent>
     </Dialog>
+  )
+}
+
+function AddGoalForm({
+  onSave,
+  onCancel,
+}: {
+  onSave: (data: GoalFormValues) => Promise<void>
+  onCancel: () => void
+}) {
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<GoalFormValues>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(goalFormSchema) as any,
+    defaultValues: defaultFormValues,
+  })
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle>New Savings Goal</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <GoalFormBody
+          register={register}
+          errors={errors}
+          watch={watch}
+          setValue={setValue}
+          isSubmitting={isSubmitting}
+          editing={null}
+          onCancel={onCancel}
+          onSubmit={handleSubmit(onSave)}
+        />
+      </CardContent>
+    </Card>
   )
 }
 
@@ -252,6 +325,7 @@ export default function GoalsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [showAddForm, setShowAddForm] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
 
   const loadData = useCallback(async () => {
@@ -298,11 +372,13 @@ export default function GoalsPage() {
       })
       if (!res.ok) throw new Error("Failed to save goal")
       setDialogOpen(false)
+      setShowAddForm(false)
       setEditingGoal(null)
       setLoading(true)
       loadData()
     } catch (err) {
       setDialogOpen(false)
+      setShowAddForm(false)
       toast.error(err instanceof Error ? err.message : "Failed to save")
     }
   }
@@ -344,7 +420,7 @@ export default function GoalsPage() {
           <p className="text-muted-foreground">Track your savings goals and aspirations</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={() => { setEditingGoal(null); setDialogOpen(true) }}>
+          <Button onClick={() => { setEditingGoal(null); setShowAddForm(true) }}>
             <Plus className="mr-2 h-4 w-4" /> Add Goal
           </Button>
           <Button variant="outline" onClick={handleExport}>
@@ -352,6 +428,13 @@ export default function GoalsPage() {
           </Button>
         </div>
       </div>
+
+      {showAddForm && (
+        <AddGoalForm
+          onSave={handleSave}
+          onCancel={() => setShowAddForm(false)}
+        />
+      )}
 
       {error ? (
         <Card className="border-red-500/30 bg-red-500/5">
@@ -467,7 +550,7 @@ export default function GoalsPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => { setEditingGoal(goal); setDialogOpen(true) }}
+                          onClick={() => { setShowAddForm(false); setEditingGoal(goal); setDialogOpen(true) }}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>

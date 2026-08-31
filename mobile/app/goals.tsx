@@ -8,6 +8,7 @@ import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
+import PurposePicker from '../components/PurposePicker';
 
 interface GoalItem {
   id?: string;
@@ -33,6 +34,7 @@ export default function GoalsScreen() {
   const [formName, setFormName] = useState('');
   const [formTarget, setFormTarget] = useState('');
   const [formSaved, setFormSaved] = useState('');
+  const [formPurpose, setFormPurpose] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -56,6 +58,7 @@ export default function GoalsScreen() {
         name: formName.trim(),
         targetAmount: parseFloat(formTarget),
         savedAmount: parseFloat(formSaved || '0'),
+        purpose: formPurpose || undefined,
       });
       setShowForm(false);
       fetch();
@@ -76,7 +79,7 @@ export default function GoalsScreen() {
       <View style={[styles.header, { backgroundColor: theme.surface }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}><Ionicons name="arrow-back" size={24} color={theme.text} /></TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Goals</Text>
-        <TouchableOpacity onPress={() => { setFormName(''); setFormTarget(''); setFormSaved(''); setFormError(null); setShowForm(true); }} style={[styles.addBtn, { backgroundColor: theme.primaryLight }]}><Ionicons name="add" size={22} color={theme.primary} /></TouchableOpacity>
+        <TouchableOpacity onPress={() => { setFormName(''); setFormTarget(''); setFormSaved(''); setFormPurpose(''); setFormError(null); setShowForm(true); }} style={[styles.addBtn, { backgroundColor: theme.primaryLight }]}><Ionicons name="add" size={22} color={theme.primary} /></TouchableOpacity>
       </View>
 
       {loading ? <View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View>
@@ -87,7 +90,7 @@ export default function GoalsScreen() {
             const target = item.targetAmount || item.target || 0;
             const pct = target > 0 ? Math.min(100, (saved / target) * 100) : 0;
             return (
-              <TouchableOpacity style={[styles.card, { backgroundColor: theme.surface }]} onLongPress={() => handleDelete(item.id || item._id)}>
+              <TouchableOpacity style={[styles.card, { backgroundColor: theme.surface }]} onLongPress={() => handleDelete(item.id || item._id || '')}>
                 <View style={styles.cardRow}>
                   <View style={[styles.cardIcon, { backgroundColor: theme.incomeLight }]}><Ionicons name="flag" size={18} color={theme.income} /></View>
                   <View style={{ flex: 1 }}>
@@ -109,23 +112,26 @@ export default function GoalsScreen() {
         />
       }
 
-      <Modal visible={showForm} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: theme.surface }]}>
-            <View style={styles.modalHeader}><Text style={[styles.modalTitle, { color: theme.text }]}>New Goal</Text><TouchableOpacity onPress={() => setShowForm(false)}><Ionicons name="close" size={24} color={theme.textTertiary} /></TouchableOpacity></View>
-            {formError ? <View style={[styles.formError, { backgroundColor: theme.expenseLight }]}><Text style={{ color: theme.expense, fontSize: 13 }}>{formError}</Text></View> : null}
-            <Text style={[styles.label, { color: theme.textSecondary }]}>Name</Text>
-            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formName} onChangeText={setFormName} placeholder="e.g. Vacation Fund" placeholderTextColor={theme.textTertiary} />
-            <Text style={[styles.label, { color: theme.textSecondary }]}>Target Amount</Text>
-            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formTarget} onChangeText={setFormTarget} placeholder="0.00" placeholderTextColor={theme.textTertiary} keyboardType="decimal-pad" />
-            <Text style={[styles.label, { color: theme.textSecondary }]}>Saved So Far</Text>
-            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formSaved} onChangeText={setFormSaved} placeholder="0.00" placeholderTextColor={theme.textTertiary} keyboardType="decimal-pad" />
+      {showForm && (
+        <View style={[styles.inlineCard, { backgroundColor: theme.surface }]}>
+          <View style={styles.inlineHeader}><Text style={[styles.inlineTitle, { color: theme.text }]}>New Goal</Text><TouchableOpacity onPress={() => setShowForm(false)}><Ionicons name="close" size={24} color={theme.textTertiary} /></TouchableOpacity></View>
+          {formError ? <View style={[styles.formError, { backgroundColor: theme.expenseLight }]}><Text style={{ color: theme.expense, fontSize: 13 }}>{formError}</Text></View> : null}
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Name</Text>
+          <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formName} onChangeText={setFormName} placeholder="e.g. Vacation Fund" placeholderTextColor={theme.textTertiary} />
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Target Amount</Text>
+          <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formTarget} onChangeText={setFormTarget} placeholder="0.00" placeholderTextColor={theme.textTertiary} keyboardType="decimal-pad" />
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Saved So Far</Text>
+          <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formSaved} onChangeText={setFormSaved} placeholder="0.00" placeholderTextColor={theme.textTertiary} keyboardType="decimal-pad" />
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Purpose</Text>
+          <PurposePicker value={formPurpose} onChange={setFormPurpose} theme={theme} />
+          <View style={styles.inlineActions}>
+            <TouchableOpacity style={[styles.cancelBtn, { borderColor: theme.border }]} onPress={() => setShowForm(false)}><Text style={{ color: theme.textSecondary, fontWeight: '600' }}>Cancel</Text></TouchableOpacity>
             <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.primary }]} onPress={handleSave} disabled={formLoading}>
               {formLoading ? <ActivityIndicator color="white" /> : <Text style={styles.saveBtnText}>Create Goal</Text>}
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+      )}
     </View>
   );
 }
@@ -149,13 +155,14 @@ const styles = StyleSheet.create({
   cardAmount: { fontSize: 15, fontWeight: '700' },
   cardSubtext: { fontSize: 11, fontWeight: '500' },
   empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalCard: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '80%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 18, fontWeight: '700' },
+  inlineCard: { borderRadius: 14, padding: 20, marginHorizontal: 20, marginTop: 20, marginBottom: 8 },
+  inlineHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  inlineTitle: { fontSize: 18, fontWeight: '700' },
+  inlineActions: { flexDirection: 'row', gap: 12, marginTop: 24 },
+  cancelBtn: { flex: 1, alignItems: 'center', padding: 14, borderRadius: 12, borderWidth: 1 },
   formError: { padding: 10, borderRadius: 8, marginBottom: 12 },
   label: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 12 },
   input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
-  saveBtn: { height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 24 },
+  saveBtn: { flex: 1, height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 });

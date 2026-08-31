@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getAuthContext } from "@/lib/with-auth"
 import { DEFAULT_KEYWORDS } from "@/lib/gmail-parser"
 import type { ParserKeywords } from "@/lib/gmail-parser"
 
@@ -8,11 +8,11 @@ const SETTINGS_KEY = "gmail_parser_keywords"
 
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { userId } = await getAuthContext()
+    // userId auto-checked by getAuthContext
 
     const setting = await prisma.userSetting.findUnique({
-      where: { userId_key: { userId: Number(session.user.id), key: SETTINGS_KEY } },
+      where: { userId_key: { userId: userId, key: SETTINGS_KEY } },
     })
 
     return NextResponse.json({ keywords: (setting?.value as ParserKeywords) || DEFAULT_KEYWORDS })
@@ -24,8 +24,8 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { userId } = await getAuthContext()
+    // userId auto-checked by getAuthContext
 
     const body = await req.json()
     const keywords = body.keywords as Partial<ParserKeywords>
@@ -38,7 +38,7 @@ export async function PUT(req: Request) {
     }
 
     const existing = await prisma.userSetting.findUnique({
-      where: { userId_key: { userId: Number(session.user.id), key: SETTINGS_KEY } },
+      where: { userId_key: { userId: userId, key: SETTINGS_KEY } },
     })
 
     if (existing) {
@@ -49,7 +49,7 @@ export async function PUT(req: Request) {
     } else {
       await prisma.userSetting.create({
         data: {
-          userId: Number(session.user.id),
+          userId: userId,
           key: SETTINGS_KEY,
           value: { ...DEFAULT_KEYWORDS, ...keywords },
         },

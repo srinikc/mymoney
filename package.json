@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3005",
     "dev:bg": "call scripts\\kill-port-3005.bat & start \"Dev Server\" npm run dev",
+    "dev:e2e": "node scripts/start-e2e.cjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx --max-warnings 200",
@@ -23,6 +24,11 @@
     "db:seed-test": "set DATABASE_URL=postgresql://postgres:password@localhost:5432/mymoney_test?schema=public && tsx prisma/seed-test.ts",
     "db:migrate-pg": "tsx scripts/migrate-sqlite-to-pg.ts",
     "check-git": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-git-reminder.ps1",
+    "redis:up": "docker compose up -d redis",
+    "redis:down": "docker compose down",
+    "redis:logs": "docker compose logs -f redis",
+    "redis:cli": "docker exec -it mymoney-redis redis-cli",
+    "redis:status": "docker ps --filter name=mymoney-redis",
     "prepare": "husky"
   },
   "dependencies": {
@@ -55,6 +61,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
+    "ioredis": "^6.0.0",
     "jose": "^6.2.3",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
@@ -65,6 +72,7 @@
     "next-themes": "^0.4.6",
     "openai": "^6.45.0",
     "pdf-parse": "^2.4.5",
+    "pdf2json": "^4.0.3",
     "pg": "^8.22.0",
     "razorpay": "^2.9.8",
     "react": "^19.0.0",

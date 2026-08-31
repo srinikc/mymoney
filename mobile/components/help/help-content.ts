@@ -91,7 +91,6 @@ const helpContent: Record<string, HelpSection> = {
     relatedFeatures: [
       { name: "Expenses", description: "Imported expenses appear in the main list." },
       { name: "Merchants", description: "Vendor names can be mapped to known merchants for cleaner data." },
-      { name: "Review Duplicates", description: "Always check this page after a bulk import." },
     ],
   },
   "/expenses/archive": {
@@ -115,8 +114,8 @@ const helpContent: Record<string, HelpSection> = {
       { name: "Expenses", description: "Archived entries can be restored to the main view." },
     ],
   },
-  "/expenses/merchants": {
-    title: "Merchants",
+  "/expenses/vendors": {
+    title: "Vendors",
     summary: "Standardise vendor names so 'Starbucks' always looks the same.",
     details: "Merchant mapping lets you set a standard name and category for each vendor. When you import or add new expenses with matching vendor names, the app automatically uses the standard name and category. This keeps your data clean and your reports accurate.",
     controls: [
@@ -137,26 +136,6 @@ const helpContent: Record<string, HelpSection> = {
       { name: "Expenses", description: "Merchant mappings auto-categorise expenses during import." },
       { name: "Reports", description: "Clean vendor data means more accurate category reports." },
       { name: "Bulk Import", description: "Mappings are especially useful after importing new data." },
-    ],
-  },
-  "/expenses/review-duplicates": {
-    title: "Review Duplicates",
-    summary: "Catch and merge expenses that got entered twice.",
-    details: "Scans for possible duplicates based on date, amount, and description. Compare them side by side and decide: merge them into one, mark as not a duplicate, or delete the extra entry. Always check this page after a bulk import to keep your data clean.",
-    controls: [
-      { name: "Duplicate Group Card", description: "Shows two or more suspected duplicate expenses side by side.", location: "Main list" },
-      { name: "Merge Button", description: "Combines the selected entries into a single expense, keeping the most complete data.", location: "Per duplicate group" },
-      { name: "Dismiss Button", description: "Marks the group as not duplicates — they stay as separate entries.", location: "Per duplicate group" },
-      { name: "Delete Button", description: "Permanently deletes one of the suspected duplicates.", location: "Per duplicate group" },
-    ],
-    workflow: [
-      { step: "Review suggested duplicates", description: "Groups of similar expenses are shown together with their details." },
-      { step: "Compare the entries", description: "Check the date, amount, and description to decide if they're actually the same.", example: "Two entries for ₹450 at 'Starbucks' on the same day — likely duplicates." },
-      { step: "Take action", description: "Tap Merge to combine, Dismiss to keep both, or Delete to remove one.", example: "Tap Merge to keep one expense with the combined notes." },
-    ],
-    relatedFeatures: [
-      { name: "Expenses", description: "Changes here update your main expense list." },
-      { name: "Bulk Import", description: "Always check this page after a bulk import." },
     ],
   },
   "/income": {

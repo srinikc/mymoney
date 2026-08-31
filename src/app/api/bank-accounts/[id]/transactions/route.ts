@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
 import type { Prisma } from "@prisma/client"
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     const { id } = await params
     const url = new URL(req.url)
     const page = Math.max(1, Number(url.searchParams.get("page")) || 1)
@@ -28,9 +25,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     }
     if (search) {
       where.OR = [
-        { vendor: { contains: search } },
-        { description: { contains: search } },
-        { category: { name: { contains: search } } },
+        { vendor: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+        { category: { name: { contains: search, mode: "insensitive" } } },
       ]
     }
 

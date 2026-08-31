@@ -3,7 +3,9 @@ export const maxDuration = 300
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import * as XLSX from "xlsx"
-import { shouldAutoMap, getExistingMappingKeys } from "@/shared/merchant-mapping"
+import { getVendorMappingMap, shouldAutoMap, resetVendorKeyCache, BUSINESS } from "@/shared/vendor-mapping"
+import { titleCase } from "@/shared/title-case"
+import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 
 const PERSON_MAP: Record<string, string> = {
   family: "Family", Family: "Family", "fam'": "Family",
@@ -98,6 +100,72 @@ function normalizeCategory(cat: string): string {
   return map[c] || c
 }
 
+// Words that describe a category/item rather than a merchant. When a description
+// derives to one of these, the expense gets no vendor so it lands under
+// "Unmapped" and is never auto-learned as a vendor mapping.
+const GENERIC_VENDOR_WORDS = new Set([
+  "milk", "vegetables", "veg", "veggies", "fruits", "fruit", "groceries", "grocery",
+  "breakfast", "lunch", "dinner", "snacks", "snack", "flowers", "flower",
+  "petrol", "diesel", "auto", "chicken", "medicines", "medicine", "yelnir",
+  "tiffin", "tea", "coffee", "juice", "fish", "mutton", "egg", "eggs",
+  "curd", "shopping", "groceries", "misc", "expenses", "expense", "bills", "bill",
+])
+
+function isGenericVendor(candidate: string): boolean {
+  const first = candidate.toLowerCase().split(/\s+/)[0]
+  return GENERIC_VENDOR_WORDS.has(first)
+}
+
+// Deterministically extract a merchant (vendor) from a free-text description.
+// Handles the patterns found in KCExpenses workbooks:
+//   - "Sreedhar Medicals"                        -> "Sreedhar Medicals"
+//   - "MOHANAN M O using Bank Account XXXXXX1655" -> "MOHANAN M O"
+//   - "Q883610501 - Vegetables"                  -> "Vegetables" (then dropped as generic)
+//   - "Mangalya ... 4.430g - Manju ravi jewellers" -> "Manju ravi jewellers"
+//   - "Vinutha K - April Home Expenses"          -> "Vinutha K"
+function deriveVendor(description: string): string {
+  let d = String(description).replaceAll(/\s+/g, " ").trim()
+  if (!d) return ""
+
+  // Strip trailing bank-account suffix: "X using Bank Account XXXXXX1655"
+  d = d.replace(/\s+using\s+bank\s+account.*$/i, "").trim()
+
+  // Strip leading Q-codes / ref numbers: "Q883610501 - X", "12345 - X"
+  d = d.replace(/^(?:q\d{3,}|\d{5,})\s*[:-]\s*/i, "").trim()
+
+  // Masked-QR / net-banking narrations carry no identifiable merchant
+  // (e.g. "IMPS OUTWARD ORG UPI To qXXXX0053@ybl, REF NO - ..." or
+  // "NET APP INDIA P BANGALORE IN"). Drop them so no junk vendor is learned.
+  if (/^(imps|neft|rtgs)\s+(outward|inward|org)/i.test(d)) return ""
+  if (/^net\s+app\b/i.test(d)) return ""
+
+  if (!d) return ""
+
+  let candidate = ""
+  const parts = d.split(" - ").map((s) => s.trim()).filter(Boolean)
+  if (parts.length === 1) {
+    candidate = parts[0]
+  } else {
+    // Prefer the last segment when it contains a business keyword (the jeweller
+    // case), otherwise the first segment is the merchant / person.
+    const last = parts.at(-1) ?? ""
+    if (BUSINESS.test(last) && last.split(" ").length <= 5) candidate = last
+    else candidate = parts[0]
+  }
+
+  candidate = candidate
+    .replace(/^(paid|payment|contribution|transfer|fund\s*transfer|by\s*transfer|neft|imps|rtgs|upi)\s+(?:to|for|by|via|towards)\s+/i, "")
+    .replace(/^(to|for|at|from|towards|purchased?\s+at|spent\s+at|debited\s+to|credited\s+to|dr\s+to|cr\s+to)\s+/i, "")
+    .replace(/^(upi|pos|atm|cheque|chq|card|tran|ref|txn)[\s/:]*/i, "")
+    .replace(/^[\d#a-z]{0,6}\s*[:-]\s*/i, "")
+    .trim()
+  candidate = candidate.replaceAll(/\s+/g, " ").trim()
+
+  if (!candidate || candidate.toLowerCase() === "nan" || candidate.length > 60) return ""
+  if (isGenericVendor(candidate)) return ""
+  return candidate
+}
+
 interface ParsedExpense {
   date: Date
   amount: number
@@ -115,11 +183,20 @@ interface ParsedExpense {
 }
 
 export async function POST(req: Request) {
+  let userId: number
+  let profileId: number
+  try {
+    const ctx = await getAuthContext()
+    userId = ctx.userId
+    profileId = ctx.profileId
+  } catch (e) {
+    return handleAuthError(e)
+  }
+
   try {
     const formData = await req.formData()
     const file = formData.get("file") as File
     const confirm = formData.get("confirm") === "true"
-    const createMappings = formData.get("createMappings") === "true"
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
@@ -142,7 +219,7 @@ export async function POST(req: Request) {
     let headerRow = -1
     let dateCol = -1, typeCol = -1, subCol = -1, personCol = -1
     let descCol = -1, amountCol = -1, paidCol = -1, bankCol = -1
-    let commentsCol = -1, recTypeCol = -1, otherTypeCol = -1
+    let commentsCol = -1, recTypeCol = -1, otherTypeCol = -1, vendorCol = -1
 
     for (let i = 0; i < Math.min(20, rows.length); i++) {
       const row = rows[i] || []
@@ -161,6 +238,7 @@ export async function POST(req: Request) {
         commentsCol = headers.findIndex((h) => h.includes("comments"))
         recTypeCol = headers.findIndex((h) => /^type$/.test(h.trim()) && !h.includes("other"))
         otherTypeCol = headers.findIndex((h) => h.includes("othertype") || h.includes("other type"))
+        vendorCol = headers.findIndex((h) => /^(vendor|merchant|payee|party)$/.test(h.trim()))
         break
       }
     }
@@ -175,6 +253,11 @@ export async function POST(req: Request) {
     const parsed: ParsedExpense[] = []
     const vendorSet = new Set<string>()
 
+    // Load the user's existing vendor catalog (uploaded via the Vendors page)
+    // so we can apply catalog precedence for category/subcat/person.
+    const vendorMappingMap = await getVendorMappingMap(userId)
+    const existingVendorKeys = new Set(vendorMappingMap.keys())
+
     for (let i = headerRow + 1; i < rows.length; i++) {
       const row = rows[i] || []
       if (!row[dateCol] && !row[amountCol]) continue
@@ -184,23 +267,39 @@ export async function POST(req: Request) {
       if (!date || !amount) continue
 
       const expenseType = normalizeCategory(String(row[typeCol] || ""))
-      const subCategory = String(row[subCol] || "").trim().toLowerCase()
+      const subCategory = titleCase(String(row[subCol] || ""))
       const person = normalizePerson(String(row[personCol] || ""))
       const description = String(row[descCol] || "").trim()
 
-      // Extract vendor from description (first meaningful word before " - " or first few words)
+      // Extract vendor: prefer an explicit Vendor/Merchant/Payee column; only
+      // derive from the description when no vendor column exists (or it's blank).
       let vendor = ""
-      if (description) {
-        const descStr = description.split(" - ")[0].trim()
-        if (descStr && descStr.toLowerCase() !== "nan" && descStr !== "") {
-          vendor = descStr
-          vendorSet.add(vendor)
+      const explicitVendor = vendorCol >= 0 ? String(row[vendorCol] || "").trim() : ""
+      if (explicitVendor && explicitVendor.toLowerCase() !== "nan") {
+        vendor = titleCase(explicitVendor)
+      } else if (description) {
+        vendor = titleCase(deriveVendor(description))
+      }
+
+      let finalExpenseType = expenseType
+      let finalSubCategory = subCategory
+      let finalPerson = person
+
+      if (vendor) {
+        vendorSet.add(vendor)
+        // Catalog precedence: if the vendor already has a mapping for this user
+        // (uploaded via the Vendors page), use its category/subcat/person.
+        const catalog = vendorMappingMap.get(vendor.toLowerCase().trim())
+        if (catalog) {
+          if (catalog.category) finalExpenseType = normalizeCategory(catalog.category)
+          if (catalog.subCategory) finalSubCategory = titleCase(catalog.subCategory)
+          if (catalog.person) finalPerson = normalizePerson(catalog.person)
         }
       }
 
       parsed.push({
-        date, amount, expenseType, subCategory,
-        person, description,
+        date, amount, expenseType: finalExpenseType, subCategory: finalSubCategory,
+        person: finalPerson, description,
         paidThrough: String(row[paidCol] || "").trim(),
         bank: String(row[bankCol] || "").trim(),
         comments: String(row[commentsCol] || "").trim(),
@@ -214,11 +313,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No valid expense rows found" }, { status: 400 })
     }
 
-    // Load existing mapping keys for preview/confirm
-    const existingMappingKeys = await getExistingMappingKeys()
-
-    // Compute auto-mappable count for preview (always, so UI can show it)
-    const autoMappableVendors = new Set(parsed.filter((p) => p.vendor && shouldAutoMap(p.vendor, p.description, existingMappingKeys)).map((p) => p.vendor.toLowerCase().trim()))
+    // Distinct vendors being learned in this sheet (that aren't mapped yet)
+    const newVendorCount = [...new Set(parsed.map((p) => p.vendor.toLowerCase().trim()).filter(Boolean))]
+      .filter((k) => {
+        if (existingVendorKeys.has(k)) return false
+        const sample = parsed.find((p) => p.vendor.toLowerCase().trim() === k)
+        return sample ? shouldAutoMap(sample.vendor, sample.description || "", existingVendorKeys) : false
+      }).length
 
     // If preview mode, return summary without importing
     if (!confirm) {
@@ -239,6 +340,7 @@ export async function POST(req: Request) {
         uniqueTypes: types.size,
         uniquePersons: persons.size,
         years: [...years].sort(),
+        newVendorCount,
         sample: parsed.slice(0, 5).map((p) => ({
           date: p.date.toISOString().split("T")[0],
           vendor: p.vendor,
@@ -250,18 +352,13 @@ export async function POST(req: Request) {
           description: p.description.slice(0, 40),
           amount: p.amount,
         })),
-        newMerchantCount: autoMappableVendors.size,
         totalVendors: vendorSet.size,
       })
     }
 
-    // Confirm mode — actually import
-    const session = await prisma.importSession.create({
-      data: { source: "kcexpenses", fileName: file.name, totalRows: parsed.length, status: "importing" },
-    })
-
-    // Load existing DB keys (for cross-import dedup)
+    // Load existing DB keys for this profile (for cross-import dedup)
     const existingExpenses = await prisma.expense.findMany({
+      where: { profileId, deletedAt: null },
       select: { date: true, amount: true, vendor: true, description: true },
     })
     const existingExpenseKeys = new Set(
@@ -296,17 +393,19 @@ export async function POST(req: Request) {
     let flagged = 0
     let newMappings = 0
 
+    // Nothing new to add — return early WITHOUT creating an import session,
+    // so duplicate/repeated uploads never leave empty "skipped" sessions.
     if (toImport.length === 0) {
-      await prisma.importSession.update({
-        where: { id: session.id },
-        data: { status: "skipped", autoMapped: 0, newMerchants: 0 },
-      })
       return NextResponse.json({
         success: true, imported: 0, skipped, newMappings: 0, total: parsed.length,
-        importSessionId: session.id,
         message: `All ${skipped} expenses were already imported. Nothing new to add.`,
       })
     }
+
+    // Confirm mode — actually import (session created only when rows remain)
+    const session = await prisma.importSession.create({
+      data: { userId, profileId, source: "spreadsheet", fileName: file.name, totalRows: parsed.length, status: "importing" },
+    })
 
     // Map expense type to category
     const allCategories = await prisma.category.findMany()
@@ -337,55 +436,60 @@ export async function POST(req: Request) {
         recurrenceType: expense.type || "onetime",
         otherType: expense.otherType || null,
         importSessionId: session.id,
+        profileId,
         flagged: expense.isDuplicate,
       }
     })
     await prisma.expense.createMany({ data: expenseData })
     imported = expenseData.length
 
-    // Auto-create merchant mappings (only if checkbox was checked)
-    if (createMappings) {
-      // Single pass: group expenses by vendor key
-      const vendorGroups = new Map<string, ParsedExpense[]>()
-      for (const p of toImport) {
-        if (!p.vendor) continue
-        const key = p.vendor.toLowerCase().trim()
-        if (!vendorGroups.has(key)) vendorGroups.set(key, [])
-        vendorGroups.get(key)!.push(p)
+    // Auto-learn vendors (always on): group expenses by vendor key and store
+    // the most common category/subCategory/person for each. Dedup per user.
+    const vendorGroups = new Map<string, ParsedExpense[]>()
+    for (const p of toImport) {
+      if (!p.vendor) continue
+      const key = p.vendor.toLowerCase().trim()
+      if (!vendorGroups.has(key)) vendorGroups.set(key, [])
+      vendorGroups.get(key)!.push(p)
+    }
+
+    const vendorData: {
+      userId: number; vendorKey: string; description: string; category: string
+      subCategory: string; person: string; source: string
+    }[] = []
+
+    for (const [key, vendorExpenses] of vendorGroups) {
+      if (existingVendorKeys.has(key)) continue
+
+      // Only auto-learn vendors that look like real merchants (business keyword
+      // in the name) — never generic words or free-text notes.
+      const sample = vendorExpenses[0]
+      if (!shouldAutoMap(sample.vendor, sample.description || "", existingVendorKeys)) continue
+
+      const typeCount = new Map<string, number>()
+      const personCount = new Map<string, number>()
+      const subCount = new Map<string, number>()
+      for (const ve of vendorExpenses) {
+        typeCount.set(ve.expenseType, (typeCount.get(ve.expenseType) || 0) + 1)
+        personCount.set(ve.person, (personCount.get(ve.person) || 0) + 1)
+        if (ve.subCategory) subCount.set(ve.subCategory, (subCount.get(ve.subCategory) || 0) + 1)
       }
 
-      const mappingData: {
-        merchantKey: string; description: string; expenseType: string
-        subCategory: string; person: string; source: string
-      }[] = []
+      vendorData.push({
+        userId,
+        vendorKey: key,
+        description: vendorExpenses[0].vendor,
+        category: [...typeCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "",
+        subCategory: [...subCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "",
+        person: [...personCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "",
+        source: "spreadsheet",
+      })
+    }
 
-      for (const [key, vendorExpenses] of vendorGroups) {
-        if (!shouldAutoMap(vendorExpenses[0].vendor, vendorExpenses[0].description, existingMappingKeys)) continue
-        if (existingMappingKeys.has(key)) continue
-
-        const typeCount = new Map<string, number>()
-        const personCount = new Map<string, number>()
-        const subCount = new Map<string, number>()
-        for (const ve of vendorExpenses) {
-          typeCount.set(ve.expenseType, (typeCount.get(ve.expenseType) || 0) + 1)
-          personCount.set(ve.person, (personCount.get(ve.person) || 0) + 1)
-          if (ve.subCategory) subCount.set(ve.subCategory, (subCount.get(ve.subCategory) || 0) + 1)
-        }
-
-        mappingData.push({
-          merchantKey: key,
-          description: vendorExpenses[0].vendor,
-          expenseType: [...typeCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "",
-          subCategory: [...subCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "",
-          person: [...personCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "",
-          source: "kcexpenses",
-        })
-      }
-
-      if (mappingData.length > 0) {
-        await prisma.merchantMapping.createMany({ data: mappingData })
-        newMappings = mappingData.length
-      }
+    if (vendorData.length > 0) {
+      await prisma.vendorMapping.createMany({ data: vendorData })
+      newMappings = vendorData.length
+      resetVendorKeyCache(userId)
     }
 
     // Update session
@@ -394,14 +498,15 @@ export async function POST(req: Request) {
       data: {
         status: "imported",
         autoMapped: imported,
+        skipped,
         newMerchants: newMappings,
       },
     })
 
-    const parts = [`Imported ${imported} expenses from KCExpenses`]
+    const parts = [`Imported ${imported} expenses from spreadsheet`]
     if (flagged > 0) parts.push(`${flagged} flagged as potential duplicates`)
     if (skipped > 0) parts.push(`${skipped} were already in the system`)
-    if (newMappings > 0) parts.push(`created ${newMappings} new merchant mappings`)
+    if (newMappings > 0) parts.push(`learned ${newMappings} new vendors`)
 
     return NextResponse.json({
       success: true,
@@ -414,7 +519,7 @@ export async function POST(req: Request) {
       message: parts.join(", ") + ".",
     })
   } catch (error) {
-    console.error("KCExpenses import error:", error)
+    console.error("Spreadsheet import error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

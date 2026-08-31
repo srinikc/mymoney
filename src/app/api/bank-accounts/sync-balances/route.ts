@@ -1,17 +1,16 @@
-import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
+﻿import { NextResponse } from "next/server"
+import { withAuth } from "@/lib/with-auth"
 import { prisma } from "@/lib/prisma"
 
 export async function POST() {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
+    const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId, userId } = auth
 
     const { getAccessToken, listMessages, getMessage, parseMessage } = await import("@/lib/gmail")
     const { parseEmail } = await import("@/lib/gmail-parser")
 
-    const accessToken = await getAccessToken(Number(session.user.id))
+    const accessToken = await getAccessToken(Number(userId))
 
     // Fetch recent bank alert emails
     const queries = [
@@ -76,8 +75,4 @@ export async function POST() {
       matchesFound: balanceUpdates.length,
       message: `Updated ${updated} account(s), ${skipped} unmatched (add those accounts in Settings first)`,
     })
-  } catch (error) {
-    console.error("Sync balances error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
 }

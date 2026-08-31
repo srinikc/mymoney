@@ -1,16 +1,24 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { withAuth } from "@/lib/with-auth"
 
 export async function GET() {
-  const liabilities = await prisma.liability.findMany({ orderBy: { createdAt: "desc" } })
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
+  const liabilities = await prisma.liability.findMany({ where: { profileId }, orderBy: { createdAt: "desc" } })
   return NextResponse.json(liabilities)
 }
 
 export async function POST(req: Request) {
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
   try {
     const body = await req.json()
     const liability = await prisma.liability.create({
       data: {
+        profileId,
         name: body.name,
         type: body.type || "other",
         amount: Number.parseFloat(body.amount),

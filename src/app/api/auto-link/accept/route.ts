@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { getAuthContext } from "@/lib/with-auth"
 
 export async function POST(req: Request) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-    const profileId = (session.user as unknown as { profileId?: number }).profileId
+    const { profileId } = await getAuthContext()
+    // userId auto-checked by getAuthContext
     const body = await req.json()
     const { expenseId, linkType, targetId } = body
 

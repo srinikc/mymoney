@@ -258,6 +258,14 @@ export default function InsurancePage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingPolicy, setEditingPolicy] = useState<InsurancePolicy | null>(null)
   const [typeFilter, setTypeFilter] = useState<string>("all")
+  const [adding, setAdding] = useState(false)
+  const [addName, setAddName] = useState("")
+  const [addType, setAddType] = useState("health")
+  const [addProvider, setAddProvider] = useState("")
+  const [addPremium, setAddPremium] = useState("")
+  const [addSumAssured, setAddSumAssured] = useState("")
+  const [addRenewalDate, setAddRenewalDate] = useState("")
+  const [addError, setAddError] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
     try {
@@ -357,8 +365,66 @@ export default function InsurancePage() {
   }
 
   const openAdd = () => {
-    setEditingPolicy(null)
-    setDialogOpen(true)
+    setAdding(true)
+    setAddName("")
+    setAddType("health")
+    setAddProvider("")
+    setAddPremium("")
+    setAddSumAssured("")
+    setAddRenewalDate("")
+    setAddError(null)
+  }
+
+  const cancelAdd = () => {
+    setAdding(false)
+    setAddName("")
+    setAddType("health")
+    setAddProvider("")
+    setAddPremium("")
+    setAddSumAssured("")
+    setAddRenewalDate("")
+    setAddError(null)
+  }
+
+  const addPremiumNum = parseFloat(addPremium)
+  const addSumAssuredNum = parseFloat(addSumAssured)
+
+  const handleAddInline = async () => {
+    if (!addName.trim() || isNaN(addPremiumNum) || addPremiumNum <= 0) {
+      setAddError("Policy name and premium are required")
+      return
+    }
+    const payload = {
+      name: addName.trim(),
+      type: addType,
+      provider: addProvider.trim() || null,
+      policyNumber: null,
+      sumAssured: isNaN(addSumAssuredNum) ? null : addSumAssuredNum,
+      premium: addPremiumNum,
+      premiumFrequency: "yearly",
+      startDate: new Date().toISOString().split("T")[0],
+      renewalDate: addRenewalDate || null,
+      nominee: null,
+      notes: null,
+    }
+    try {
+      const res = await fetch("/api/insurance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || "Failed to save insurance policy")
+      }
+      setAdding(false)
+      cancelAdd()
+      setLoading(true)
+      fetchData()
+      toast.success("Policy saved")
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : "Failed to save")
+    }
   }
 
   const typeBadge = (type: string) => {
@@ -506,16 +572,16 @@ export default function InsurancePage() {
               <CardTitle className="text-sm font-semibold">Insurance Policies</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              {filteredPolicies.length === 0 ? (
+              {filteredPolicies.length === 0 && !adding ? (
                 <div className="py-12 text-center text-muted-foreground text-sm">
                   <Shield className="mx-auto h-8 w-8 mb-3 opacity-50" />
                   <p>No insurance policies yet. Add your first!</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="max-h-[70vh] overflow-auto">
                   <table className="w-full">
-                    <thead>
-                      <tr className="border-b text-left text-xs font-medium text-muted-foreground">
+                    <thead className="sticky top-0 z-10">
+                      <tr className="border-b text-left text-xs font-medium text-muted-foreground bg-background">
                         <th className="px-4 py-3">Policy Name</th>
                         <th className="px-4 py-3">Type</th>
                         <th className="px-4 py-3">Provider</th>
@@ -526,6 +592,43 @@ export default function InsurancePage() {
                       </tr>
                     </thead>
                     <tbody>
+                      {adding && (
+                        <tr className="border-b bg-muted/30 text-sm">
+                          <td className="px-4 py-3">
+                            <Input name="name" value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Policy name" className="h-8 min-w-[140px]" />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Select value={addType} onValueChange={setAddType}>
+                              <SelectTrigger className="h-8 w-[110px]"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="health">Health</SelectItem>
+                                <SelectItem value="term_life">Term Life</SelectItem>
+                                <SelectItem value="motor">Motor</SelectItem>
+                                <SelectItem value="other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Input value={addProvider} onChange={(e) => setAddProvider(e.target.value)} placeholder="Optional" className="h-8 min-w-[110px]" />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Input name="premium" type="number" value={addPremium} onChange={(e) => setAddPremium(e.target.value)} placeholder="0" className="h-8 w-[100px] ml-auto text-right" />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Input type="number" value={addSumAssured} onChange={(e) => setAddSumAssured(e.target.value)} placeholder="0" className="h-8 w-[100px] ml-auto text-right" />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Input type="date" value={addRenewalDate} onChange={(e) => setAddRenewalDate(e.target.value)} className="h-8 w-[150px]" />
+                          </td>
+                          <td className="px-4 py-3 text-right whitespace-nowrap">
+                            {addError && <p className="text-xs text-red-500 mb-1">{addError}</p>}
+                            <div className="flex items-center justify-end gap-1">
+                              <Button variant="outline" size="sm" onClick={cancelAdd}>Cancel</Button>
+                              <Button size="sm" onClick={handleAddInline}>Add</Button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
                       {filteredPolicies.map((policy) => (
                         <tr key={policy.id} className="border-b text-sm hover:bg-muted/30 transition-colors">
                           <td className="px-4 py-3 font-medium">{policy.name}</td>

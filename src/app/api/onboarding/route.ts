@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { withAuth } from "@/lib/with-auth"
 
 /**
  * GET /api/onboarding/status — Check if user completed onboarding
  */
 export async function GET(_req: Request) {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  const userId = Number(session.user.id)
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { userId } = auth
+  // userId auto-checked by getAuthContext
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -44,12 +42,10 @@ export async function GET(_req: Request) {
  * Body: { name?, currency?, profileName? }
  */
 export async function POST(req: Request) {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  const userId = Number(session.user.id)
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { userId } = auth
+  // userId auto-checked by getAuthContext
 
   let body: { name?: string; profileName?: string; currency?: string }
   try {

@@ -9,3 +9,9 @@ export async function apiFetch<T>(url: string, options?: RequestInit): Promise<T
   }
   return res.json()
 }
+
+export function redirectToLogin() {
+  if (typeof window === "undefined") return
+  const callbackUrl = window.location.pathname + (window.location.search || "")
+  window.location.href = `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
+}

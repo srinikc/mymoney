@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { withAuth } from "@/lib/with-auth"
 
 export async function POST() {
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
   // Auto-detect recurring expenses and create reminders
   const expenses = await prisma.expense.findMany({
+    where: { profileId },
     select: { vendor: true, amount: true },
     orderBy: { date: "desc" },
   })
@@ -33,11 +38,12 @@ export async function POST() {
   let created = 0
   for (const p of patterns) {
     const existing = await prisma.reminder.findFirst({
-      where: { merchantKey: p.vendor.toLowerCase().trim() },
+      where: { profileId, merchantKey: p.vendor.toLowerCase().trim() },
     })
     if (!existing) {
       await prisma.reminder.create({
         data: {
+          profileId,
           title: `${p.vendor} (₹${p.amount})`,
           description: `Auto-detected recurring expense`,
           type: "bill",

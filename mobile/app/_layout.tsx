@@ -136,6 +136,22 @@ export default function RootLayout() {
               name="settings"
               options={{ presentation: 'card' }}
             />
+            <Stack.Screen
+              name="environment"
+              options={{ presentation: 'card' }}
+            />
+            <Stack.Screen
+              name="api-keys"
+              options={{ presentation: 'card' }}
+            />
+            <Stack.Screen
+              name="auto-link"
+              options={{ presentation: 'card' }}
+            />
+            <Stack.Screen
+              name="gmail-import"
+              options={{ presentation: 'card' }}
+            />
           </>
         )}
       </Stack>

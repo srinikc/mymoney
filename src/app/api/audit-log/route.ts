@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { withAuth } from "@/lib/with-auth"
 
 export async function GET(req: Request) {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId, role } = auth
+  // userId auto-checked by getAuthContext
 
-  const sUser = session.user as unknown as { profileId?: number; role?: string }
-  const profileId = sUser.profileId
-  const isAdmin = sUser.role === "admin" || sUser.role === "manager"
+  const isAdmin = role === "admin" || role === "manager"
 
   if (!profileId && !isAdmin) {
     return NextResponse.json({ error: "No profile found" }, { status: 400 })
@@ -37,8 +35,8 @@ export async function GET(req: Request) {
 
   if (search) {
     where.OR = [
-      { metadata: { contains: search } },
-      { entity: { contains: search } },
+      { metadata: { contains: search, mode: "insensitive" } },
+      { entity: { contains: search, mode: "insensitive" } },
     ]
   }
 

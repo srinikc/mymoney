@@ -1,3 +1,4 @@
+﻿
 import { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -91,7 +92,8 @@ export default function BudgetsScreen() {
       setShowForm(false);
       fetch();
     } catch (err: unknown) {
-      setFormError((err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to save');
+      setFormError((err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to 
+save');
     } finally {
       setFormLoading(false);
     }
@@ -115,6 +117,121 @@ export default function BudgetsScreen() {
     ]);
   };
 
+  const addCategory = async () => {
+    if (!newCatName.trim()) {
+      Alert.alert('Error', 'Category name is required');
+      return;
+    }
+    try {
+      const catRes = await api.post('/api/categories', { name: newCatName.trim(), type: 'expense' });
+      const cat = catRes.data;
+      const amount = parseFloat(newAmount || '');
+      if (amount > 0) {
+        await api.post('/api/budgets', { categoryId: cat.id, subCategory: newSubCat.trim() || null, month, year, 
+amount });
+      }
+      setShowAdd(false);
+      await fetchOverview();
+    } catch {
+      Alert.alert('Error', 'Failed to add category');
+    }
+  };
+
+  const remainingMonths = (() => {
+    const start = year === now.getFullYear() ? now.getMonth() + 1 : 1;
+    const arr: number[] = [];
+    for (let m = start; m <= 12; m++) arr.push(m);
+    return arr;
+  })();
+
+  const openRepeat = () => {
+    setRepeatMonths([]);
+    setShowRepeat(true);
+  };
+
+  const toggleRepeatMonth = (m: number) => {
+    setRepeatMonths((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]));
+  };
+
+  const handleRepeat = async () => {
+    const months = [...repeatMonths].sort((a, b) => a - b);
+    if (months.length === 0) {
+      Alert.alert('Error', 'Select at least one month');
+      return;
+    }
+    const entries = (overview?.commonCategories || [])
+      .map((row) => {
+        const amt = parseFloat(amounts[rowKey(row)] || '');
+        if (isNaN(amt) || amt <= 0) return null;
+        return { categoryId: row.categoryId, subCategory: row.subCategory, amount: amt, months };
+      })
+      .filter((e): e is NonNullable<typeof e> => e !== null);
+    if (entries.length === 0) {
+      Alert.alert('Error', 'Set budget amounts for at least one category first');
+      return;
+    }
+    setRepeating(true);
+    try {
+      const res = await api.post('/api/budgets/repeat', { year, entries });
+      Alert.alert('Success', `Created ${res.data.created} budgets, skipped ${res.data.skipped} existing`);
+      setShowRepeat(false);
+      await fetchOverview();
+    } catch {
+      Alert.alert('Error', 'Failed to repeat budgets');
+    } finally {
+      setRepeating(false);
+    }
+  };
+
+  const totalBudget = overview?.totals.current.budget ?? 0;
+  const totalSpent = overview?.totals.current.spent ?? 0;
+  const lastBudget = overview?.totals.lastMonth.budget ?? 0;
+  const lastSpent = overview?.totals.lastMonth.spent ?? 0;
+  const income = overview?.income ?? 0;
+
+  const totalStatus = statusInfo(totalSpent, totalBudget > 0 ? totalBudget : null);
+  const lastStatus = statusInfo(lastSpent, lastBudget > 0 ? lastBudget : null);
+
+  const totalPct = totalBudget > 0 ? Math.min(100, (totalSpent / totalBudget) * 100) : 0;
+  const lastPct = lastBudget > 0 ? Math.min(100, (lastSpent / lastBudget) * 100) : 0;
+
+  const renderTotalsCard = (title: string, budget: number, spent: number, pct: number, status: { label: string; color: 
+string }) => {
+    const util = budget > 0 ? (spent / budget) * 100 : 0;
+    const over = budget > 0 && spent > budget;
+    const deviation = budget > 0 ? Math.abs(util - 100) : 0;
+    const badgeColor = budget > 0 ? (over ? theme.expense : theme.income) : theme.textTertiary;
+    return (
+      <View style={[styles.totalsCard, { backgroundColor: theme.surface }]}>
+        <View style={styles.totalsTitleRow}>
+          <Text style={[styles.totalsTitle, { color: theme.textSecondary }]}>{title}</Text>
+          {budget > 0 && (
+            <View style={[styles.totalsBadge, { backgroundColor: badgeColor + '1A' }]}>
+              <Ionicons name={over ? 'trending-up' : 'trending-down'} size={11} color={badgeColor} />
+              <Text style={[styles.totalsBadgeText, { color: badgeColor }]}>
+                {over ? 'Over' : 'Under'} {Math.round(deviation)}%
+              </Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.totalsRow}>
+          <Text style={[styles.totalsLabel, { color: theme.textTertiary }]}>Budgeted</Text>
+          <Text style={[styles.totalsValue, { color: theme.text }]}>{formatCurrency(budget)}</Text>
+        </View>
+        <View style={styles.totalsRow}>
+          <Text style={[styles.totalsLabel, { color: theme.textTertiary }]}>Spent</Text>
+          <Text style={[styles.totalsValue, { color: theme.text }]}>{formatCurrency(spent)}</Text>
+        </View>
+        <View style={[styles.progressBg, { backgroundColor: theme.borderLight }]}>
+          <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: over ? theme.expense : theme.primary 
+}]} />
+        </View>
+        <Text style={[styles.statusChip, { color: status.color, backgroundColor: status.color + '1A' 
+}]}>{status.label}</Text>
+      </View>
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -123,6 +240,12 @@ export default function BudgetsScreen() {
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Budgets</Text>
+        <TouchableOpacity
+          onPress={() => router.push('/budget-allocation' as never)}
+          style={[styles.addBtn, { backgroundColor: theme.primaryLight, marginRight: 8 }]}
+        >
+          <Ionicons name="sparkles" size={20} color={theme.primary} />
+        </TouchableOpacity>
         <TouchableOpacity onPress={openAdd} style={[styles.addBtn, { backgroundColor: theme.primaryLight }]}>
           <Ionicons name="add" size={22} color={theme.primary} />
         </TouchableOpacity>
@@ -158,7 +281,8 @@ export default function BudgetsScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.cardTitle, { color: theme.text }]}>{item.name || item.category}</Text>
                     <View style={styles.progressBg}>
-                      <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: pct > 80 ? theme.expense : theme.income }]} />
+                      <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: pct > 80 ? theme.expense 
+: theme.income }]} />
                     </View>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
@@ -170,7 +294,8 @@ export default function BudgetsScreen() {
             );
           }}
           contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetch(); }} tintColor={theme.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetch(); }} 
+tintColor={theme.primary} />}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="wallet-outline" size={48} color={theme.textTertiary} />
@@ -198,13 +323,18 @@ export default function BudgetsScreen() {
               </View>
             ) : null}
             <Text style={[styles.label, { color: theme.textSecondary }]}>Name</Text>
-            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formName} onChangeText={setFormName} placeholder="e.g. Groceries" placeholderTextColor={theme.textTertiary} />
+            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formName} 
+onChangeText={setFormName} placeholder="e.g. Groceries" placeholderTextColor={theme.textTertiary} />
             <Text style={[styles.label, { color: theme.textSecondary }]}>Budget Amount</Text>
-            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formAmount} onChangeText={setFormAmount} placeholder="0.00" placeholderTextColor={theme.textTertiary} keyboardType="decimal-pad" />
+            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formAmount} 
+onChangeText={setFormAmount} placeholder="0.00" placeholderTextColor={theme.textTertiary} keyboardType="decimal-pad" />
             <Text style={[styles.label, { color: theme.textSecondary }]}>Category</Text>
-            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formCategory} onChangeText={setFormCategory} placeholder="e.g. food" placeholderTextColor={theme.textTertiary} />
-            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.primary }]} onPress={handleSave} disabled={formLoading}>
-              {formLoading ? <ActivityIndicator color="white" /> : <Text style={styles.saveBtnText}>{editItem ? 'Update' : 'Create'}</Text>}
+            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={formCategory} 
+onChangeText={setFormCategory} placeholder="e.g. food" placeholderTextColor={theme.textTertiary} />
+            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.primary }]} onPress={handleSave} 
+disabled={formLoading}>
+              {formLoading ? <ActivityIndicator color="white" /> : <Text style={styles.saveBtnText}>{editItem ? 
+'Update' : 'Create'}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -215,7 +345,8 @@ export default function BudgetsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingTop: 56, paddingBottom: 16, paddingHorizontal: 20, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, flexDirection: 'row', alignItems: 'center' },
+  header: { paddingTop: 56, paddingBottom: 16, paddingHorizontal: 20, borderBottomLeftRadius: 20, 
+borderBottomRightRadius: 20, flexDirection: 'row', alignItems: 'center' },
   backBtn: { marginRight: 12, padding: 4 },
   headerTitle: { fontSize: 22, fontWeight: '700', flex: 1 },
   addBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
@@ -224,6 +355,33 @@ const styles = StyleSheet.create({
   retryBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
   retryBtnText: { color: '#FFFFFF', fontWeight: '600' },
   listContent: { padding: 20 },
+  listContent: { padding: 20, paddingBottom: 40 },
+  monthPicker: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, marginBottom: 12, 
+justifyContent: 'center' },
+  monthPickerText: { fontSize: 16, fontWeight: '600' },
+  incomeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 14, marginBottom: 12 },
+  incomeIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  incomeLabel: { fontSize: 12 },
+  incomeValue: { fontSize: 20, fontWeight: '700' },
+  totalsRow2: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  totalsCard: { flex: 1, borderRadius: 14, padding: 14 },
+  totalsTitle: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
+  totalsTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  totalsBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 6, paddingVertical: 2, 
+borderRadius: 10 },
+  totalsBadgeText: { fontSize: 10, fontWeight: '700' },
+  totalsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  totalsLabel: { fontSize: 12 },
+  totalsValue: { fontSize: 14, fontWeight: '600' },
+  statusChip: { alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, 
+fontSize: 11, fontWeight: '600', overflow: 'hidden' },
+  progressBg: { height: 6, borderRadius: 3, overflow: 'hidden', marginTop: 6 },
+  progressFill: { height: '100%', borderRadius: 3 },
+  repeatBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, 
+borderRadius: 12, marginBottom: 16 },
+  repeatBtnText: { fontSize: 14, fontWeight: '600' },
+  sectionLabel: { fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  sectionHint: { fontSize: 12, marginBottom: 12 },
   card: { borderRadius: 14, padding: 16, marginBottom: 10 },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cardIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
@@ -241,8 +399,11 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   modalTitle: { fontSize: 18, fontWeight: '700' },
   formError: { padding: 10, borderRadius: 8, marginBottom: 12 },
-  label: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 12 },
+  label: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, 
+marginTop: 12 },
   input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
   saveBtn: { height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 24 },
   saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 });
+
+

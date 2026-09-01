@@ -6,7 +6,7 @@
     "dev": "next dev -p 3005",
     "dev:bg": "call scripts\\kill-port-3005.bat & start \"Dev Server\" npm run dev",
     "dev:e2e": "node scripts/start-e2e.cjs",
-    "build": "prisma migrate deploy && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx --max-warnings 200",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",

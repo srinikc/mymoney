@@ -11,10 +11,12 @@ process.env.PORT = "3100"
 process.env.AUTH_URL = "http://localhost:3100"
 process.env.NEXTAUTH_URL = "http://localhost:3100"
 process.env.AUTH_TRUST_HOST = "true"
+if (!process.env.AUTH_SECRET) process.env.AUTH_SECRET = "test-secret"
+if (!process.env.NEXTAUTH_SECRET) process.env.NEXTAUTH_SECRET = "test-secret"
 // Separate build dir so the E2E server never shares chunks with the dev server
 process.env.NEXT_DIST_DIR = process.env.NEXT_DIST_DIR || ".next-e2e"
 
-console.log("[e2e] starting Next dev server on :3100 against TEST database")
+console.log(`[e2e] starting Next dev server on :3100 against TEST database: ${process.env.DATABASE_URL}`)
 
 const nextBin = process.platform === "win32" ? "npx.cmd" : "npx"
 const child = spawn(nextBin, ["next", "dev", "-p", "3100"], { stdio: "inherit", shell: process.platform === "win32" })

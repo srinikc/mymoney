@@ -74,26 +74,13 @@ jobs:
         run: |
           npx prisma migrate deploy
           npx prisma db seed
-          # Create the test database for E2E tests
-          psql postgresql://mymoney:mymoney@localhost:5432/mymoney -c "CREATE DATABASE mymoney_test OWNER mymoney;" || true
-
-      - name: Build app
-        env:
-          NEXTAUTH_SECRET: test-secret
-        run: npx next build
-
-      - name: Start app
-        env:
-          DATABASE_URL: postgresql://mymoney:mymoney@localhost:5432/mymoney
-          AUTH_SECRET: test-secret
-          AUTH_URL: http://localhost:3005
-          NEXTAUTH_SECRET: test-secret
-          E2E: "true"
-          PORT: 3005
-        run: |
-          npx next start &
-          sleep 10
-          curl --retry 5 --retry-delay 5 http://localhost:3005
+          npx tsx -e "
+          import { Client } from 'pg';
+          const c = new Client({ connectionString: process.env.DATABASE_URL });
+          await c.connect();
+          await c.query('CREATE DATABASE mymoney_test OWNER mymoney');
+          await c.end();
+          " || echo "mymoney_test DB may already exist"
 
       - name: Run E2E tests
         env:

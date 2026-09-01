@@ -99,4 +99,6 @@ jobs:
         env:
           DATABASE_URL: postgresql://mymoney:mymoney@localhost:5432/mymoney
           TEST_DATABASE_URL: postgresql://mymoney:mymoney@localhost:5432/mymoney_test
+          AUTH_SECRET: test-secret
+          NEXTAUTH_SECRET: test-secret
         run: npx playwright test

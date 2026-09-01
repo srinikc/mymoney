@@ -21,3 +21,6 @@ data/
 .db-mode.json
 .graphify/
 AGENTS.md.bak-graphify
+
+# Vercel
+.vercel/

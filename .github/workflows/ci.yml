@@ -74,6 +74,8 @@ jobs:
         run: |
           npx prisma migrate deploy
           npx prisma db seed
+          # Create the test database for E2E tests
+          psql postgresql://mymoney:mymoney@localhost:5432/mymoney -c "CREATE DATABASE mymoney_test OWNER mymoney;" || true
 
       - name: Build app
         env:
@@ -96,4 +98,5 @@ jobs:
       - name: Run E2E tests
         env:
           DATABASE_URL: postgresql://mymoney:mymoney@localhost:5432/mymoney
+          TEST_DATABASE_URL: postgresql://mymoney:mymoney@localhost:5432/mymoney_test
         run: npx playwright test

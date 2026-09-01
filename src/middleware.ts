@@ -46,8 +46,8 @@ function getTierFromRequest(req: NextRequest): string {
       if (parsed.tier) return parsed.tier
     } catch { /* ignore parse errors */ }
   }
-  // Check session cookie for web users
-  const cookie = req.cookies.get("authjs.session-token")?.value
+  // Check session cookie for web users (NextAuth v5 uses __Secure- prefix on HTTPS)
+  const cookie = req.cookies.get("__Secure-authjs.session-token")?.value || req.cookies.get("authjs.session-token")?.value
   if (cookie) {
     // For web users, middleware can't easily decode session,
     // but the tier header can be set by page components via middleware rewrite
@@ -134,8 +134,6 @@ export default async function middleware(req: NextRequest) {
   if (isPublic) return NextResponse.next()
 
   // ── 3. Authentication check ───────────────────────────────────────────
-  const sessionCookie = req.cookies.get("authjs.session-token")?.value
-  
   // For API routes, let the route handler handle auth
   // But inject mobile JWT session if Bearer token is present
   if (pathname.startsWith("/api/")) {
@@ -156,6 +154,9 @@ export default async function middleware(req: NextRequest) {
   // Protected pages require a session cookie. The cookie value is a JWE
   // encrypted with an HKDF-derived key, so it can't be verified here with
   // jwtVerify; presence check is enough (route handlers 401 as needed).
+  // NextAuth v5 uses __Secure- prefix on HTTPS deployments.
+  const sessionCookie = req.cookies.get("__Secure-authjs.session-token")?.value || req.cookies.get("authjs.session-token")?.value
+
   if (!sessionCookie) {
     const loginUrl = new URL("/login", req.url)
     loginUrl.searchParams.set("callbackUrl", pathname)

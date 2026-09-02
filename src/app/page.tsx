@@ -54,10 +54,7 @@ export default function DashboardPage() {
   useEffect(() => {
     fetch("/api/expenses/years")
       .then((r) => {
-        if (r.status === 401 || r.status === 404) {
-          window.location.href = "/login"
-          throw new Error("unauthorized")
-        }
+        if (!r.ok) throw new Error("years fetch failed")
         return r.json()
       })
       .then((data) => {

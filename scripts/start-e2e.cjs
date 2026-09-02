@@ -5,6 +5,7 @@ const { spawn } = require("node:child_process")
 process.env.DATABASE_URL =
   process.env.TEST_DATABASE_URL ||
   process.env.E2E_DATABASE_URL ||
+  process.env.DATABASE_URL ||
   "postgresql://postgres:password@localhost:5432/mymoney_test?schema=public"
 process.env.PORT = "3100"
 process.env.AUTH_URL = "http://localhost:3100"

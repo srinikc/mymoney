@@ -13,7 +13,7 @@ test.describe("Import, Merchants, Insights, Onboarding — Comprehensive", () =>
       await page.goto("/login", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(2000)
       await page.locator("#email").fill("test@example.com"); await page.locator("#password").fill("test123")
       await page.getByRole("button", { name: "Sign in with Email" }).click(); await page.waitForTimeout(3000)
-      expect(page.url()).toContain("http://localhost:3005/")
+      expect(page.url()).toContain("http://localhost:3100/")
     })
   })
 

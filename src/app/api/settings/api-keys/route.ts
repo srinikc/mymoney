@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { auth } from "@/lib/auth"
+import { requireRole, type AuthUser } from "@/lib/roles"
 import { getAllConfig, setConfig, type ConfigKey } from "@/lib/get-config"
 import { LLM_PROVIDERS } from "@/lib/llm-catalog"
 
@@ -11,26 +12,29 @@ const EDITABLE_API_KEYS = [
 ] as const
 
 export async function GET() {
-  try {
-    const { userId } = await getAuthContext()
-    // userId auto-checked by getAuthContext
+  const session = await auth()
+  const forbid = requireRole(session?.user as AuthUser, "admin")
+  if (forbid) return forbid
 
-    const config = await getAllConfig(userId)
+  try {
+    const config = await getAllConfig(Number(session!.user!.id))
     const keys: Record<string, string | undefined> = {}
     for (const k of EDITABLE_API_KEYS) keys[k] = config[k]
 
     return NextResponse.json({ keys, catalog: { providers: LLM_PROVIDERS } })
   } catch (error) {
-    return handleAuthError(error)
+    return NextResponse.json({ error: "internal error" }, { status: 500 })
   }
 }
 
 export async function PUT(req: Request) {
-  try {
-    const { userId } = await getAuthContext()
-    // userId auto-checked by getAuthContext
+  const session = await auth()
+  const forbid = requireRole(session?.user as AuthUser, "admin")
+  if (forbid) return forbid
 
+  try {
     const body = await req.json()
+    const userId = Number(session!.user!.id)
 
     for (const [key, value] of Object.entries(body.keys || {})) {
       if ((EDITABLE_API_KEYS as readonly string[]).includes(key) && typeof value === "string") {
@@ -40,6 +44,6 @@ export async function PUT(req: Request) {
 
     return NextResponse.json({ ok: true })
   } catch (error) {
-    return handleAuthError(error)
+    return NextResponse.json({ error: "internal error" }, { status: 500 })
   }
 }

@@ -78,19 +78,22 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Link href="/settings/api-keys">
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <Key className="h-5 w-5 text-primary" />
-                <CardTitle className="text-base">API Keys</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">Configure LLM (OpenAI/Claude) and Resend API keys</p>
-            </CardContent>
-          </Card>
-        </Link>
+        {isAdmin && (
+          <Link href="/settings/api-keys">
+            <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <Key className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-base">API Keys</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">Configure LLM (OpenAI/Claude) and Resend API keys</p>
+                <Badge variant="outline" className="mt-2 text-xs border-amber-200 text-amber-700">Admin only</Badge>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
 
         {isAdmin && (
           <Link href="/settings/environment">

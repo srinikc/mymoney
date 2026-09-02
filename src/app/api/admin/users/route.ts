@@ -24,6 +24,8 @@ export async function GET() {
       tier: true,
       createdAt: true,
       updatedAt: true,
+      hashedPassword: true,
+      accounts: { select: { provider: true }, orderBy: { provider: "asc" } },
       _count: { select: { profiles: true } },
       profiles: {
         select: {
@@ -37,18 +39,28 @@ export async function GET() {
     },
   })
 
-  const result = users.map((u) => ({
-    id: u.id,
-    email: u.email,
-    name: u.name,
-    image: u.image,
-    role: u.role,
-    tier: u.tier,
-    createdAt: u.createdAt,
-    updatedAt: u.updatedAt,
-    profileCount: u._count.profiles,
-    profiles: u.profiles,
-  }))
+  const result = users.map((u) => {
+    const providers = new Set(u.accounts.map((a) => a.provider))
+    const authMethod = providers.has("google") && providers.size > 0 && !u.hashedPassword
+      ? "google"
+      : providers.has("google") && u.hashedPassword
+      ? "both"
+      : "credentials"
+    return {
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      image: u.image,
+      role: u.role,
+      tier: u.tier,
+      authMethod,
+      hasPassword: Boolean(u.hashedPassword),
+      createdAt: u.createdAt,
+      updatedAt: u.updatedAt,
+      profileCount: u._count.profiles,
+      profiles: u.profiles,
+    }
+  })
 
   return NextResponse.json(result)
   } catch (error) {

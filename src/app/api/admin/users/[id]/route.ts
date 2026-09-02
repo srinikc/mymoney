@@ -33,6 +33,11 @@ export async function GET(
       tier: true,
       createdAt: true,
       updatedAt: true,
+      hashedPassword: true,
+      accounts: {
+        select: { id: true, provider: true, providerAccountId: true },
+        orderBy: { provider: "asc" },
+      },
       profiles: {
         select: {
           id: true,
@@ -50,7 +55,25 @@ export async function GET(
     return NextResponse.json({ error: "User not found" }, { status: 404 })
   }
 
-  return NextResponse.json(user)
+  // Compute auth method: "google" if linked to Google OAuth, otherwise "credentials"
+  const googleAccount = user.accounts.find((a) => a.provider === "google")
+  const authMethod = googleAccount ? "google" : "credentials"
+  const hasPassword = Boolean(user.hashedPassword)
+
+  return NextResponse.json({
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    image: user.image,
+    role: user.role,
+    tier: user.tier,
+    authMethod,
+    hasPassword,
+    accounts: user.accounts,
+    profiles: user.profiles,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  })
 }
 
 /**

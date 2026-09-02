@@ -748,6 +748,12 @@ export default function ExpensesPage() {
         startGpayPolling(data.jobId)
         return
       }
+      if (res.status === 503 && data.instructions) {
+        // Serverless deployment — show manual export instructions
+        setGpayError(data.message || "GPay automation not available.")
+        setGpayStep("error")
+        return
+      }
     } catch { /* ignore */ }
 
     // Fallback: show error — the Playwright script could not be started
@@ -763,7 +769,15 @@ export default function ExpensesPage() {
       const res = await fetch(`/api/refresh-gpay?action=${reset ? "reset" : "reauth"}`, { method: "POST" })
       const data = await res.json()
       if (data.reauthToken) {
+        // Self-hosted: server spawns a Chrome window
         startReauthPolling(data.reauthToken)
+      } else if (data.reauthUrl) {
+        // Serverless (Vercel): open Google OAuth in the user's own browser
+        window.open(data.reauthUrl, "_blank", "noopener,noreferrer")
+        setGpayError("Re-authorization opened in a new tab. After granting access, return here and click Refresh GPay again.")
+      } else if (data.error) {
+        setReauthStatus("reauth_failed")
+        setGpayError(data.message || data.error)
       }
     } catch {
       setReauthStatus("reauth_failed")
@@ -1994,19 +2008,36 @@ const handleImportFromDrive = async (fileId: string) => {
                     {gpayError}
                   </div>
                 )}
-                <p className="text-sm text-muted-foreground">
-                  The automated export could not be created. The session may need to be refreshed.
-                </p>
+                {gpayError?.includes("not available on hosted deployment") ? (
+                  <div className="rounded bg-muted/50 p-3 text-xs text-left space-y-1">
+                    <p className="font-medium">How to import GPay data manually:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                      <li>Open <a href="https://takeout.google.com/" target="_blank" rel="noopener noreferrer" className="underline">takeout.google.com</a> in your browser</li>
+                      <li>Select only &quot;Google Pay&quot; (deselect all others)</li>
+                      <li>Click &quot;All GPay data included&quot; → choose JSON</li>
+                      <li>Click &quot;Export&quot; and download the ZIP</li>
+                      <li>Close this dialog and click the upload icon to import the ZIP</li>
+                    </ol>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    The automated export could not be created. The session may need to be refreshed.
+                  </p>
+                )}
                 <div className="flex justify-center gap-3">
                   <Button size="sm" onClick={() => { setGpayDialogOpen(false); handleGpayTakeout() }}>
                     <RefreshCw className="mr-1.5 h-4 w-4" /> Retry
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => { setGpayDialogOpen(false); startReauth() }}>
-                    <LogOut className="mr-1.5 h-4 w-4" /> Re-authenticate
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => { setGpayDialogOpen(false); handleScanDrive() }}>
-                    <Cloud className="mr-1.5 h-4 w-4" /> Scan Drive
-                  </Button>
+                  {!gpayError?.includes("not available on hosted deployment") && (
+                    <>
+                      <Button size="sm" variant="outline" onClick={() => { setGpayDialogOpen(false); startReauth() }}>
+                        <LogOut className="mr-1.5 h-4 w-4" /> Re-authenticate
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => { setGpayDialogOpen(false); handleScanDrive() }}>
+                        <Cloud className="mr-1.5 h-4 w-4" /> Scan Drive
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             )}

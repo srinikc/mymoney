@@ -13,6 +13,7 @@ import { CardGridSkeleton } from "@/components/ui/page-skeleton"
 import type { Investment } from "@/types"
 import { toast } from "sonner"
 import { Plus, TrendingUp, TrendingDown, Download, Building2, Pencil, Trash2 } from "lucide-react"
+import { FundCard } from "@/components/funds/fund-card"
 
 const defaultForm = {
   type: "mutual_funds", name: "", symbol: "", quantity: "", buyPrice: "", amount: "", currentValue: "", purchaseDate: new Date().toISOString().split("T")[0], returnRate: "", notes: "",
@@ -210,6 +211,8 @@ export default function InvestmentsPage() {
           <Button variant="outline" onClick={handleExport}><Download className="mr-2 h-4 w-4" /> Export</Button>
         </div>
       </div>
+
+      <CuratedFundsSection />
 
       {showAddForm && (
         <Card>
@@ -424,5 +427,99 @@ function renderGrid(items: Investment[], onEdit: (i: Investment) => void, onDele
         </Card>
       ))}
     </div>
+  )
+}
+
+interface FundApiResponse {
+  schemeCode: number
+  schemeName: string
+  fundHouse: string
+  category: string
+  subCategory: string
+  aiScore: number
+  return3Y: number | null
+  return5Y: number | null
+  summary: string
+  affiliatePlatform: "kuvera" | "groww" | "zerodha"
+  isSponsored: boolean
+}
+
+function CuratedFundsSection() {
+  const [data, setData] = useState<{ funds: FundApiResponse[]; sponsored: FundApiResponse | null; personalized: boolean } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [category, setCategory] = useState<string>("all")
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const url = category === "all" ? "/api/funds/curated" : `/api/funds/curated?category=${category}`
+        const res = await fetch(url)
+        if (!res.ok) {
+          setLoading(false)
+          return
+        }
+        const json = (await res.json()) as { funds: FundApiResponse[]; sponsored: FundApiResponse | null; personalized: boolean }
+        if (!cancelled) {
+          setData(json)
+          setLoading(false)
+        }
+      } catch {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [category])
+
+  if (loading || !data || !data.personalized) return null
+  if (data.funds.length === 0 && !data.sponsored) return null
+
+  const display = data.sponsored
+    ? [data.sponsored, ...data.funds.filter((f) => f.schemeCode !== data.sponsored?.schemeCode)].slice(0, 8)
+    : data.funds.slice(0, 9)
+
+  return (
+    <Card data-testid="curated-funds-section" className="border-amber-200/60 dark:border-amber-800/40 bg-gradient-to-br from-amber-50/30 to-transparent dark:from-amber-950/10">
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-amber-600" /> Top Picks for You
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              AI-curated from India&apos;s top funds, ranked by 3-5Y performance, consistency, and risk-adjusted returns. Some links are affiliate partnerships.
+            </p>
+          </div>
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger className="w-[180px]" data-testid="fund-category-filter">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="equity">Equity</SelectItem>
+              <SelectItem value="debt">Debt</SelectItem>
+              <SelectItem value="hybrid">Hybrid</SelectItem>
+              <SelectItem value="tax-saver">Tax Saver</SelectItem>
+              <SelectItem value="index">Index / ETF</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {display.map((fund) => (
+            <FundCard
+              key={fund.schemeCode}
+              fund={fund}
+              isSponsored={fund.isSponsored}
+              slotId={`fund-${fund.schemeCode}`}
+              page="/investments"
+            />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }

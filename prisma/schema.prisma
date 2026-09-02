@@ -825,3 +825,115 @@ model GmailScan {
   @@index([userId, status])
   @@index([userId, createdAt])
 }
+
+// ── Ad Revenue ──────────────────────────────────────────────────────────
+
+model AdImpression {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  slotId    String
+  provider  String   // mock | adsense | inmobi | adgebra
+  page      String
+  position  String   // in-content | sticky
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([slotId])
+  @@index([createdAt])
+  @@index([page, position])
+}
+
+model AdClick {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  slotId    String
+  provider  String
+  page      String
+  position  String
+  targetUrl String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([slotId])
+  @@index([createdAt])
+  @@index([page, position])
+}
+
+model SponsoredPlacement {
+  id           Int      @id @default(autoincrement())
+  provider     String   // mock | adsense | inmobi | adgebra
+  page         String   // /investments | /loans | /assets | /subscriptions | /learn | /insights | /deals
+  position     String   // in-content | sticky
+  assetType    String   // fund | loan | deal | text
+  assetId      String?  // schemeCode for funds, loan product id, etc.
+  content      String   // JSON: {title, description, ctaText, ctaUrl, imageUrl?}
+  isActive     Boolean  @default(true)
+  displayOrder Int      @default(0)
+  startsAt     DateTime?
+  endsAt       DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([page, position, isActive])
+  @@index([assetType, assetId])
+}
+
+model LoanProduct {
+  id               Int      @id @default(autoincrement())
+  bankName         String
+  loanType         String   // home | car | personal | education | business | gold
+  productName      String
+  interestRateMin  Decimal  @db.Decimal(5, 2)
+  interestRateMax  Decimal  @db.Decimal(5, 2)
+  maxAmount        Decimal? @db.Decimal(12, 2)
+  tenureMonths     Int?
+  processingFee    String?
+  features         String?  // JSON array of feature strings
+  affiliateUrl     String
+  affiliateNetwork String   // kuvera | groww | zerodha | bankbazaar | creditmantri | direct
+  isActive         Boolean  @default(true)
+  isSponsored      Boolean  @default(false)
+  displayOrder     Int      @default(0)
+  profileId        Int?     // null = global, set = per-profile override
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([loanType, isActive])
+  @@index([isSponsored, isActive])
+}
+
+model FundMetadata {
+  id                Int      @id @default(autoincrement())
+  schemeCode        Int      @unique
+  schemeName        String
+  fundHouse         String
+  category          String   // equity | debt | hybrid | tax-saver | index
+  subCategory       String?  // large-cap | mid-cap | small-cap | flexi-cap | etc.
+  aiScore           Decimal  @db.Decimal(4, 2) @default(0)
+  aiScoreBreakdown  String?  // JSON: {returns, sharpe, consistency, ...}
+  aiSummary         String?  // AI-generated 2-line summary
+  prosPoints        String?  // JSON array
+  consPoints        String?  // JSON array
+  isCurated         Boolean  @default(true)
+  isActive          Boolean  @default(true)
+  lastAnalyzedAt    DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([category, isCurated])
+  @@index([aiScore])
+}
+
+model FundReview {
+  id         Int      @id @default(autoincrement())
+  schemeCode Int
+  userId     Int
+  rating     Int      // 1-5
+  comment    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([schemeCode, userId])
+  @@index([schemeCode])
+  @@index([userId])
+}

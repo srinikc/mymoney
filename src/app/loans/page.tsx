@@ -32,6 +32,7 @@ import {
   Banknote,
   Activity,
 } from "lucide-react"
+import { LoanProductCard } from "@/components/loans/loan-product-card"
 
 interface Loan {
   id: number
@@ -460,6 +461,8 @@ export default function LoansPage() {
         </Button>
       </div>
 
+      <CuratedLoansSection />
+
       {loading ? (
         <>
           <div className="grid gap-4 md:grid-cols-3">
@@ -643,5 +646,123 @@ export default function LoansPage() {
         onSave={handleSave}
       />
     </div>
+  )
+}
+
+interface CuratedLoan {
+  id: number
+  bankName: string
+  productName: string
+  loanType: string
+  interestRateMin: number
+  interestRateMax: number
+  maxAmount: number
+  tenureMonths: number
+  processingFee: string
+  features: string[]
+  affiliateUrl: string
+  isSponsored: boolean
+  displayOrder: number
+}
+
+const LOAN_TYPE_LABEL_LOANS: Record<string, string> = {
+  home: "Home Loan",
+  car: "Car Loan",
+  personal: "Personal Loan",
+  education: "Education Loan",
+  business: "Business Loan",
+  gold: "Gold Loan",
+}
+
+function CuratedLoansSection() {
+  const [loans, setLoans] = useState<CuratedLoan[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<string>("all")
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch("/api/loans/recommendations")
+        if (!res.ok) {
+          setLoading(false)
+          return
+        }
+        const json = (await res.json()) as { loans?: CuratedLoan[] }
+        if (!cancelled) {
+          setLoans(json.loans ?? [])
+          setLoading(false)
+        }
+      } catch {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  if (loading) return null
+  if (loans.length === 0) return null
+
+  const types = Array.from(new Set(loans.map((l) => l.loanType)))
+  const filtered = filter === "all" ? loans : loans.filter((l) => l.loanType === filter)
+
+  // Sponsored first
+  const sponsored = filtered.filter((l) => l.isSponsored)
+  const organic = filtered.filter((l) => !l.isSponsored)
+  const ordered = [...sponsored, ...organic]
+
+  return (
+    <Card data-testid="curated-loans-section" className="border-amber-200/60 dark:border-amber-800/40 bg-gradient-to-br from-amber-50/30 to-transparent dark:from-amber-950/10">
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Landmark className="h-5 w-5 text-amber-600" /> Today&apos;s Best Loan Rates
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Curated from India&apos;s top banks and NBFCs. Some links are affiliate partnerships — we may earn a commission.
+            </p>
+          </div>
+          <Select value={filter} onValueChange={setFilter}>
+            <SelectTrigger className="w-[180px]" data-testid="loan-type-filter">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {types.map((t) => (
+                <SelectItem key={t} value={t}>{LOAN_TYPE_LABEL_LOANS[t] ?? t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {ordered.map((loan) => (
+            <LoanProductCard
+              key={loan.id}
+              product={{
+                id: loan.id,
+                bankName: loan.bankName,
+                productName: loan.productName,
+                loanType: loan.loanType,
+                interestRateMin: loan.interestRateMin,
+                interestRateMax: loan.interestRateMax,
+                maxAmount: loan.maxAmount,
+                tenureMonths: loan.tenureMonths,
+                processingFee: loan.processingFee,
+                features: loan.features,
+                affiliateUrl: loan.affiliateUrl,
+              }}
+              isSponsored={loan.isSponsored}
+              slotId={`loan-${loan.id}`}
+              page="/loans"
+            />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }

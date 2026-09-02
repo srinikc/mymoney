@@ -6,6 +6,7 @@ import { AppShell } from "@/components/layout/app-shell"
 import { SessionProvider } from "@/components/auth/session-provider"
 import { FloatingChat } from "@/components/chat/floating-chat"
 import { ToastProvider } from "@/components/ui/toast-provider"
+import { CookieConsent } from "@/components/ads/cookie-consent"
 import { ThemeProvider } from "next-themes"
 import SkipToContent from "@/components/layout/skip-to-content"
 
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <FloatingChat />
             </Suspense>
             <ToastProvider />
+            <CookieConsent />
           </SessionProvider>
         </ThemeProvider>
       </body>

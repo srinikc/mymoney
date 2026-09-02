@@ -13,6 +13,7 @@ import {
 import { ChartTooltip } from "@/components/charts/chart-tooltip"
 import { Lightbulb, Users, Store, Sparkles, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Target } from "lucide-react"
 import { InsightsSkeleton } from "@/components/ui/page-skeleton"
+import { AdContainer } from "@/components/ads/ad-container"
 import { motion } from "motion/react"
 
 const COLORS = ["#6366f1", "#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#ec4899", "#8b5cf6", "#06b6d4", "#84cc16"]
@@ -126,6 +127,8 @@ export default function InsightsPage() {
         <h1 className="text-3xl font-bold tracking-tight">Insights</h1>
         <p className="text-muted-foreground">Deep analysis of your spending patterns</p>
       </div>
+
+      <AdContainer slotIdPrefix="insights" />
 
       {/* P4.4: Time Period Filter */}
       <div className="flex flex-wrap items-center gap-4">

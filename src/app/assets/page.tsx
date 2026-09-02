@@ -15,6 +15,7 @@ import { toast } from "sonner"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import DatePicker from "@/components/ui/date-picker"
 import { Plus, Home, Diamond, Wrench, Car, Building2, Layers, Pencil, Trash2 } from "lucide-react"
+import { AdContainer } from "@/components/ads/ad-container"
 
 const categoryConfig: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   property: { label: "Properties", icon: <Home className="h-4 w-4" />, color: "bg-blue-500/10 text-blue-500" },
@@ -216,6 +217,9 @@ export default function AssetsPage() {
           <Plus className="mr-2 h-4 w-4" /> Add Asset
         </Button>
       </div>
+
+      <AdContainer slotIdPrefix="assets" />
+
 
       {showAddForm && (
         <Card>

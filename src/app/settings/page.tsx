@@ -196,6 +196,20 @@ export default function SettingsPage() {
           </Card>
         </Link>
 
+        <Link href="/settings/privacy">
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Shield className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">Privacy & Ad Preferences</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Control ads, cookies, and personalized recommendations</p>
+            </CardContent>
+          </Card>
+        </Link>
+
         {isAdmin && (
           <Link href="/settings/database">
             <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full border-amber-200 dark:border-amber-800">

@@ -15,7 +15,7 @@ export async function getSessionFromCookie(cookieHeader?: string | null) {
     // Parse cookies from header string
     sessionCookie = cookieHeader
       .split(";").map((c) => c.trim())
-      .find((c) => c.startsWith("authjs.session-token="))
+      .find((c) => c.startsWith("__Secure-authjs.session-token=") || c.startsWith("authjs.session-token="))
       ?.split("=")[1]
   }
 

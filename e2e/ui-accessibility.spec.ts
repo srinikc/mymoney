@@ -19,7 +19,7 @@ test.describe("UI Accessibility & Keyboard Navigation", () => {
       await page.locator("#email").fill("test@example.com"); await page.locator("#password").fill("test123")
       await page.keyboard.press("Enter"); await page.waitForTimeout(3000)
       const url = page.url()
-      expect(url.includes("/login") || url.includes("/onboarding") || url === "http://localhost:3005/").toBe(true)
+      expect(url.includes("/login") || url.includes("/onboarding") || url === "http://localhost:3100/").toBe(true)
     })
   })
 

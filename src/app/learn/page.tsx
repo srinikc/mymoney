@@ -42,6 +42,7 @@ import {
   type TipCategory,
 } from "@/shared/learn/tips"
 import Link from "next/link"
+import { AdContainer } from "@/components/ads/ad-container"
 
 const ICON_MAP: Record<string, any> = {
   wallet: Wallet,
@@ -174,6 +175,8 @@ export default function LearnHubPage() {
           </Card>
         )}
       </div>
+
+      <AdContainer slotIdPrefix="learn" showSticky={false} />
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">

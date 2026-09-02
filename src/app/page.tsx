@@ -9,6 +9,7 @@ import { formatCurrency, formatDate } from "@/lib/utils"
 import { formatIndianCurrency } from "@/lib/format"
 import { DashboardSkeleton } from "@/components/ui/page-skeleton"
 import { AnimatedCounter } from "@/components/ui/animated-counter"
+import { AdContainer } from "@/components/ads/ad-container"
 import { HealthGauge } from "@/components/charts/health-gauge"
 import { TutorialOverlay } from "@/components/tutorial-overlay"
 import type { DashboardInsights } from "@/types"
@@ -208,6 +209,8 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">Your financial overview at a glance</p>
         </div>
       </div>
+
+      <AdContainer slotIdPrefix="dashboard" />
 
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">

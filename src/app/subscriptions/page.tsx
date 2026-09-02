@@ -11,6 +11,7 @@ import { CardGridSkeleton } from "@/components/ui/page-skeleton"
 import type { Subscription } from "@/types"
 import { toast } from "sonner"
 import { Plus, CreditCard, Bell, MoreHorizontal } from "lucide-react"
+import { AdContainer } from "@/components/ads/ad-container"
 
 function calcDaysUntilDue(dateStr: string | null): number | undefined {
   if (!dateStr) return undefined
@@ -134,6 +135,8 @@ export default function SubscriptionsPage() {
           <Plus className="mr-2 h-4 w-4" /> Add Subscription
         </Button>
       </div>
+
+      <AdContainer slotIdPrefix="subscriptions" />
 
       {showAddForm && (
         <Card>

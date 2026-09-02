@@ -9,6 +9,7 @@ import bcrypt from "bcryptjs"
 import { logAudit } from "@/shared/middleware/audit"
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma) as Adapter,
+  trustHost: true,
   session: {
     strategy: "jwt",
     maxAge: 24 * 60 * 60, // 24 hours — session expires after this from login

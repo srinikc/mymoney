@@ -18,6 +18,7 @@
     "test:all": "vitest run && playwright test",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
+    "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed-profiles": "tsx scripts/seed-first-profile.ts",
     "db:push-test": "set DATABASE_URL=postgresql://postgres:password@localhost:5432/mymoney_test?schema=public && npx prisma db push",

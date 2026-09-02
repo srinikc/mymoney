@@ -5,11 +5,10 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: 1,
+  workers: process.env.CI ? 2 : 1,
   reporter: "list",
+  timeout: 60_000,
   globalSetup: "./e2e/global.setup.ts",
-  // E2E runs against a dedicated server backed by the TEST database
-  // (scripts/start-e2e.cjs). The dev/prod `mymoney` database is never touched.
   webServer: {
     command: "npm run dev:e2e",
     url: "http://localhost:3100",
@@ -20,6 +19,8 @@ export default defineConfig({
     baseURL: "http://localhost:3100",
     trace: "on-first-retry",
     storageState: "e2e/.auth.json",
+    actionTimeout: 15_000,
+    navigationTimeout: 30_000,
   },
   projects: [
     {

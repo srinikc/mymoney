@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,14 +25,23 @@ interface EnvDefinition {
 }
 
 export default function EnvironmentSettingsPage() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
   const [vars, setVars] = useState<Record<string, EnvVar>>({})
   const [definitions, setDefinitions] = useState<EnvDefinition[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [visible, setVisible] = useState<Record<string, boolean>>({})
+
+  const isAdmin = (session?.user as Record<string, unknown> | undefined)?.role === "admin"
   const [overrides, setOverrides] = useState<Record<string, string>>({})
 
   useEffect(() => {
+    if (status === "loading") return
+    if (status !== "authenticated" || !isAdmin) {
+      router.replace("/settings")
+      return
+    }
     fetch("/api/settings/environment")
       .then((r) => r.json())
       .then((data) => {
@@ -44,7 +55,7 @@ export default function EnvironmentSettingsPage() {
       })
       .catch(() => setDefinitions([]))
       .finally(() => setLoading(false))
-  }, [])
+  }, [status, isAdmin, router])
 
   const handleSave = async () => {
     setSaving(true)

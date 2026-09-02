@@ -4,6 +4,7 @@ import path from "node:path"
 import { existsSync, rmSync } from "node:fs"
 import { setGpayJob, getGpayJob, getGpayJobs, deleteGpayJob } from "@/lib/gpay-job-store"
 import { getAuthContext } from "@/lib/with-auth"
+import { prisma } from "@/lib/prisma"
 
 async function requireAuth() {
   try {
@@ -20,6 +21,11 @@ function isPlaywrightAvailable(): boolean {
   } catch {
     return false
   }
+}
+
+function isServerless(): boolean {
+  // Vercel sets VERCEL=1. Netlify sets NETLIFY=true.
+  return Boolean(process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME)
 }
 
 function spawnGpayScript(scriptPath: string, jobId: string, args: string[] = []) {
@@ -109,13 +115,50 @@ export async function POST(req: Request) {
   const url = new URL(req.url)
   const action = url.searchParams.get("action") || "refresh"
 
+  const serverless = isServerless()
+  const playwrightAvailable = isPlaywrightAvailable()
+
+  // On serverless (Vercel), Playwright cannot run. Re-auth should redirect
+  // the user to Google OAuth in their own browser so they can grant fresh
+  // consent. For refresh, instruct them to manually export from Google Takeout.
+  if (serverless && (action === "reauth" || action === "reset")) {
+    const ctx = await getAuthContext()
+    // Force a fresh Google consent screen by appending prompt=consent.
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://srinikc-mymoney.vercel.app"
+    const params = new URLSearchParams({
+      scope: "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile",
+      prompt: "consent",
+      access_type: "offline",
+      state: String(ctx.userId),
+    })
+    return NextResponse.json({
+      reauthUrl: `${baseUrl}/api/auth/google?${params.toString()}`,
+      help: "Click the link to re-authorize Google in your browser. After authorizing, return here and click 'Refresh GPay' again.",
+      message: "Serverless environment detected. Please re-authorize Google in your browser.",
+    })
+  }
+
+  if (serverless && action === "refresh") {
+    return NextResponse.json({
+      error: "GPay automation not available on hosted deployment",
+      message: "The GPay export automation requires a self-hosted environment with Playwright + Chrome installed. On Vercel, you can manually export your GPay data and upload it.",
+      instructions: [
+        "1. Open https://takeout.google.com/ in your browser",
+        "2. Select 'Google Pay' (deselect all others)",
+        "3. Click 'Export' and download the ZIP file",
+        "4. Go to Expenses → Import → upload the ZIP file",
+      ],
+      help: "To enable automated refresh, deploy the app to a VPS or local machine with Playwright installed.",
+    }, { status: 503 })
+  }
+
   const scriptPath = path.join(process.cwd(), "scripts", "refresh-gpay.mjs")
   if (!existsSync(scriptPath)) {
     return NextResponse.json({ error: "GPay script not found" }, { status: 500 })
   }
 
-  if (!isPlaywrightAvailable()) {
-    return NextResponse.json({ error: "Playwright not available" }, { status: 500 })
+  if (!playwrightAvailable) {
+    return NextResponse.json({ error: "Playwright not available. Run 'npm install playwright' to enable automated GPay exports." }, { status: 500 })
   }
 
   if (action === "reauth" || action === "reset") {
@@ -131,6 +174,12 @@ export async function POST(req: Request) {
         console.error("[refresh-gpay] Failed to reset GPay profile:", err)
       }
     }
+
+    // Also delete stored Google OAuth tokens so user must re-consent.
+    const ctx = await getAuthContext()
+    await prisma.account.deleteMany({
+      where: { userId: ctx.userId, provider: "google" },
+    }).catch((e) => console.error("[refresh-gpay] Failed to delete Google account:", e))
 
     const token = crypto.randomUUID()
     const startedAt = new Date().toISOString()

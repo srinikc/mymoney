@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,17 +42,26 @@ const KEY_FIELDS: KeyField[] = [
 ]
 
 export default function ApiKeysSettingsPage() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
   const [keys, setKeys] = useState<Record<string, string>>({})
   const [visible, setVisible] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [providers, setProviders] = useState<LLMProviderOption[]>([])
 
+  const isAdmin = (session?.user as Record<string, unknown> | undefined)?.role === "admin"
+
   useEffect(() => {
+    if (status === "loading") return
+    if (status !== "authenticated" || !isAdmin) {
+      router.replace("/settings")
+      return
+    }
     fetch("/api/settings/api-keys")
       .then((r) => {
-        if (r.status === 401 || r.status === 404) {
-          window.location.href = `/login?callbackUrl=/settings/api-keys`
+        if (r.status === 401 || r.status === 404 || r.status === 403) {
+          router.replace("/settings")
           throw new Error("unauthorized")
         }
         return r.json()
@@ -61,7 +72,7 @@ export default function ApiKeysSettingsPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [])
+  }, [status, isAdmin, router])
 
   const setKey = (key: string, value: string) => setKeys((prev) => ({ ...prev, [key]: value }))
 

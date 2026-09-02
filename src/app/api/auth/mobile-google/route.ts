@@ -10,7 +10,10 @@ const SCOPES = [
 export async function GET() {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3005"
   const redirectUri = `${baseUrl}/api/auth/mobile-google/callback`
-  const clientId = process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID || ""
+  const clientId = process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID
+  if (!clientId) {
+    return NextResponse.json({ error: "Google OAuth not configured on server" }, { status: 503 })
+  }
   const params = new URLSearchParams({
     client_id: clientId, redirect_uri: redirectUri, response_type: "code",
     scope: SCOPES, access_type: "offline", prompt: "consent",

@@ -107,7 +107,16 @@ export default function MoreScreen() {
     setGpayLoading(true);
     try {
       const res = await api.post('/api/refresh-gpay');
-      const jobId = res.data?.jobId;
+      const data = res.data;
+      if (data?.instructions) {
+        // Serverless deployment — show manual export instructions
+        Alert.alert(
+          'GPay Sync',
+          'The automated GPay refresh is not available on hosted deployment. To import your GPay data:\n\n1. Open takeout.google.com in your browser\n2. Select "Google Pay" (deselect all others)\n3. Click "Export" and download the ZIP\n4. Use the web app to import the ZIP file'
+        );
+        return;
+      }
+      const jobId = data?.jobId;
       if (!jobId) {
         Alert.alert('GPay Sync', 'Could not start the GPay export. Check that Playwright and Chrome are installed on the server.');
         return;

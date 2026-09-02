@@ -21,3 +21,9 @@ data/
 .db-mode.json
 .graphify/
 AGENTS.md.bak-graphify
+.next-e2e/
+e2e-server.log
+.vercel/
+*.png
+*.pdf
+public/uploads/

@@ -13,6 +13,17 @@ interface ImpressionBody {
   provider: string
 }
 
+async function isGloballyKilled(): Promise<boolean> {
+  try {
+    const row = await prisma.systemConfig.findUnique({ where: { key: "ad.globalKillSwitch" } })
+    if (!row) return false
+    const v = row.value as { value?: boolean }
+    return Boolean(v?.value)
+  } catch {
+    return false
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as ImpressionBody
@@ -23,6 +34,11 @@ export async function POST(req: Request) {
     // Only track impressions on ad-enabled pages
     if (!isAdEnabledPage(body.page)) {
       return NextResponse.json({ ok: true, skipped: true })
+    }
+
+    // Global kill switch
+    if (await isGloballyKilled()) {
+      return NextResponse.json({ ok: true, skipped: true, reason: "global kill switch" })
     }
 
     const session = await auth()

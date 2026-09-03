@@ -12,6 +12,7 @@ import Link from "next/link"
 import { HelpDrawer } from "@/components/help/HelpDrawer"
 import { getHelpForPath } from "@/components/help/help-content"
 import type { HelpSection } from "@/components/help/help-content"
+import { VersionBadge } from "@/components/version-badge"
 
 const FALLBACK_HELP: HelpSection = {
   title: "Help",
@@ -95,6 +96,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <div className="container mx-auto p-4 lg:p-8">{children}</div>
+        <footer className="border-t px-4 lg:px-6 py-3 mt-8 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+          <div>MyMoney · Personal Finance Manager</div>
+          <VersionBadge />
+        </footer>
       </main>
       {helpOpen && (
         <HelpDrawer

@@ -5,6 +5,7 @@ node_modules/
 *.db-wal
 .env.local
 .env.production
+.env.version
 dist/
 build/
 .next/
@@ -23,6 +24,9 @@ data/
 AGENTS.md.bak-graphify
 .next-e2e/
 e2e-server.log
+checks*.log
+build*.log
+test*.log
 .vercel/
 *.png
 *.pdf

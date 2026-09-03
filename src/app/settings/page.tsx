@@ -56,7 +56,11 @@ export default function SettingsPage() {
 
     setDeleting(true)
     try {
-      const res = await fetch("/api/account", { method: "DELETE" })
+      const res = await fetch("/api/account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: "DELETE MY ACCOUNT" }),
+      })
       if (res.ok) {
         router.push("/login")
       } else {

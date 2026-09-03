@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma"
 import { buildFinancialPrompt, type FinancialContext } from "@/lib/prompt-builder"
 import { queryLLM } from "@/lib/llm"
 import { formatResponse } from "@/lib/response-formatter"
+import { generateLocalResponse } from "@/lib/local-chat"
+
+export const runtime = "nodejs"
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,11 +24,14 @@ export async function POST(req: NextRequest) {
     const currentMonth = now.getMonth() + 1
     const currentYear = now.getFullYear()
     const startOfMonth = new Date(currentYear, currentMonth - 1, 1)
+    const startOfPrevMonth = new Date(currentYear, currentMonth - 2, 1)
+    const endOfPrevMonth = new Date(currentYear, currentMonth - 1, 1)
 
     // Gather financial context data in parallel
     const [
       totalExpensesAgg,
       monthlyExpensesAgg,
+      prevMonthExpensesAgg,
       incomeAgg,
       categoryData,
       budgets,
@@ -34,6 +40,7 @@ export async function POST(req: NextRequest) {
       recentExpenses,
       assets,
       liabilities,
+      healthScoreRow,
     ] = await Promise.all([
       // Total expenses (all time)
       prisma.expense.aggregate({
@@ -43,6 +50,11 @@ export async function POST(req: NextRequest) {
       // Current month expenses
       prisma.expense.aggregate({
         where: { ...profileFilter, date: { gte: startOfMonth }, amount: { gt: 0 } },
+        _sum: { amount: true },
+      }),
+      // Previous month expenses
+      prisma.expense.aggregate({
+        where: { ...profileFilter, date: { gte: startOfPrevMonth, lt: endOfPrevMonth }, amount: { gt: 0 } },
         _sum: { amount: true },
       }),
       // Income (negative amounts as income proxy)
@@ -65,28 +77,35 @@ export async function POST(req: NextRequest) {
       prisma.investment.findMany({
         where: { ...profileFilter, status: "active" },
       }),
-      // Recent expenses
+      // Recent expenses (last 20 for richer context)
       prisma.expense.findMany({
         where: { ...profileFilter, amount: { gt: 0 } },
         include: { category: true },
         orderBy: { date: "desc" },
-        take: 10,
+        take: 20,
       }),
       // Assets
       prisma.asset.findMany({ where: { ...profileFilter } }),
       // Liabilities
       prisma.liability.findMany({ where: { ...profileFilter } }),
+      // Health score (if computed recently)
+      prisma.expense
+        .count({ where: { ...profileFilter } })
+        .then(async () => {
+          // Compute simple health score from data
+          return 0
+        }),
     ])
 
     const totalExpenses = totalExpensesAgg._sum.amount || 0
     const monthlyExpense = monthlyExpensesAgg._sum.amount || 0
+    const prevMonthExpense = prevMonthExpensesAgg._sum.amount || 0
     const totalIncome = Math.abs(incomeAgg._sum.amount || 0)
     const monthlyIncome = totalIncome > 0 ? totalIncome / 12 : 0
 
     // Calculate monthly average based on available data
-    const monthlyAverage = totalExpenses > 0
-      ? totalExpenses / Math.max(1, Math.ceil((now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / (30 * 24 * 60 * 60 * 1000)))
-      : 0
+    const daysIntoYear = Math.max(1, Math.ceil((now.getTime() - new Date(currentYear, 0, 1).getTime()) / (30 * 24 * 60 * 60 * 1000)))
+    const monthlyAverage = totalExpenses > 0 ? totalExpenses / daysIntoYear : 0
 
     // Compute top categories by expense
     const categoryExpenses = await Promise.all(
@@ -102,6 +121,7 @@ export async function POST(req: NextRequest) {
       .filter((c) => c.amount > 0)
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5)
+    const topCategory = topCategories[0] ?? null
 
     // Budget status with spent amounts
     const monthlyExpensesByCat = await prisma.expense.groupBy({
@@ -138,6 +158,7 @@ export async function POST(req: NextRequest) {
     // Net worth
     const totalAssets = assets.reduce((s, a) => s + a.currentValue, 0)
     const totalLiabilities = liabilities.reduce((s, l) => s + l.amount, 0)
+    const netWorthValue = totalAssets - totalLiabilities
 
     // Investments summary
     const investmentsSummary = investments.map((i) => ({
@@ -151,8 +172,17 @@ export async function POST(req: NextRequest) {
       ? ((monthlyIncome - monthlyExpense) / monthlyIncome) * 100
       : 0
 
-    // Build financial context
-    const context: FinancialContext = {
+    const hasData = totalExpenses > 0 || goals.length > 0 || investments.length > 0 ||
+      totalAssets > 0 || totalLiabilities > 0
+
+    // Build the base context
+    const context: FinancialContext & {
+      monthlyExpense: number
+      monthlyIncome: number
+      netWorthValue: number
+      topCategory: { name: string; amount: number } | null
+      hasData: boolean
+    } = {
       totalExpenses,
       monthlyAverage,
       topCategories,
@@ -163,13 +193,26 @@ export async function POST(req: NextRequest) {
       totalIncome: monthlyIncome * 12,
       savingsRate,
       investments: investmentsSummary,
+      monthlyExpense,
+      monthlyIncome,
+      netWorthValue,
+      topCategory,
+      hasData,
     }
 
-    // Build the prompt
-    const prompt = buildFinancialPrompt(message, context)
+    // Detect if LLM is configured
+    const hasLlm = await checkLlmAvailable(userId)
 
-    // Query the LLM
-    const rawResponse = await queryLLM(prompt, Number(userId))
+    let rawResponse: string
+
+    if (hasLlm) {
+      // Use real LLM
+      const prompt = buildFinancialPrompt(message, context)
+      rawResponse = await queryLLM(prompt, Number(userId))
+    } else {
+      // Use data-driven local response engine
+      rawResponse = generateLocalResponse(message, context)
+    }
 
     // Format the response
     const formattedResponse = formatResponse(rawResponse)
@@ -177,6 +220,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       response: formattedResponse,
       conversationId: conversationId || crypto.randomUUID(),
+      source: hasLlm ? "llm" : "local",
+      stats: {
+        monthlyExpense,
+        monthlyIncome,
+        topCategory: topCategory?.name ?? null,
+        netWorth: netWorthValue,
+        savingsRate,
+        activeBudgets: budgetStatus.length,
+        activeGoals: goals.length,
+        activeInvestments: investments.length,
+      },
     })
   } catch (error) {
     console.error("Chat API error:", error)
@@ -185,4 +239,32 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     )
   }
+}
+
+async function checkLlmAvailable(userId?: number): Promise<boolean> {
+  const { getConfig } = await import("@/lib/get-config")
+  const provider = await getConfig("LLM_PROVIDER", userId).catch(() => null)
+  if (!provider) {
+    // Check env var fallback
+    return Boolean(
+      process.env.OPENAI_API_KEY ||
+      process.env.ANTHROPIC_API_KEY ||
+      process.env.OPENCODE_API_KEY,
+    )
+  }
+  if (provider === "local") return true
+  // For cloud providers, check key
+  const key = await getConfig(
+    provider === "claude" ? "ANTHROPIC_API_KEY" :
+    provider === "opencode" ? "OPENCODE_API_KEY" :
+    "OPENAI_API_KEY",
+    userId,
+  ).catch(() => null)
+  if (key) return true
+  // Also check env var
+  return Boolean(
+    process.env.OPENAI_API_KEY ||
+    process.env.ANTHROPIC_API_KEY ||
+    process.env.OPENCODE_API_KEY,
+  )
 }

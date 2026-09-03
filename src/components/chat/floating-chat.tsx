@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { MessageCircle, X, Send, Bot, User, Trash2, Sparkles } from "lucide-react"
+import { MessageCircle, X, Send, Bot, User, Trash2, Sparkles, Cpu } from "lucide-react"
 import { motion, AnimatePresence } from "motion/react"
 import { QUERY_TEMPLATES } from "@/lib/chat-templates"
 
@@ -9,6 +9,7 @@ interface ChatMessage {
   id: string
   role: "user" | "assistant"
   content: string
+  source?: "llm" | "local"
   timestamp: number
 }
 
@@ -65,11 +66,12 @@ export function FloatingChat() {
     }
   }, [isOpen])
 
-  const addMessage = useCallback((role: "user" | "assistant", content: string) => {
+  const addMessage = useCallback((role: "user" | "assistant", content: string, source?: "llm" | "local") => {
     const msg: ChatMessage = {
       id: crypto.randomUUID(),
       role,
       content,
+      source,
       timestamp: Date.now(),
     }
     setMessages((prev) => [...prev, msg])
@@ -105,6 +107,7 @@ export function FloatingChat() {
 
       const data = await response.json()
       const assistantResponse = data.response || "I'm not sure how to respond to that."
+      const source = data.source as "llm" | "local" | undefined
 
       // Simulate streaming display effect
       const words = assistantResponse.split(" ")
@@ -120,7 +123,7 @@ export function FloatingChat() {
       }
 
       if (!abortControllerRef.current?.signal.aborted) {
-        addMessage("assistant", assistantResponse)
+        addMessage("assistant", assistantResponse, source)
         setStreamingContent("")
       }
     } catch (error_) {
@@ -270,6 +273,12 @@ export function FloatingChat() {
                           }`}
                         >
                           {msg.content}
+                          {msg.role === "assistant" && msg.source === "local" && (
+                            <div className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground border-t border-gray-200/50 dark:border-gray-700/50 pt-1.5">
+                              <Cpu className="h-2.5 w-2.5" />
+                              <span>Local data-driven response. Add an LLM key in Settings → API Keys for richer answers.</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

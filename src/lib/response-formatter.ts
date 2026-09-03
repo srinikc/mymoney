@@ -16,9 +16,10 @@ export function formatResponse(text: string): string {
   // Remove excessive blank lines (more than 2 consecutive)
   formatted = formatted.replaceAll(/\n{3,}/g, "\n\n")
 
-  // Ensure markdown bold for numbers in Indian format (₹ followed by digits)
+  // Ensure markdown bold for ₹ amounts (must have ₹ prefix).
+  // Only wrap the ₹ number — NOT bare numbers — to avoid breaking natural text.
   formatted = formatted.replaceAll(
-    /₹(\d{1,3}(?:,\d{2})*(?:\.\d+)?|\d+(?:\.\d+)?)/g,
+    /₹(\d{1,3}(?:,\d{2})*(?:\.\d+)?)/g,
     "**₹$1**",
   )
 

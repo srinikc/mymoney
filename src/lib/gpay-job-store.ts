@@ -15,6 +15,10 @@ export interface GpayJob {
   exportCreated?: boolean
 }
 
+// TODO(refactor): Migrate to Redis or DB table for Vercel compatibility.
+// File-based store doesn't work on serverless (read-only fs, ephemeral
+// instances). See docs/FOLLOWUPS.md item #41.
+// Track in: docs/FOLLOWUPS.md
 const STORE_PATH = join(process.cwd(), "data", "gpay-jobs.json")
 
 function readStore(): Record<string, GpayJob> {

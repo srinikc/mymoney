@@ -8,6 +8,9 @@ interface RateEntry {
   resetAt: number
 }
 
+// TODO(refactor): Migrate to Upstash Redis for Vercel compatibility.
+// File-based rate limits don't share state across serverless instances.
+// See docs/FOLLOWUPS.md item #42.
 const STORE_PATH = join(process.cwd(), "data", "rate-limit.json")
 
 function readStore(): Record<string, RateEntry> {

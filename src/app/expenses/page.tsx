@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -117,6 +118,16 @@ export default function ExpensesPage() {
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; ids: number[] }>({ open: false, ids: [] })
   const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set())
   const [batchDeleting, setBatchDeleting] = useState(false)
+
+  const searchParams = useSearchParams()
+
+  // Read dateFrom/dateTo from URL on initial load
+  useEffect(() => {
+    const urlDateFrom = searchParams.get("dateFrom")
+    const urlDateTo = searchParams.get("dateTo")
+    if (urlDateFrom) setDateFrom(urlDateFrom)
+    if (urlDateTo) setDateTo(urlDateTo)
+  }, [searchParams])
   const [isAdmin, setIsAdmin] = useState(false)
   const [confirmRangeDelete, setConfirmRangeDelete] = useState<{ open: boolean; scope: string }>({ open: false, scope: "all" })
   const [rangeDeleting, setRangeDeleting] = useState(false)

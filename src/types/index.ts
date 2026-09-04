@@ -198,6 +198,7 @@ export interface DashboardInsights {
   currentMonthExpenses: number
   allTimeIncome: number
   currentYearIncome: number
+  yearIncome: number
   totalInsurancePremium: number
   totalSubscriptionMonthly: number
 }

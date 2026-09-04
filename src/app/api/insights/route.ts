@@ -22,11 +22,9 @@ export async function GET(request: Request) {
     const month = monthParam ? Number.parseInt(monthParam) - 1 : undefined
     const quarter = quarterParam ? Number.parseInt(quarterParam) : undefined
 
-    // Cache key includes profileId and query params
     const cacheKey = `insights:${profileId}:${year}:${month ?? "all"}:${quarter ?? "all"}`
-    const CACHE_TTL = 30 // seconds
+    const CACHE_TTL = 30
 
-    // Check cache first
     const cached = await cacheGet<Record<string, unknown>>(cacheKey)
     if (cached) {
       return NextResponse.json(cached)
@@ -48,7 +46,6 @@ export async function GET(request: Request) {
 
     const [
       totalExpensesAgg,
-      monthlyExpensesAgg,
       yearlyExpensesAgg,
       allTimeExpensesAgg,
       currentMonthExpensesAgg,
@@ -63,7 +60,6 @@ export async function GET(request: Request) {
       insurancePremiums,
       subscriptionMonthly,
     ] = await Promise.all([
-      prisma.expense.aggregate({ where: { profileId, date: monthlyFilter }, _sum: { amount: true } }),
       prisma.expense.aggregate({ where: { profileId, date: monthlyFilter }, _sum: { amount: true } }),
       prisma.expense.aggregate({ where: { profileId, date: yearFilter }, _sum: { amount: true } }),
       prisma.expense.aggregate({ where: { profileId }, _sum: { amount: true } }),
@@ -81,7 +77,6 @@ export async function GET(request: Request) {
     ])
 
     const totalExpenses = totalExpensesAgg._sum.amount || 0
-    const monthlyExpense = monthlyExpensesAgg._sum.amount || 0
     const yearlyExpense = yearlyExpensesAgg._sum.amount || 0
     const allTimeExpenses = allTimeExpensesAgg._sum.amount || 0
     const currentMonthExpenses = currentMonthExpensesAgg._sum.amount || 0
@@ -102,29 +97,55 @@ export async function GET(request: Request) {
       return s + (sub.amount || 0)
     }, 0)
 
+    // Income: compute year income and all-time
     const allTimeIncome = incomeSources.reduce((total, source) => {
       if (source.type === "monthly") return total + source.amount * 12
       if (source.type === "yearly" || source.type === "onetime") return total + source.amount
       return total + (source.amount || 0)
     }, 0)
 
-    const currentYearIncome = allTimeIncome
+    // Year income: for "All Years" show allTimeIncome, otherwise compute for selected year
+    const selectedYear = year
+    let yearIncome = 0
+    for (const source of incomeSources) {
+      if (source.type === "monthly") {
+        yearIncome += source.amount * 12
+      } else if (source.type === "variable") {
+        yearIncome += source.amount || 0
+      } else if (source.type === "yearly" || source.type === "onetime") {
+        if (source.startDate) {
+          const sd = new Date(source.startDate)
+          if (sd.getFullYear() === selectedYear) yearIncome += source.amount
+        }
+      }
+    }
 
+    // Period income (month/quarter/year)
     const incomeStart = monthlyFilter.gte
     const incomeEnd = monthlyFilter.lt
     const isSpecificPeriod = month !== undefined || quarter !== undefined
     const periodMultiplier = month !== undefined ? 1 : (quarter !== undefined ? 3 : 12)
-    let totalIncome = 0
+    let periodIncome = 0
     for (const source of incomeSources) {
       if (source.type === "monthly") {
-        totalIncome += source.amount * periodMultiplier
+        periodIncome += source.amount * periodMultiplier
       } else if (source.type === "variable") {
-        totalIncome += (source.amount || 0) * periodMultiplier
+        periodIncome += (source.amount || 0) * periodMultiplier
       } else {
         if (!isSpecificPeriod || (source.startDate && new Date(source.startDate) >= incomeStart && new Date(source.startDate) < incomeEnd)) {
-          totalIncome += source.amount
+          periodIncome += source.amount
         }
       }
+    }
+
+    // Period label
+    let periodLabel = "All Years"
+    if (month !== undefined) {
+      periodLabel = new Date(year, month, 1).toLocaleString("en-US", { month: "short" })
+    } else if (quarter !== undefined) {
+      periodLabel = `Q${quarter}`
+    } else if (yearParam) {
+      periodLabel = String(year)
     }
 
     const activeGoals = goals.length
@@ -183,8 +204,8 @@ export async function GET(request: Request) {
 
     const response = {
       totalExpenses,
-      totalIncome,
-      monthlyExpense,
+      totalIncome: periodIncome,
+      monthlyExpense: totalExpenses,
       monthlyBudget: totalBudget,
       budgetUtilization,
       yearlyExpense,
@@ -203,12 +224,15 @@ export async function GET(request: Request) {
       categoryBreakdown,
       recentExpenses,
       allTimeIncome,
-      currentYearIncome,
+      currentYearIncome: yearIncome,
+      yearIncome,
+      periodIncome,
+      periodExpense: totalExpenses,
+      periodLabel,
       totalInsurancePremium,
       totalSubscriptionMonthly,
     }
 
-    // Cache the response
     await cacheSet(cacheKey, response, CACHE_TTL)
 
     return NextResponse.json(response)

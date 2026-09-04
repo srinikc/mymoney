@@ -111,44 +111,127 @@ export default function DashboardPage() {
 
   if (!insights) return <div className="p-8 text-center text-muted-foreground">Failed to load insights</div>
 
-  const expenseLink = `/expenses?${selectedYear !== "all" ? `year=${selectedYear}&` : ""}${selectedMonth ? `month=${selectedMonth}` : ""}`
+  // Build expense link helpers
+  const expenseYearLink = (y: number) => `/expenses?dateFrom=${y}-01-01&dateTo=${y}-12-31`
+  const expenseMonthLink = (y: number, m: number) => {
+    const lastDay = new Date(y, m, 0).getDate()
+    return `/expenses?dateFrom=${y}-${String(m).padStart(2, "0")}-01&dateTo=${y}-${String(m).padStart(2, "0")}-${lastDay}`
+  }
+  const expenseQuarterLink = (y: number, q: number) => {
+    const startMonth = (q - 1) * 3 + 1
+    const endMonth = q * 3
+    const lastDay = new Date(y, endMonth, 0).getDate()
+    return `/expenses?dateFrom=${y}-${String(startMonth).padStart(2, "0")}-01&dateTo=${y}-${String(endMonth).padStart(2, "0")}-${lastDay}`
+  }
 
-  const stats = [
+  const isMonthSelected = selectedMonth !== ""
+  const isQuarterSelected = selectedQuarter !== ""
+  const isYearSelected = selectedYear !== "all"
+  const isAllYears = !isYearSelected && !isMonthSelected && !isQuarterSelected
+  const selectedMonthNum = selectedMonth ? Number.parseInt(selectedMonth) : undefined
+  const selectedQuarterNum = selectedQuarter ? Number.parseInt(selectedQuarter) : undefined
+  const selectedYearNum = isYearSelected ? Number.parseInt(selectedYear) : currentYear
+
+  // Build income rows: [left, right] pairs
+  type RowItem = { label: string; value: number; href: string }
+  type StatRow = [RowItem, RowItem]
+
+  const incomeRows: StatRow[] = []
+  const expenseRows: StatRow[] = []
+
+  if (isMonthSelected && selectedMonthNum) {
+    // Month selected: "Apr: ₹X" | "2026: ₹Y"  then  "All Years: ₹Z"
+    incomeRows.push([
+      { label: insights.periodLabel, value: insights.periodIncome, href: `/income` },
+      { label: String(selectedYearNum), value: insights.yearIncome, href: `/income` },
+    ])
+    incomeRows.push([
+      { label: "", value: 0, href: "" },
+      { label: "All Years", value: insights.allTimeIncome, href: `/income` },
+    ])
+    expenseRows.push([
+      { label: insights.periodLabel, value: insights.periodExpense, href: expenseMonthLink(selectedYearNum, selectedMonthNum) },
+      { label: String(selectedYearNum), value: insights.yearlyExpense, href: expenseYearLink(selectedYearNum) },
+    ])
+    expenseRows.push([
+      { label: "", value: 0, href: "" },
+      { label: "All Years", value: insights.allTimeExpenses, href: "/expenses" },
+    ])
+  } else if (isQuarterSelected && selectedQuarterNum) {
+    // Quarter selected: "Q1: ₹X" | "2026: ₹Y"  then  "All Years: ₹Z"
+    incomeRows.push([
+      { label: insights.periodLabel, value: insights.periodIncome, href: `/income` },
+      { label: String(selectedYearNum), value: insights.yearIncome, href: `/income` },
+    ])
+    incomeRows.push([
+      { label: "", value: 0, href: "" },
+      { label: "All Years", value: insights.allTimeIncome, href: `/income` },
+    ])
+    expenseRows.push([
+      { label: insights.periodLabel, value: insights.periodExpense, href: expenseQuarterLink(selectedYearNum, selectedQuarterNum) },
+      { label: String(selectedYearNum), value: insights.yearlyExpense, href: expenseYearLink(selectedYearNum) },
+    ])
+    expenseRows.push([
+      { label: "", value: 0, href: "" },
+      { label: "All Years", value: insights.allTimeExpenses, href: "/expenses" },
+    ])
+  } else if (isYearSelected) {
+    // Year selected: "2026: ₹X" | "All Years: ₹Y"
+    incomeRows.push([
+      { label: String(selectedYearNum), value: insights.yearIncome, href: `/income` },
+      { label: "All Years", value: insights.allTimeIncome, href: `/income` },
+    ])
+    expenseRows.push([
+      { label: String(selectedYearNum), value: insights.yearlyExpense, href: expenseYearLink(selectedYearNum) },
+      { label: "All Years", value: insights.allTimeExpenses, href: "/expenses" },
+    ])
+  } else {
+    // All Years: "2026: ₹X" | "All Years: ₹Y"
+    incomeRows.push([
+      { label: String(currentYear), value: insights.yearIncome, href: `/income` },
+      { label: "All Years", value: insights.allTimeIncome, href: `/income` },
+    ])
+    expenseRows.push([
+      { label: String(currentYear), value: insights.yearlyExpense, href: expenseYearLink(currentYear) },
+      { label: "All Years", value: insights.allTimeExpenses, href: "/expenses" },
+    ])
+  }
+
+  // Expense month-over-month change
+  const lastMonth = insights.monthlyTrend.at(-1)?.amount ?? 0
+  const prevMonth = insights.monthlyTrend.at(-2)?.amount ?? 0
+  const expChange = lastMonth - prevMonth
+
+  // Stat cards config
+  const statCards = [
     {
       title: "Total Income",
-      value: selectedYear !== "all" ? insights.currentYearIncome : insights.allTimeIncome,
       icon: IndianRupee,
-      sub: selectedYear !== "all" ? `${selectedYear}: ${formatCurrency(insights.currentYearIncome)}` : `Current Year: ${formatCurrency(insights.currentYearIncome)}`,
-      subDetail: `All Years: ${formatCurrency(insights.allTimeIncome)}`,
-      up: insights.totalIncome > insights.totalExpenses,
-      href: "/income",
+      rows: incomeRows,
+      change: undefined as undefined | { text: string; up: boolean },
     },
     {
       title: "Total Expenses",
-      value: insights.currentMonthExpenses,
       icon: Wallet,
-      sub: `${new Date().toLocaleString("en-US", { month: "short" })}'${currentYear.toString().slice(-2)}: ${formatCurrency(insights.currentMonthExpenses)}`,
-      subDetail: `All Years: ${formatCurrency(insights.allTimeExpenses)}`,
-      change: `${(insights.monthlyTrend.at(-1)?.amount ?? 0) > (insights.monthlyTrend.at(-2)?.amount ?? 0) ? "+" : ""}${formatCurrency((insights.monthlyTrend.at(-1)?.amount ?? 0) - (insights.monthlyTrend.at(-2)?.amount ?? 0))}`,
-      up: (insights.monthlyTrend.at(-1)?.amount ?? 0) < (insights.monthlyTrend.at(-2)?.amount ?? 0),
-      href: expenseLink,
+      rows: expenseRows,
+      change: { text: `${expChange >= 0 ? "+" : ""}${formatCurrency(expChange)} vs last month`, up: expChange < 0 },
     },
     {
       title: "Investments",
-      value: insights.totalInvestments,
       icon: TrendingUp,
+      singleValue: insights.totalInvestments,
+      href: "/investments",
       sub: `Current: ${formatCurrency(insights.totalCurrentValue)}`,
       subDetail: `Returns: ${formatCurrency(insights.investmentReturns)}`,
       up: insights.investmentReturns >= 0,
-      href: "/investments",
     },
     {
       title: "Active Goals",
-      value: insights.activeGoals,
       icon: Target,
+      singleValue: insights.activeGoals,
+      href: "/goals",
       sub: `${insights.goalProgress.toFixed(0)}% avg progress`,
       up: insights.goalProgress > 50,
-      href: "/goals",
     },
   ]
 
@@ -285,43 +368,70 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => {
-          const Icon = stat.icon
-          const content = (
-            <CardContent className="p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="rounded bg-primary/10 p-1 text-primary">
-                  <Icon className="h-3 w-3" />
+        {statCards.map((card) => {
+          const Icon = card.icon
+          const hasRows = "rows" in card
+          return (
+            <Card key={card.title} className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 h-full">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="rounded bg-primary/10 p-1 text-primary">
+                    <Icon className="h-3 w-3" />
+                  </div>
+                  <span className="text-[11px] font-medium text-muted-foreground leading-tight">{card.title}</span>
                 </div>
-                <span className="text-[11px] font-medium text-muted-foreground leading-tight">{stat.title}</span>
-              </div>
-              <div className="text-base font-bold leading-tight" title={"sub" in stat ? String(stat.sub) : undefined}>
-                {stat.title === "Active Goals" ? (
-                  <AnimatedCounter value={stat.value} />
+                {hasRows ? (
+                  <div className="space-y-1">
+                    {card.rows?.map((row, ri) => (
+                      <div key={ri} className="flex items-baseline justify-between text-[11px] leading-tight">
+                        <div className="flex items-baseline gap-1.5">
+                          {row[0].label ? (
+                            <Link href={row[0].href} className="hover:underline">
+                              <span className="text-muted-foreground">{row[0].label}:</span>
+                              <span className="font-semibold ml-1">{formatCurrency(row[0].value)}</span>
+                            </Link>
+                          ) : <span />}
+                        </div>
+                        <div className="flex items-baseline gap-1.5">
+                          {row[1].label ? (
+                            <Link href={row[1].href} className="hover:underline">
+                              <span className="text-muted-foreground">{row[1].label}:</span>
+                              <span className="font-semibold ml-1">{formatCurrency(row[1].value)}</span>
+                            </Link>
+                          ) : <span />}
+                        </div>
+                      </div>
+                    ))}
+                    {"change" in card && card.change ? (
+                      <p className={`flex items-center gap-1 text-[10px] mt-1 leading-tight ${card.change.up ? "text-emerald-500" : "text-red-500"}`}>
+                        {card.change.up ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+                        <span>{card.change.text}</span>
+                      </p>
+                    ) : null}
+                  </div>
                 ) : (
-                  <AnimatedCounter value={stat.value} format={formatCurrency} />
+                  <>
+                    <div className="text-base font-bold leading-tight">
+                      {"singleValue" in card ? (
+                        <Link href={"href" in card ? card.href : "#"} className="hover:underline">
+                          {card.title === "Active Goals" ? (
+                            <AnimatedCounter value={card.singleValue} />
+                          ) : (
+                            <AnimatedCounter value={card.singleValue} format={formatCurrency} />
+                          )}
+                        </Link>
+                      ) : null}
+                    </div>
+                    {"sub" in card && card.sub ? (
+                      <p className="text-[10px] mt-0.5 leading-tight text-muted-foreground">{card.sub}</p>
+                    ) : null}
+                    {"subDetail" in card && card.subDetail ? (
+                      <p className="text-[10px] mt-0.5 leading-tight text-muted-foreground">{card.subDetail}</p>
+                    ) : null}
+                  </>
                 )}
-              </div>
-              {"sub" in stat && stat.sub ? (
-                <p className={`text-[10px] mt-0.5 leading-tight ${("subClassName" in stat && stat.subClassName) || "text-muted-foreground"}`}>{stat.sub}</p>
-              ) : null}
-              {"subDetail" in stat && stat.subDetail ? (
-                <p className={`text-[10px] mt-0.5 leading-tight ${("subClassName" in stat && stat.subClassName) || "text-muted-foreground"}`}>{stat.subDetail}</p>
-              ) : null}
-              {"change" in stat && stat.change ? (
-                <p className={`flex items-center gap-1 text-[10px] mt-0.5 leading-tight ${stat.up ? "text-emerald-500" : "text-red-500"}`}>
-                  {stat.up ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
-                  <span>{stat.change} vs last month</span>
-                </p>
-              ) : null}
-            </CardContent>
-          )
-          return stat.href ? (
-            <Link key={stat.title} href={stat.href} className="block">
-              <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 h-full">{content}</Card>
-            </Link>
-          ) : (
-            <Card key={stat.title} className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 h-full">{content}</Card>
+              </CardContent>
+            </Card>
           )
         })}
       </div>

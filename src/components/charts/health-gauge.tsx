@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { motion } from "motion/react"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -116,6 +117,10 @@ export function HealthGauge({ score, metrics }: HealthGaugeProps) {
                 </div>
               ))}
             </div>
+            <p className="text-xs text-muted-foreground">
+              Your score is based on savings rate, budget adherence, investment diversification, and emergency fund coverage.
+              <Link href="/risk-profile" className="text-primary hover:underline ml-1">Improve your score →</Link>
+            </p>
           </div>
         </div>
       </CardContent>

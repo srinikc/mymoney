@@ -6,6 +6,28 @@ import { Button } from "@/components/ui/button"
 import { ExternalLink, Sparkles } from "lucide-react"
 import { formatIndianCurrency } from "@/lib/format"
 
+const BANK_WEBSITES: Record<string, string> = {
+  "HDFC Bank": "https://www.hdfcbank.com",
+  "ICICI Bank": "https://www.icicibank.com",
+  "SBI": "https://sbi.co.in",
+  "State Bank of India": "https://sbi.co.in",
+  "Axis Bank": "https://www.axisbank.com",
+  "Kotak Mahindra Bank": "https://www.kotak.com",
+  "Bank of Baroda": "https://bankofbaroda.in",
+  "Punjab National Bank": "https://www.pnbbank.in",
+  "Canara Bank": "https://www.canarabank.com",
+  "Union Bank of India": "https://www.unionbankofindia.co.in",
+  "IDFC First Bank": "https://www.idfcfirstbank.com",
+  "Bajaj Finserv": "https://www.bajajfinserv.in",
+  "Tata Capital": "https://www.tatacapital.com",
+  "L&T Finance": "https://www.ltfs.com",
+  "Muthoot Finance": "https://www.muthootfinance.com",
+  "Manappuram Finance": "https://www.manappuram.com",
+  "PNB Housing": "https://www.pnbhousing.com",
+  "LIC Housing Finance": "https://www.lichousing.com",
+  "HDFC Home Loans": "https://www.hdfc.com",
+}
+
 interface LoanProductCardProps {
   product: {
     id?: number
@@ -26,14 +48,16 @@ interface LoanProductCardProps {
 }
 
 export function LoanProductCard({ product, isSponsored, slotId = "loan-card", page = "/loans" }: LoanProductCardProps) {
+  const bankWebsite = BANK_WEBSITES[product.bankName] || `https://www.google.com/search?q=${encodeURIComponent(product.bankName + " official website")}`
+
   const handleApply = () => {
     void fetch("/api/ads/click", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slotId, position: "in-content", page, provider: isSponsored ? "sponsored" : "affiliate", targetUrl: product.affiliateUrl }),
+      body: JSON.stringify({ slotId, position: "in-content", page, provider: isSponsored ? "sponsored" : "affiliate", targetUrl: bankWebsite }),
       keepalive: true,
     }).catch(() => {})
-    window.open(product.affiliateUrl, "_blank", "noopener,noreferrer")
+    window.open(bankWebsite, "_blank", "noopener,noreferrer")
   }
 
   return (
@@ -92,7 +116,7 @@ export function LoanProductCard({ product, isSponsored, slotId = "loan-card", pa
         )}
 
         <Button size="sm" className="w-full" onClick={handleApply} variant={isSponsored ? "default" : "outline"}>
-          Apply now <ExternalLink className="h-3 w-3 ml-1" />
+          View on {product.bankName} <ExternalLink className="h-3 w-3 ml-1" />
         </Button>
       </CardContent>
     </Card>

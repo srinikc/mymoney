@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { formatCurrency } from "@/lib/utils"
-import { Plus, Trash2, WalletCards, TrendingUp, TrendingDown } from "lucide-react"
+import { formatCurrency, formatCurrencyWithFull } from "@/lib/utils"
+import { Plus, Trash2, WalletCards, TrendingUp, TrendingDown, ArrowUpRight } from "lucide-react"
 import { CardGridSkeleton } from "@/components/ui/page-skeleton"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -25,6 +26,7 @@ interface NetWorthData {
     investments: number
     bankBalance: number
     fixedDeposits: number
+    cash: number
   }
 }
 
@@ -70,7 +72,7 @@ export default function NetWorthPage() {
 
   if (loading) return <CardGridSkeleton />
 
-  const s = summary || { totalAssets: 0, totalLiabilities: 0, netWorth: 0, breakdown: { userAssets: 0, investments: 0, bankBalance: 0, fixedDeposits: 0 } }
+  const s = summary || { totalAssets: 0, totalLiabilities: 0, netWorth: 0, breakdown: { userAssets: 0, investments: 0, bankBalance: 0, fixedDeposits: 0, cash: 0 } }
 
   return (
     <div className="space-y-6">
@@ -82,35 +84,40 @@ export default function NetWorthPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><TrendingUp className="h-4 w-4 text-emerald-500" /> Total Assets</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-emerald-600">{formatCurrency(s.totalAssets)}</p></CardContent>
+          <CardContent><p className="text-2xl font-bold text-emerald-600" title={formatCurrencyWithFull(s.totalAssets)}>{formatCurrency(s.totalAssets)}</p></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><TrendingDown className="h-4 w-4 text-red-500" /> Total Liabilities</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-red-600">{formatCurrency(s.totalLiabilities)}</p></CardContent>
+          <CardContent><p className="text-2xl font-bold text-red-600" title={formatCurrencyWithFull(s.totalLiabilities)}>{formatCurrency(s.totalLiabilities)}</p></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><WalletCards className="h-4 w-4 text-primary" /> Net Worth</CardTitle></CardHeader>
-          <CardContent><p className={`text-2xl font-bold ${s.netWorth >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatCurrency(s.netWorth)}</p></CardContent>
+          <CardContent><p className={`text-2xl font-bold ${s.netWorth >= 0 ? "text-emerald-600" : "text-red-600"}`} title={formatCurrencyWithFull(s.netWorth)}>{formatCurrency(s.netWorth)}</p></CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="border-emerald-200 dark:border-emerald-800">
-          <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Manual Assets</CardTitle></CardHeader>
-          <CardContent><p className="text-lg font-semibold text-emerald-600">{formatCurrency(s.breakdown.userAssets)}</p></CardContent>
-        </Card>
-        <Card className="border-blue-200 dark:border-blue-800">
-          <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Investments & Shares</CardTitle></CardHeader>
-          <CardContent><p className="text-lg font-semibold text-blue-600">{formatCurrency(s.breakdown.investments)}</p></CardContent>
-        </Card>
-        <Card className="border-purple-200 dark:border-purple-800">
-          <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Bank Balance</CardTitle></CardHeader>
-          <CardContent><p className="text-lg font-semibold text-purple-600">{formatCurrency(s.breakdown.bankBalance)}</p></CardContent>
-        </Card>
-        <Card className="border-amber-200 dark:border-amber-800">
-          <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Fixed Deposits</CardTitle></CardHeader>
-          <CardContent><p className="text-lg font-semibold text-amber-600">{formatCurrency(s.breakdown.fixedDeposits)}</p></CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+        {[
+          { label: "Manual Assets", value: s.breakdown.userAssets, href: "/assets", color: "border-emerald-200 dark:border-emerald-800", textColor: "text-emerald-600" },
+          { label: "Investments & EPF", value: s.breakdown.investments, href: "/investments", color: "border-blue-200 dark:border-blue-800", textColor: "text-blue-600" },
+          { label: "Bank Balance", value: s.breakdown.bankBalance, href: "/bank-accounts", color: "border-purple-200 dark:border-purple-800", textColor: "text-purple-600" },
+          { label: "Fixed Deposits", value: s.breakdown.fixedDeposits, href: "/bank-accounts", color: "border-amber-200 dark:border-amber-800", textColor: "text-amber-600" },
+          { label: "Cash", value: s.breakdown.cash, href: "/bank-accounts", color: "border-emerald-200 dark:border-emerald-800", textColor: "text-emerald-600" },
+        ].map((card) => (
+          <Link key={card.label} href={card.href} className="block">
+            <Card className={`hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 ${card.color}`}>
+              <CardHeader className="pb-1">
+                <CardTitle className="text-xs text-muted-foreground flex items-center justify-between">
+                  {card.label}
+                  <ArrowUpRight className="h-3 w-3" />
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className={`text-lg font-semibold ${card.textColor}`}>{formatCurrencyWithFull(card.value)}</p>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

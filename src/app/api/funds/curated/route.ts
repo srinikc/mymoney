@@ -55,6 +55,36 @@ export async function GET(req: Request) {
       return NextResponse.json({ funds: [], sponsored: null, personalized: false })
     }
 
+    // Check if FundMetadata table exists
+    let tableExists = true
+    try {
+      await prisma.$queryRaw`SELECT 1 FROM "FundMetadata" LIMIT 1`
+    } catch {
+      tableExists = false
+    }
+
+    if (!tableExists) {
+      // Return curated funds without DB scores
+      const mfList = await getMfList()
+      const funds = UNIQUE_CURATED.slice(0, 30).map((f) => {
+        const resolved = resolveFund(f, mfList)
+        return {
+          schemeCode: resolved.schemeCode,
+          schemeName: resolved.schemeName,
+          fundHouse: resolved.fundHouse,
+          category: resolved.category,
+          subCategory: resolved.subCategory,
+          aiScore: 0,
+          return3Y: null,
+          return5Y: null,
+          summary: "",
+          affiliatePlatform: f.affiliatePlatform,
+          isSponsored: false,
+        }
+      })
+      return NextResponse.json({ funds, sponsored: null, personalized: true, total: CURATED_FUNDS.length })
+    }
+
     const { searchParams } = new URL(req.url)
     const category = searchParams.get("category")
     const subCategory = searchParams.get("subCategory")

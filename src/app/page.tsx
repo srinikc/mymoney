@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { formatCurrency, formatDate } from "@/lib/utils"
+import { formatCurrency, formatDate, formatCurrencyWithFull } from "@/lib/utils"
 import { formatIndianCurrency } from "@/lib/format"
 import { DashboardSkeleton } from "@/components/ui/page-skeleton"
 import { AnimatedCounter } from "@/components/ui/animated-counter"
@@ -17,7 +17,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area,
 } from "recharts"
 import { ChartTooltip } from "@/components/charts/chart-tooltip"
-import { IndianRupee, TrendingUp, TrendingDown, Target, Wallet, Landmark, PiggyBank, Scale, Briefcase, ArrowUpRight } from "lucide-react"
+import { IndianRupee, TrendingUp, TrendingDown, Target, Wallet, Landmark, PiggyBank, Scale, Briefcase, ArrowUpRight, Shield, CreditCard } from "lucide-react"
 
 interface NetWorth {
   totalAssets: number
@@ -111,47 +111,34 @@ export default function DashboardPage() {
 
   if (!insights) return <div className="p-8 text-center text-muted-foreground">Failed to load insights</div>
 
-  const budgetStatus = (() => {
-    if (insights.monthlyBudget <= 0) return { text: "No budget set", up: false, color: "text-muted-foreground" }
-    const pct = insights.budgetUtilization
-    if (pct > 100) return { text: `Over budget by ${formatCurrency(insights.monthlyExpense - insights.monthlyBudget)}`, up: false, color: "text-red-500" }
-    if (pct >= 80) return { text: `${formatCurrency(insights.monthlyBudget - insights.monthlyExpense)} left`, up: true, color: "text-amber-500" }
-    return { text: `${formatCurrency(insights.monthlyBudget - insights.monthlyExpense)} remaining`, up: true, color: "text-emerald-500" }
-  })()
-
   const expenseLink = `/expenses?${selectedYear !== "all" ? `year=${selectedYear}&` : ""}${selectedMonth ? `month=${selectedMonth}` : ""}`
 
   const stats = [
     {
       title: "Total Income",
-      value: insights.totalIncome,
+      value: selectedYear !== "all" ? insights.currentYearIncome : insights.allTimeIncome,
       icon: IndianRupee,
-      sub: `${formatCurrency(insights.totalIncome / 12)}/mo`,
+      sub: selectedYear !== "all" ? `${selectedYear}: ${formatCurrency(insights.currentYearIncome)}` : `Current Year: ${formatCurrency(insights.currentYearIncome)}`,
+      subDetail: `All Years: ${formatCurrency(insights.allTimeIncome)}`,
       up: insights.totalIncome > insights.totalExpenses,
       href: "/income",
     },
     {
       title: "Total Expenses",
-      value: insights.totalExpenses,
+      value: insights.currentMonthExpenses,
       icon: Wallet,
+      sub: `${new Date().toLocaleString("en-US", { month: "short" })}'${currentYear.toString().slice(-2)}: ${formatCurrency(insights.currentMonthExpenses)}`,
+      subDetail: `All Years: ${formatCurrency(insights.allTimeExpenses)}`,
       change: `${(insights.monthlyTrend.at(-1)?.amount ?? 0) > (insights.monthlyTrend.at(-2)?.amount ?? 0) ? "+" : ""}${formatCurrency((insights.monthlyTrend.at(-1)?.amount ?? 0) - (insights.monthlyTrend.at(-2)?.amount ?? 0))}`,
       up: (insights.monthlyTrend.at(-1)?.amount ?? 0) < (insights.monthlyTrend.at(-2)?.amount ?? 0),
       href: expenseLink,
     },
     {
-      title: "This Month",
-      value: insights.monthlyExpense,
-      icon: Wallet,
-      sub: `${insights.budgetUtilization.toFixed(1)}% of budget · ${budgetStatus.text}`,
-      subClassName: budgetStatus.color,
-      up: budgetStatus.up,
-      href: expenseLink,
-    },
-    {
-      title: "Total Investments",
+      title: "Investments",
       value: insights.totalInvestments,
       icon: TrendingUp,
-      change: `${insights.investmentReturns >= 0 ? "+" : ""}${formatCurrency(insights.investmentReturns)}`,
+      sub: `Current: ${formatCurrency(insights.totalCurrentValue)}`,
+      subDetail: `Returns: ${formatCurrency(insights.investmentReturns)}`,
       up: insights.investmentReturns >= 0,
       href: "/investments",
     },
@@ -188,11 +175,25 @@ export default function DashboardPage() {
       color: "text-red-500 bg-red-500/10",
     },
     {
-      title: "Total PF",
+      title: "EPF & Pension",
       value: insights.totalPF,
       icon: PiggyBank,
       href: "/investments",
       color: "text-amber-500 bg-amber-500/10",
+    },
+    {
+      title: "Insurance Premium",
+      value: insights.totalInsurancePremium,
+      icon: Shield,
+      href: "/insurance",
+      color: "text-purple-500 bg-purple-500/10",
+    },
+    {
+      title: "Subscriptions",
+      value: insights.totalSubscriptionMonthly * 12,
+      icon: CreditCard,
+      href: "/subscriptions",
+      color: "text-pink-500 bg-pink-500/10",
     },
   ]
 
@@ -260,25 +261,22 @@ export default function DashboardPage() {
       </div>
 
       {/* Wealth summary strip */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {wealthCards.map((card) => {
           const Icon = card.icon
           return (
             <Link key={card.title} href={card.href} className="block">
-              <Card className="hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 h-full">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">{card.title}</CardTitle>
-                  <div className={`rounded-lg p-2 ${card.color}`}>
-                    <Icon className="h-4 w-4" />
+              <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 h-full">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className={`rounded p-1 ${card.color}`}>
+                      <Icon className="h-3 w-3" />
+                    </div>
+                    <span className="text-[11px] font-medium text-muted-foreground leading-tight">{card.title}</span>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
+                  <div className="text-base font-bold leading-tight" title={formatCurrencyWithFull(card.value)}>
                     <AnimatedCounter value={card.value} format={formatCurrency} />
                   </div>
-                  <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                    <ArrowUpRight className="h-3 w-3" /> View details
-                  </p>
                 </CardContent>
               </Card>
             </Link>
@@ -286,45 +284,82 @@ export default function DashboardPage() {
         })}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => {
           const Icon = stat.icon
           const content = (
-            <>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
-                <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                  <Icon className="h-4 w-4" />
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="rounded bg-primary/10 p-1 text-primary">
+                  <Icon className="h-3 w-3" />
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {stat.title === "Active Goals" ? (
-                    <AnimatedCounter value={stat.value} />
-                  ) : (
-                    <AnimatedCounter value={stat.value} format={formatCurrency} />
-                  )}
-                </div>
-                {"change" in stat && stat.change ? (
-                  <p className={`flex items-center gap-1 text-xs ${stat.up ? "text-emerald-500" : "text-red-500"}`}>
-                    {stat.up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                    {stat.change} vs last month
-                  </p>
-                ) : ("sub" in stat && stat.sub ? (
-                  <p className={`text-xs ${("subClassName" in stat && stat.subClassName) || "text-muted-foreground"}`}>{stat.sub}</p>
-                ) : null)}
-              </CardContent>
-            </>
+                <span className="text-[11px] font-medium text-muted-foreground leading-tight">{stat.title}</span>
+              </div>
+              <div className="text-base font-bold leading-tight" title={"sub" in stat ? String(stat.sub) : undefined}>
+                {stat.title === "Active Goals" ? (
+                  <AnimatedCounter value={stat.value} />
+                ) : (
+                  <AnimatedCounter value={stat.value} format={formatCurrency} />
+                )}
+              </div>
+              {"sub" in stat && stat.sub ? (
+                <p className={`text-[10px] mt-0.5 leading-tight ${("subClassName" in stat && stat.subClassName) || "text-muted-foreground"}`}>{stat.sub}</p>
+              ) : null}
+              {"subDetail" in stat && stat.subDetail ? (
+                <p className={`text-[10px] mt-0.5 leading-tight ${("subClassName" in stat && stat.subClassName) || "text-muted-foreground"}`}>{stat.subDetail}</p>
+              ) : null}
+              {"change" in stat && stat.change ? (
+                <p className={`flex items-center gap-1 text-[10px] mt-0.5 leading-tight ${stat.up ? "text-emerald-500" : "text-red-500"}`}>
+                  {stat.up ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+                  <span>{stat.change} vs last month</span>
+                </p>
+              ) : null}
+            </CardContent>
           )
           return stat.href ? (
             <Link key={stat.title} href={stat.href} className="block">
-              <Card className="hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 h-full">{content}</Card>
+              <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 h-full">{content}</Card>
             </Link>
           ) : (
-            <Card key={stat.title} className="hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 h-full">{content}</Card>
+            <Card key={stat.title} className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 h-full">{content}</Card>
           )
         })}
       </div>
+
+      {/* Bank Accounts - compact inline strip */}
+      <Card>
+        <CardContent className="p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Landmark className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">Bank Accounts</span>
+            </div>
+            <Link href="/bank-accounts" className="text-[10px] text-primary hover:underline flex items-center gap-1">Manage <ArrowUpRight className="h-2.5 w-2.5" /></Link>
+          </div>
+          {accounts.length === 0 && !cashBalance ? (
+            <p className="text-xs text-muted-foreground">No accounts recorded.</p>
+          ) : (
+            <div className="flex flex-wrap gap-3">
+              {accounts.map((acc) => (
+                <div key={acc.id} className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">{acc.bankName}</span>
+                  <span className="font-semibold">{formatCurrency(acc.balance)}</span>
+                </div>
+              ))}
+              {(cashBalance && cashBalance.amount > 0) && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Cash</span>
+                  <span className="font-semibold">{formatCurrency(cashBalance.amount)}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-sm border-l pl-3">
+                <span className="text-muted-foreground">Total</span>
+                <span className="font-bold">{formatCurrency(bankTotal)}</span>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Health Score Gauge */}
       {healthScore && (
@@ -338,54 +373,6 @@ export default function DashboardPage() {
           ]}
         />
       )}
-
-      {/* Bank Accounts summary */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2"><Landmark className="h-5 w-5 text-primary" /> Bank Accounts</CardTitle>
-          <Link href="/bank-accounts" className="text-xs text-primary hover:underline flex items-center gap-1">Manage <ArrowUpRight className="h-3 w-3" /></Link>
-        </CardHeader>
-        <CardContent>
-          {accounts.length === 0 && !cashBalance ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">No bank accounts or cash recorded yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {accounts.map((acc) => (
-                <div key={acc.id} className="flex items-center justify-between rounded-lg border p-2.5">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                      <Landmark className="h-3.5 w-3.5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{acc.bankName}</p>
-                      <p className="text-[10px] text-muted-foreground">{acc.name}</p>
-                    </div>
-                  </div>
-                  <span className="text-sm font-semibold">{formatCurrency(acc.balance)}</span>
-                </div>
-              ))}
-              {(cashBalance && cashBalance.amount > 0) || (cashBalance?.notes) ? (
-                <div className="flex items-center justify-between rounded-lg border bg-emerald-500/5 p-2.5">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/10">
-                      <PiggyBank className="h-3.5 w-3.5 text-emerald-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Cash</p>
-                      {cashBalance?.notes && <p className="text-[10px] text-muted-foreground">{cashBalance.notes}</p>}
-                    </div>
-                  </div>
-                  <span className="text-sm font-semibold">{formatCurrency(cashBalance?.amount || 0)}</span>
-                </div>
-              ) : null}
-              <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 p-2.5">
-                <span className="text-sm font-semibold text-muted-foreground">Total</span>
-                <span className="text-base font-bold">{formatCurrency(bankTotal)}</span>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

@@ -43,6 +43,13 @@ import {
   Mail,
   Server,
   Brain,
+  Wand2,
+  AlertTriangle,
+  LifeBuoy,
+  GraduationCap,
+  Activity,
+  Calculator,
+  FileSearch,
 } from "lucide-react"
 import { useUIStore } from "@/lib/store"
 import { ProfileSwitcher } from "./profile-switcher"
@@ -52,6 +59,7 @@ const planningItems = [
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/investments", label: "Investments", icon: TrendingUp },
   { href: "/subscriptions", label: "Subscriptions", icon: CreditCard },
+  { href: "/emergency-fund", label: "Emergency Fund", icon: LifeBuoy },
 ]
 
 const assetsItems = [
@@ -70,14 +78,16 @@ const analysisItems = [
   { href: "/health", label: "Health", icon: Heart },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/tax", label: "Tax", icon: Percent },
+  { href: "/risk-profile", label: "Risk Profile", icon: Activity },
 ]
 
 const otherItems = [
   { href: "/deals", label: "Deals", icon: Gift },
   { href: "/reminders", label: "Reminders", icon: Bell },
   { href: "/family", label: "Family Sharing", icon: Users },
+  { href: "/learn", label: "Learn", icon: GraduationCap },
+  { href: "/what-if", label: "What-If", icon: Calculator },
   { href: "/settings", label: "Settings", icon: Settings },
-  { href: "/what-if", label: "What-If", icon: Plus },
   { href: "/guide", label: "Help & Guide", icon: HelpCircle },
 ]
 
@@ -287,6 +297,8 @@ export function Sidebar() {
             { href: "/income", label: "Income", icon: IndianRupee },
             { href: "/expenses", label: "All Expenses", icon: Receipt },
             { href: "/expenses/import", label: "Bulk Import", icon: Upload },
+            { href: "/expenses/expense-auto", label: "Auto-Categorize", icon: Wand2 },
+            { href: "/expenses/unusual", label: "Unusual", icon: AlertTriangle },
             { href: "/expenses/vendors", label: "Vendors", icon: Store },
             { href: "/expenses/archive", label: "Archive", icon: Archive },
             { href: "/auto-link", label: "Auto-Link", icon: Link2 },

@@ -184,6 +184,7 @@ export interface DashboardInsights {
   activeGoals: number
   goalProgress: number
   totalInvestments: number
+  totalCurrentValue: number
   investmentReturns: number
   totalPF: number
   totalLoans: number
@@ -193,4 +194,10 @@ export interface DashboardInsights {
   incomeTrend: { month: string; amount: number }[]
   categoryBreakdown: { name: string; amount: number; color: string }[]
   recentExpenses: Expense[]
+  allTimeExpenses: number
+  currentMonthExpenses: number
+  allTimeIncome: number
+  currentYearIncome: number
+  totalInsurancePremium: number
+  totalSubscriptionMonthly: number
 }

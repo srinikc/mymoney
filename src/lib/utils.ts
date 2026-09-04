@@ -19,6 +19,13 @@ export function formatCurrency(amount: number): string {
   }).format(amount)
 }
 
+export function formatCurrencyWithFull(amount: number): string {
+  const formatted = formatCurrency(amount)
+  if (formatted === `₹${amount}`) return formatted
+  const full = formatCurrencyFull(amount)
+  return `${formatted} (${full})`
+}
+
 export function formatCurrencyFull(amount: number): string {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",

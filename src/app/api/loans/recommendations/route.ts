@@ -26,6 +26,18 @@ export async function GET(req: Request) {
     const loanType = searchParams.get("loanType")
     const onlySponsored = searchParams.get("sponsored") === "true"
 
+    // Check if LoanProduct table exists
+    let tableExists = true
+    try {
+      await prisma.$queryRaw`SELECT 1 FROM "LoanProduct" LIMIT 1`
+    } catch {
+      tableExists = false
+    }
+
+    if (!tableExists) {
+      return NextResponse.json({ loans: [], personalized: true })
+    }
+
     const where: {
       isActive: boolean
       loanType?: string

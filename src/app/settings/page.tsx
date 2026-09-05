@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Bell, Shield, Plug, Mail, Key, Server, Smartphone, FileText, Building2, Database, Download, Trash2, Loader2, LogIn } from "lucide-react"
+import { Bell, Shield, Plug, Mail, Key, Server, Smartphone, FileText, Building2, Database, Download, Trash2, Loader2, LogIn, Users, HandCoins } from "lucide-react"
 import Link from "next/link"
 
 export default function SettingsPage() {
@@ -199,6 +199,34 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">Share your session with the mobile app to log in without re-entering credentials</p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/settings/family">
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Users className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">Family Members</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Add spouse, children, parents for retirement planning context</p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/settings/obligations">
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <HandCoins className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">Financial Obligations</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Track recurring commitments like parents support, charity, etc.</p>
             </CardContent>
           </Card>
         </Link>

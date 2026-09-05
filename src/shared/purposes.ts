@@ -32,6 +32,10 @@ export interface GoalTypeOption {
   showArea: boolean
   showLocation: boolean
   showMonthlyContribution: boolean
+  showRetirementAge?: boolean
+  showLifeExpectancy?: boolean
+  showCurrentExpense?: boolean
+  showSubGoals?: boolean
 }
 
 export const GOAL_TYPES: GoalTypeOption[] = [
@@ -134,6 +138,20 @@ export const GOAL_TYPES: GoalTypeOption[] = [
     showArea: false,
     showLocation: false,
     showMonthlyContribution: true,
+  },
+  {
+    value: "Retirement",
+    label: "Retirement",
+    defaultUnit: "₹",
+    showGoldQuantity: false,
+    showDeadline: false,
+    showArea: false,
+    showLocation: false,
+    showMonthlyContribution: true,
+    showRetirementAge: true,
+    showLifeExpectancy: true,
+    showCurrentExpense: true,
+    showSubGoals: true,
   },
 ]
 

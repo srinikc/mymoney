@@ -71,6 +71,8 @@ model Profile {
   sharedProfiles SharedProfile[]
   alertRules AlertRule[]
   notificationConfigs NotificationConfig[]
+  familyMembers FamilyMember[]
+  obligations   Obligation[]
 }
 
 model Account {
@@ -236,14 +238,119 @@ model Goal {
   targetUnit          String?  @default("₹")     // currency unit for target
   goldQuantity        Float?   // gold quantity target (grams)
   purpose             String?  // why this goal exists
+
+  // ── Hierarchy (sub-goals of Retirement) ────────────────────────────
+  parentGoalId        Int?
+  parentGoal          Goal?    @relation("GoalHierarchy", fields: [parentGoalId], references: [id])
+  childGoals          Goal[]   @relation("GoalHierarchy")
+
+  // ── Retirement-specific fields ─────────────────────────────────────
+  isRetirementParent   Boolean  @default(false)
+  retirementAge        Int?     // target retirement age
+  lifeExpectancy       Int?     // planning horizon after retirement
+  currentMonthlyExpense Float?  // current monthly expense at today's cost
+  medicalInflation     Float?   @default(14) // medical inflation %
+  preRetirementReturn  Float?   @default(11) // expected pre-retirement return %
+  postRetirementReturn Float?   @default(8)  // expected post-retirement return %
+
   profileId           Int?
   profile             Profile? @relation(fields: [profileId], references: [id])
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   investments         Investment[]
   loans               Loan[]
+  allocations         InvestmentGoalAllocation[]
 
   @@index([profileId])
+  @@index([parentGoalId])
+}
+
+// ── Investment-Goal Allocation (multi-goal tagging) ───────────────────
+// Universal junction table for tagging any financial item to goals.
+
+model InvestmentGoalAllocation {
+  id              Int      @id @default(autoincrement())
+
+  // Polymorphic foreign keys (exactly one set per row)
+  investmentId    Int?
+  investment      Investment? @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  assetId         Int?
+  asset           Asset?      @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  fixedDepositId  Int?
+  fixedDeposit    FixedDeposit? @relation(fields: [fixedDepositId], references: [id], onDelete: Cascade)
+  cashId          Int?
+  cash            CashBalance?  @relation(fields: [cashId], references: [id], onDelete: Cascade)
+  insuranceId     Int?
+  insurance       Insurance?    @relation(fields: [insuranceId], references: [id], onDelete: Cascade)
+
+  goalId          Int
+  goal            Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  allocationPct   Float    @default(100) // 0-100, sum per item ≤ 100
+  allocationValue Float?   // computed: item.currentValue * pct/100
+  isAutoAllocated Boolean  @default(false) // true for NPS/EPF/Pension auto-inclusion
+  notes           String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([goalId])
+  @@index([investmentId])
+  @@index([assetId])
+  @@index([fixedDepositId])
+  @@index([cashId])
+  @@index([insuranceId])
+}
+
+// ── Family Members ────────────────────────────────────────────────────
+// Family members for retirement planning context (children, spouse, parents).
+
+model FamilyMember {
+  id              Int      @id @default(autoincrement())
+  profileId       Int
+  profile         Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  relation        String   // self | spouse | child | parent | sibling | other
+  name            String
+  dateOfBirth     DateTime? // self only (full DOB)
+  birthMonth      Int?      // 1-12 (spouse, children, parents)
+  birthYear       Int?
+  annualIncome    Float?    // spouse income
+  occupation      String?   // child: student, parent: retired etc
+  educationLevel  String?   // child: class1, class2, engineering, medical, etc
+  isDependent     Boolean   @default(false)
+  monthlySupport  Float?    // parents: ₹/month sent
+  notes           String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([relation])
+}
+
+// ── Financial Obligations ─────────────────────────────────────────────
+// Recurring financial commitments beyond expenses (parents support, charity, etc.)
+
+model Obligation {
+  id              Int      @id @default(autoincrement())
+  profileId       Int
+  profile         Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  type            String   // parents_support | sibling_support | charity | emi_commitment | other
+  description     String
+  monthlyAmount   Float
+  annualAmount    Float?   // computed or manual override
+  startDate       DateTime?
+  endDate         DateTime? // null = indefinite
+  isActive        Boolean  @default(true)
+  notes           String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([type])
 }
 
 // ── Investment ────────────────────────────────────────────────────────
@@ -260,7 +367,7 @@ model Investment {
   purchaseDate   DateTime
   returnRate     Float?
   purpose        String?   // e.g., "retirement", "education", "wealth"
-  linkedGoalId   Int?      // FK to Goal
+  linkedGoalId   Int?      // FK to Goal (legacy single-goal)
   linkedGoal     Goal?     @relation(fields: [linkedGoalId], references: [id])
   notes          String?
   status         String    @default("active")
@@ -282,6 +389,8 @@ model Investment {
   profile        Profile?  @relation(fields: [profileId], references: [id])
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+
+  allocations    InvestmentGoalAllocation[]
 
   @@index([profileId])
   @@index([type])
@@ -412,6 +521,24 @@ model Asset {
   status        String    @default("owned") // owned | sold | inherited
   notes         String?
   purpose       String?   // why you own this asset
+
+  // ── Vehicle-specific fields ────────────────────────────────────────
+  vehicleType   String?   // car | bike | van | other
+  makeModel     String?   // e.g., "Hyundai Creta 2024"
+  vehicleYear   Int?      // manufacturing year
+
+  // ── Rental property fields ─────────────────────────────────────────
+  monthlyRentalIncome Float?
+  rentalGrowthRate    Float? @default(5) // annual rental growth %
+  isRentedOut         Boolean @default(false)
+
+  // ── Retirement integration ─────────────────────────────────────────
+  isRetirementAsset   Boolean @default(false)
+  plannedSaleAge      Int?    // age when user plans to sell (for retirement corpus)
+  plannedSalePurpose  String? // "retirement_corpus" | "travel" | "children" etc.
+
+  allocations   InvestmentGoalAllocation[]
+
   profileId     Int?
   profile       Profile?  @relation(fields: [profileId], references: [id])
   createdAt     DateTime  @default(now())
@@ -580,10 +707,22 @@ model Insurance {
   nominee      String?
   notes        String?
 
+  // ── Insurance type classification ──────────────────────────────────
+  insuranceType     String?  @default("other") // health | term_life | vehicle | critical_illness | other
+  healthCoverType   String?  // individual | family_floater | super_top_up
+  termPolicyTerm    Int?     // term life: policy term in years (e.g., 30)
+  termMaturityAge   Int?     // term life: age when policy matures (e.g., 63)
+  coverAmount       Float?   // cover / sum insured (may differ from sumAssured)
+  vehicleType       String?  // car | bike | van
+  vehicleCoverValidity DateTime? // insurance validity date
+
+  allocations   InvestmentGoalAllocation[]
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@index([profileId])
+  @@index([insuranceType])
 }
 
 // -- Tax Document ------------------------------------------------------
@@ -744,6 +883,8 @@ model FixedDeposit {
   status        String   @default("active") // active | matured | closed
   notes         String?
 
+  allocations   InvestmentGoalAllocation[]
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -761,6 +902,8 @@ model CashBalance {
 
   amount    Float    @default(0)
   notes     String?
+
+  allocations InvestmentGoalAllocation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

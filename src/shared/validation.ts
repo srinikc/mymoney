@@ -143,6 +143,15 @@ export const GoalCreateSchema = z.object({
   totalMonths: z.union([z.string(), z.number()]).optional().nullable(),
   completedMonths: z.union([z.string(), z.number()]).optional().nullable(),
   purpose: z.string().optional().nullable(),
+  // ── Hierarchy & Retirement fields ──────────────────────────────────
+  parentGoalId: z.union([z.string(), z.number()]).optional().nullable(),
+  isRetirementParent: z.boolean().optional(),
+  retirementAge: z.union([z.string(), z.number()]).optional().nullable(),
+  lifeExpectancy: z.union([z.string(), z.number()]).optional().nullable(),
+  currentMonthlyExpense: z.union([z.string(), z.number()]).optional().nullable(),
+  medicalInflation: z.union([z.string(), z.number()]).optional().nullable(),
+  preRetirementReturn: z.union([z.string(), z.number()]).optional().nullable(),
+  postRetirementReturn: z.union([z.string(), z.number()]).optional().nullable(),
 })
 
 export const InvestmentCreateSchema = z.object({
@@ -219,6 +228,15 @@ export const GoalUpdateSchema = z.object({
   status: z.string().optional(),
   targetUnit: z.string().optional().nullable(),
   goldQuantity: z.union([z.string(), z.number()]).optional().nullable(),
+  // ── Hierarchy & Retirement fields ──────────────────────────────────
+  parentGoalId: z.union([z.string(), z.number()]).optional().nullable(),
+  isRetirementParent: z.boolean().optional(),
+  retirementAge: z.union([z.string(), z.number()]).optional().nullable(),
+  lifeExpectancy: z.union([z.string(), z.number()]).optional().nullable(),
+  currentMonthlyExpense: z.union([z.string(), z.number()]).optional().nullable(),
+  medicalInflation: z.union([z.string(), z.number()]).optional().nullable(),
+  preRetirementReturn: z.union([z.string(), z.number()]).optional().nullable(),
+  postRetirementReturn: z.union([z.string(), z.number()]).optional().nullable(),
 })
 
 export const InvestmentUpdateSchema = z.object({
@@ -338,6 +356,18 @@ export const AssetCreateSchema = z.object({
   status: z.string().optional().default("owned"),
   notes: z.string().optional().nullable(),
   purpose: z.string().optional().nullable(),
+  // ── Vehicle fields ─────────────────────────────────────────────────
+  vehicleType: z.string().optional().nullable(),
+  makeModel: z.string().optional().nullable(),
+  vehicleYear: z.union([z.string(), z.number()]).optional().nullable(),
+  // ── Rental fields ──────────────────────────────────────────────────
+  monthlyRentalIncome: z.union([z.string(), z.number()]).optional().nullable(),
+  rentalGrowthRate: z.union([z.string(), z.number()]).optional().nullable(),
+  isRentedOut: z.boolean().optional(),
+  // ── Retirement integration ─────────────────────────────────────────
+  isRetirementAsset: z.boolean().optional(),
+  plannedSaleAge: z.union([z.string(), z.number()]).optional().nullable(),
+  plannedSalePurpose: z.string().optional().nullable(),
 })
 
 export const AssetUpdateSchema = z.object({
@@ -353,6 +383,18 @@ export const AssetUpdateSchema = z.object({
   status: z.string().optional(),
   notes: z.string().optional().nullable(),
   purpose: z.string().optional().nullable(),
+  // ── Vehicle fields ─────────────────────────────────────────────────
+  vehicleType: z.string().optional().nullable(),
+  makeModel: z.string().optional().nullable(),
+  vehicleYear: z.union([z.string(), z.number()]).optional().nullable(),
+  // ── Rental fields ──────────────────────────────────────────────────
+  monthlyRentalIncome: z.union([z.string(), z.number()]).optional().nullable(),
+  rentalGrowthRate: z.union([z.string(), z.number()]).optional().nullable(),
+  isRentedOut: z.boolean().optional(),
+  // ── Retirement integration ─────────────────────────────────────────
+  isRetirementAsset: z.boolean().optional(),
+  plannedSaleAge: z.union([z.string(), z.number()]).optional().nullable(),
+  plannedSalePurpose: z.string().optional().nullable(),
 })
 
 export const AuditLogCreateSchema = z.object({
@@ -400,4 +442,125 @@ export const LoanUpdateSchema = z.object({
   remainingAmount: z.union([z.string(), z.number()]).optional().nullable(),
   status: z.string().optional(),
   closedDate: z.string().optional().nullable(),
+})
+
+// ── Family Member Schemas ─────────────────────────────────────────────
+
+export const FamilyMemberCreateSchema = z.object({
+  relation: z.string().min(1, "Relation is required"),
+  name: z.string().min(1, "Name is required"),
+  dateOfBirth: z.string().optional().nullable(),
+  birthMonth: z.union([z.string(), z.number()]).optional().nullable(),
+  birthYear: z.union([z.string(), z.number()]).optional().nullable(),
+  annualIncome: z.union([z.string(), z.number()]).optional().nullable(),
+  occupation: z.string().optional().nullable(),
+  educationLevel: z.string().optional().nullable(),
+  isDependent: z.boolean().optional(),
+  monthlySupport: z.union([z.string(), z.number()]).optional().nullable(),
+  notes: z.string().optional().nullable(),
+})
+
+export const FamilyMemberUpdateSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+  relation: z.string().optional(),
+  name: z.string().optional(),
+  dateOfBirth: z.string().optional().nullable(),
+  birthMonth: z.union([z.string(), z.number()]).optional().nullable(),
+  birthYear: z.union([z.string(), z.number()]).optional().nullable(),
+  annualIncome: z.union([z.string(), z.number()]).optional().nullable(),
+  occupation: z.string().optional().nullable(),
+  educationLevel: z.string().optional().nullable(),
+  isDependent: z.boolean().optional(),
+  monthlySupport: z.union([z.string(), z.number()]).optional().nullable(),
+  notes: z.string().optional().nullable(),
+})
+
+// ── Obligation Schemas ────────────────────────────────────────────────
+
+export const ObligationCreateSchema = z.object({
+  type: z.string().min(1, "Type is required"),
+  description: z.string().min(1, "Description is required"),
+  monthlyAmount: z.union([z.string(), z.number()]),
+  annualAmount: z.union([z.string(), z.number()]).optional().nullable(),
+  startDate: z.string().optional().nullable(),
+  endDate: z.string().optional().nullable(),
+  isActive: z.boolean().optional(),
+  notes: z.string().optional().nullable(),
+})
+
+export const ObligationUpdateSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+  type: z.string().optional(),
+  description: z.string().optional(),
+  monthlyAmount: z.union([z.string(), z.number()]).optional(),
+  annualAmount: z.union([z.string(), z.number()]).optional().nullable(),
+  startDate: z.string().optional().nullable(),
+  endDate: z.string().optional().nullable(),
+  isActive: z.boolean().optional(),
+  notes: z.string().optional().nullable(),
+})
+
+// ── Insurance Schemas ─────────────────────────────────────────────────
+
+export const InsuranceCreateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  type: z.string().optional().default("Other"),
+  provider: z.string().optional().nullable(),
+  policyNumber: z.string().optional().nullable(),
+  sumAssured: z.union([z.string(), z.number()]).optional().nullable(),
+  premium: z.union([z.string(), z.number()]),
+  premiumFrequency: z.string().optional().default("yearly"),
+  startDate: z.string().min(1, "Start date is required"),
+  renewalDate: z.string().optional().nullable(),
+  nominee: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  // ── Insurance type classification ──────────────────────────────────
+  insuranceType: z.string().optional().nullable(),
+  healthCoverType: z.string().optional().nullable(),
+  termPolicyTerm: z.union([z.string(), z.number()]).optional().nullable(),
+  termMaturityAge: z.union([z.string(), z.number()]).optional().nullable(),
+  coverAmount: z.union([z.string(), z.number()]).optional().nullable(),
+  vehicleType: z.string().optional().nullable(),
+  vehicleCoverValidity: z.string().optional().nullable(),
+})
+
+export const InsuranceUpdateSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+  name: z.string().optional(),
+  type: z.string().optional(),
+  provider: z.string().optional().nullable(),
+  policyNumber: z.string().optional().nullable(),
+  sumAssured: z.union([z.string(), z.number()]).optional().nullable(),
+  premium: z.union([z.string(), z.number()]).optional(),
+  premiumFrequency: z.string().optional(),
+  startDate: z.string().optional(),
+  renewalDate: z.string().optional().nullable(),
+  nominee: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  // ── Insurance type classification ──────────────────────────────────
+  insuranceType: z.string().optional().nullable(),
+  healthCoverType: z.string().optional().nullable(),
+  termPolicyTerm: z.union([z.string(), z.number()]).optional().nullable(),
+  termMaturityAge: z.union([z.string(), z.number()]).optional().nullable(),
+  coverAmount: z.union([z.string(), z.number()]).optional().nullable(),
+  vehicleType: z.string().optional().nullable(),
+  vehicleCoverValidity: z.string().optional().nullable(),
+})
+
+// ── Investment-Goal Allocation Schemas ────────────────────────────────
+
+export const AllocationCreateSchema = z.object({
+  goalId: z.union([z.string(), z.number()]),
+  investmentId: z.union([z.string(), z.number()]).optional().nullable(),
+  assetId: z.union([z.string(), z.number()]).optional().nullable(),
+  fixedDepositId: z.union([z.string(), z.number()]).optional().nullable(),
+  cashId: z.union([z.string(), z.number()]).optional().nullable(),
+  allocationPct: z.union([z.string(), z.number()]),
+  notes: z.string().optional().nullable(),
+})
+
+export const AllocationUpdateSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+  allocationPct: z.union([z.string(), z.number()]).optional(),
+  notes: z.string().optional().nullable(),
 })

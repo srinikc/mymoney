@@ -62,6 +62,17 @@ export interface Goal {
   notes: string | null
   status: string
   progress: number
+  // ── Hierarchy & Retirement ──────────────────────────────────────────
+  parentGoalId: number | null
+  isRetirementParent: boolean
+  retirementAge: number | null
+  lifeExpectancy: number | null
+  currentMonthlyExpense: number | null
+  medicalInflation: number | null
+  preRetirementReturn: number | null
+  postRetirementReturn: number | null
+  childGoals?: Goal[]
+  parentGoal?: Goal | null
 }
 
 export interface Loan {
@@ -103,6 +114,18 @@ export interface Asset {
   updatedAt: string
   profitLoss?: number
   profitLossPercent?: number
+  // ── Vehicle fields ─────────────────────────────────────────────────
+  vehicleType: string | null
+  makeModel: string | null
+  vehicleYear: number | null
+  // ── Rental fields ──────────────────────────────────────────────────
+  monthlyRentalIncome: number | null
+  rentalGrowthRate: number | null
+  isRentedOut: boolean
+  // ── Retirement integration ─────────────────────────────────────────
+  isRetirementAsset: boolean
+  plannedSaleAge: number | null
+  plannedSalePurpose: string | null
 }
 
 export interface Investment {
@@ -201,4 +224,87 @@ export interface DashboardInsights {
   yearIncome: number
   totalInsurancePremium: number
   totalSubscriptionMonthly: number
+}
+
+// ── Insurance ─────────────────────────────────────────────────────────
+
+export interface Insurance {
+  id: number
+  profileId: number | null
+  name: string
+  type: string
+  provider: string | null
+  policyNumber: string | null
+  sumAssured: number | null
+  premium: number
+  premiumFrequency: string
+  startDate: string
+  renewalDate: string | null
+  nominee: string | null
+  notes: string | null
+  // ── Insurance type classification ──────────────────────────────────
+  insuranceType: string | null
+  healthCoverType: string | null
+  termPolicyTerm: number | null
+  termMaturityAge: number | null
+  coverAmount: number | null
+  vehicleType: string | null
+  vehicleCoverValidity: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+// ── Family Members ────────────────────────────────────────────────────
+
+export interface FamilyMember {
+  id: number
+  profileId: number
+  relation: string
+  name: string
+  dateOfBirth: string | null
+  birthMonth: number | null
+  birthYear: number | null
+  annualIncome: number | null
+  occupation: string | null
+  educationLevel: string | null
+  isDependent: boolean
+  monthlySupport: number | null
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+// ── Financial Obligations ─────────────────────────────────────────────
+
+export interface Obligation {
+  id: number
+  profileId: number
+  type: string
+  description: string
+  monthlyAmount: number
+  annualAmount: number | null
+  startDate: string | null
+  endDate: string | null
+  isActive: boolean
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+// ── Investment-Goal Allocation ────────────────────────────────────────
+
+export interface InvestmentGoalAllocation {
+  id: number
+  investmentId: number | null
+  assetId: number | null
+  fixedDepositId: number | null
+  cashId: number | null
+  goalId: number
+  goal?: Goal
+  allocationPct: number
+  allocationValue: number | null
+  isAutoAllocated: boolean
+  notes: string | null
+  createdAt: string
+  updatedAt: string
 }

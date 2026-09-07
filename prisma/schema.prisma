@@ -73,6 +73,7 @@ model Profile {
   notificationConfigs NotificationConfig[]
   familyMembers FamilyMember[]
   obligations   Obligation[]
+  backupHistories BackupHistory[]
 }
 
 model Account {
@@ -1087,4 +1088,52 @@ model SystemConfig {
   key       String   @id
   value     Json
   updatedAt DateTime @updatedAt
+}
+
+// ── Backup & Restore ────────────────────────────────────────────────
+
+model BackupHistory {
+  id             Int      @id @default(autoincrement())
+  type           String   // backup | restore
+  status         String   @default("pending") // pending | running | success | failed
+  backupType     String   @default("full") // full | db-only | files-only | config-only
+
+  includeDb      Boolean  @default(true)
+  includeFiles   Boolean  @default(true)
+  includeConfig  Boolean  @default(true)
+
+  dbDumpSize     Int?
+  filesSize      Int?
+  configSize     Int?
+  totalSize      Int?
+  compressedSize Int?
+
+  r2Key          String?
+  supabaseKey    String?
+  localKey       String?
+  googleDriveKey String?
+  destinations   String?  @default("r2,supabase") // CSV: local,r2,supabase,gdrive
+  checksum       String?
+
+  encrypted      Boolean  @default(true)
+  encryptionIv   String?
+
+  triggeredBy    String   @default("cron") // cron | manual | webhook
+  error          String?
+  metadata       Json?
+  durationMs     Int?
+
+  restoredFrom   Int?
+  restoreTarget  String?
+
+  profileId      Int?
+  profile        Profile? @relation(fields: [profileId], references: [id])
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@index([type, status])
 }

@@ -1,3 +1,19 @@
+# Database & User Isolation Rule (MANDATORY)
+
+**Local development uses `mymoney` database. Production is ONLY on Vercel (Supabase).**
+
+- `.db-mode.json` must be `"production"` for local dev
+- `.env` `DATABASE_URL` must point to `mymoney` for local dev
+- NEVER run `prisma migrate reset` against local `mymoney` — DELETES ALL DATA PERMANENTLY
+- NEVER touch `srinikc@gmail.com` during automated dev/tests
+
+**Testing users (use these for ALL dev/test work):**
+- `test@example.com` — admin/premium test user
+- `regular@example.com` — regular/free test user
+- `admin@test.com` — additional admin user if needed
+
+**`srinikc@gmail.com`** — personal user, only for manual personal testing, NEVER used in automated tests or dev workflows.
+
 # Cross-Platform Development Rule
 
 **Every feature or fix must be implemented in BOTH:**

@@ -292,62 +292,76 @@ async function runExportFlow({ page, context, headless }) {
     log("Screenshot saved to data/")
   }
 
-  // Create export
-  log("Clicking Create export...")
-  await page.evaluate(() => {
-    const btns = Array.from(document.querySelectorAll("button")).filter(b => b.textContent.includes("Create export"))
-    const btn = btns.find(b => b.offsetParent !== null) || btns[0]
-    if (btn) { btn.scrollIntoView(); btn.click() }
-  })
-  await new Promise(r => setTimeout(r, 4000))
+// Create export
+   log("Clicking Create export...")
+   await page.evaluate(() => {
+     const btns = Array.from(document.querySelectorAll("button")).filter(b => b.textContent.includes("Create export"))
+     const btn = btns.find(b => b.offsetParent !== null) || btns[0]
+     if (btn) { btn.scrollIntoView(); btn.click() }
+   })
+   // Increased wait time for export creation to start
+   await new Promise(r => setTimeout(r, 8000))
 
-  // Check if password challenge appeared
-  if (page.url().includes("signin/challenge")) {
-    if (!headless) {
-      log("")
-      log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-      log("Google Drive requires authorization.")
-      log("Enter your password in the browser window.")
-      log("The script will continue automatically once")
-      log("the challenge is completed.")
-      log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-      log("")
-      try {
-        const challengeWait = await waitForLoginToLeaveGoogle(page, context)
-        if (!challengeWait.ok) {
-          await context.close()
-          return { status: "error", error: challengeWait.error }
-        }
-        log("Drive challenge completed, continuing...")
-      } catch {
-        log("Drive challenge wait timed out or browser was closed.")
-        await context.close()
-        return { status: "error", error: "Drive authorization did not complete in time." }
-      }
-      await new Promise(r => setTimeout(r, 4000))
-    } else {
-      log("Password challenge detected")
+// Check if password challenge appeared
+   if (page.url().includes("signin/challenge")) {
+     if (!headless) {
+       log("")
+       log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+       log("Google Drive requires authorization.")
+       log("Enter your password in the browser window.")
+       log("The script will continue automatically once")
+       log("the challenge is completed.")
+       log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+       log("")
+       try {
+         const challengeWait = await waitForLoginToLeaveGoogle(page, context)
+         if (!challengeWait.ok) {
+           await context.close()
+           return { status: "error", error: challengeWait.error }
+         }
+         log("Drive challenge completed, continuing...")
+       } catch {
+         log("Drive challenge wait timed out or browser was closed.")
+         await context.close()
+         return { status: "error", error: "Drive authorization did not complete in time." }
+       }
+       await new Promise(r => setTimeout(r, 4000))
+     } else {
+       log("Password challenge detected")
+       await context.close()
+       return { status: "drive_auth_required" }
+     }
+   }
+
+   await new Promise(r => setTimeout(r, 4000))
+
+   if (capturedExportId) {
+     await context.close()
+     return { status: "success", exportId: capturedExportId, delivery: "drive" }
+   }
+
+   const pageText = await page.evaluate(() => document.body.innerText).catch(() => "")
+   const pageTextLower = pageText.toLowerCase()
+// Check for various success indicators
+    if (
+      pageText.toLowerCase().includes("creating a copy") ||
+      pageText.toLowerCase().includes("your export is being created") ||
+      pageText.toLowerCase().includes("export is being created") ||
+      pageText.toLowerCase().includes("we're creating a copy") ||
+      pageText.toLowerCase().includes("we are creating a copy")
+    ) {
       await context.close()
-      return { status: "drive_auth_required" }
+      return { status: "success", exportId: null, delivery: "drive" }
     }
-  }
 
-  await new Promise(r => setTimeout(r, 4000))
-
-  if (capturedExportId) {
+    const finalUrl = page.url()
+    const pageTitle = await page.title().catch(() => "unknown")
+    const pageSnippet = pageText.substring(0, Math.min(200, pageText.length))
     await context.close()
-    return { status: "success", exportId: capturedExportId, delivery: "drive" }
-  }
-
-  const pageText = await page.evaluate(() => document.body.innerText).catch(() => "")
-  if (pageText.includes("creating a copy")) {
-    await context.close()
-    return { status: "success", exportId: null, delivery: "drive" }
-  }
-
-  const finalUrl = page.url()
-  await context.close()
-  return { status: "error", error: `export_not_confirmed — page at ${finalUrl}` }
+    return { 
+      status: "error", 
+      error: `export_not_confirmed — page at ${finalUrl} — title: "${pageTitle}" — snippet: "${pageSnippet}"` 
+    }
 }
 
 async function runHeadless() {

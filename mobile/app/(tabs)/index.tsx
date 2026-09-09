@@ -68,13 +68,12 @@ null; balance: number }[]>([]);
   const [selectedMonth, setSelectedMonth] = useState('');
   const [selectedQuarter, setSelectedQuarter] = useState('');
   const [showYearPicker, setShowYearPicker] = useState(false);
+  const [dashboardTab, setDashboardTab] = useState('overview');
   const balanceScaleAnim = useRef(new Animated.Value(0)).current;
 
   const fetchData = useCallback(async () => {
     setError(null);
     try {
-      const [insightsRes, healthRes, expensesRes] = await Promise.allSettled([
-        api.get('/api/insights'),
       const params = new URLSearchParams();
       if (selectedYear !== 'all') params.set('year', selectedYear);
       if (selectedMonth) params.set('month', selectedMonth);
@@ -264,6 +263,21 @@ theme.textSecondary }]}>Q{q}</Text>
           )}
         </View>
 
+        {/* Dashboard tabs */}
+        <View style={[styles.tabBar, { backgroundColor: theme.surface }]}>
+          {(['overview', 'wealth', 'spending', 'income', 'health', 'retirement'] as const).map((t) => (
+            <TouchableOpacity
+              key={t}
+              onPress={() => setDashboardTab(t)}
+              style={[styles.tab, dashboardTab === t && { borderBottomColor: theme.primary, borderBottomWidth: 2 }]}
+            >
+              <Text style={[styles.tabText, { color: dashboardTab === t ? theme.primary : theme.textTertiary }]}>
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {error ? (
           <View style={[styles.errorCard, { backgroundColor: theme.expenseLight }]}>
             <Ionicons name="alert-circle" size={22} color={theme.expense} />
@@ -282,6 +296,7 @@ theme.textSecondary }]}>Q{q}</Text>
           </View>
         ) : (
           <>
+            {dashboardTab === 'overview' && (
             <Animated.View
               style={[
                 styles.balanceCard,
@@ -307,7 +322,9 @@ theme.textSecondary }]}>Q{q}</Text>
                 </View>
               </View>
             </Animated.View>
+            )}
 
+            {dashboardTab === 'overview' && (
             <View style={styles.statsRow}>
               {quickStats.map((stat, i) => (
                 <View key={i} style={[styles.statCard, { backgroundColor: theme.surface }]}>
@@ -330,8 +347,9 @@ theme.textSecondary }]}>Q{q}</Text>
                 </View>
               ))}
             </View>
+            )}
 
-            {budgetInfo && budgetInfo.budget > 0 && (
+            {dashboardTab === 'overview' && budgetInfo && budgetInfo.budget > 0 && (
               <TouchableOpacity
                 style={[styles.budgetCard, { backgroundColor: theme.surface }]}
                 onPress={() => router.push('/budgets')}
@@ -371,6 +389,7 @@ theme.textSecondary }]}>Q{q}</Text>
               </TouchableOpacity>
             )}
 
+            {dashboardTab === 'overview' && (
             <View style={[styles.overallCard, { backgroundColor: theme.surface }]}>
               <View style={styles.overallHeader}>
                 <Text style={[styles.overallTitle, { color: theme.textSecondary }]}>Overall (All Time)</Text>
@@ -387,7 +406,9 @@ theme.textSecondary }]}>Q{q}</Text>
                 </View>
               </View>
             </View>
+            )}
 
+            {dashboardTab === 'wealth' && (
             <View style={styles.wealthRow}>
               <TouchableOpacity style={[styles.wealthCard, { backgroundColor: theme.surface }]} onPress={() => 
 router.push('/net-worth')}>
@@ -414,7 +435,9 @@ router.push('/investments')}>
 totalPF || 0)}</Text>
               </TouchableOpacity>
             </View>
+            )}
 
+            {dashboardTab === 'overview' && (
             <View style={[styles.goalsCard, { backgroundColor: theme.surface }]}>
               <TouchableOpacity onPress={() => router.push('/goals')} style={{ flex: 1, flexDirection: 'row', 
 alignItems: 'center', justifyContent: 'space-between' }}>
@@ -429,8 +452,9 @@ alignItems: 'center', justifyContent: 'space-between' }}>
                 </Text>
               </TouchableOpacity>
             </View>
+            )}
 
-            {(accounts.length > 0 || cashBalance) && (
+            {dashboardTab === 'wealth' && (accounts.length > 0 || cashBalance) && (
               <TouchableOpacity
                 style={[styles.bankCard, { backgroundColor: theme.surface }]}
                 onPress={() => router.push('/bank-accounts')}
@@ -469,6 +493,7 @@ alignItems: 'center', justifyContent: 'space-between' }}>
               </TouchableOpacity>
             )}
 
+            {dashboardTab === 'wealth' && (
             <View style={styles.obligationsRow}>
               <TouchableOpacity style={[styles.wealthCard, { backgroundColor: theme.surface }]} onPress={() => 
 router.push('/loans')}>
@@ -489,8 +514,9 @@ router.push('/insurance')}>
 }]}>{formatCurrency(netWorth?.insurancePremiumTotal || 0)}</Text>
               </TouchableOpacity>
             </View>
+            )}
 
-            {healthScore !== null && (
+            {dashboardTab === 'health' && healthScore !== null && (
               <View style={[styles.healthCard, { backgroundColor: theme.surface }]}>
                 <View style={styles.healthHeader}>
                   <Text style={[styles.sectionTitle, { color: theme.text }]}>Financial Health</Text>
@@ -570,6 +596,8 @@ router.push('/expenses')}>
               </TouchableOpacity>
             </View>
 
+            {dashboardTab === 'overview' && (
+            <>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Transactions</Text>
               <TouchableOpacity onPress={() => router.push('/list')}>
@@ -631,6 +659,8 @@ router.push('/expenses')}>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
+            )}
+            </>
             )}
           </>
         )}
@@ -1001,6 +1031,9 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 4,
   },
+  tabBar: { flexDirection: 'row', gap: 4, margin: 16, marginBottom: 8, backgroundColor: 'rgba(0,0,0,0.04)', borderRadius: 10, padding: 4 },
+  tab: { flex: 1, alignItems: 'center', paddingVertical: 8, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabText: { fontSize: 11, fontWeight: '600' },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

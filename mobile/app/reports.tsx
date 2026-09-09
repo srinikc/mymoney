@@ -26,6 +26,16 @@ interface InsightsData {
   topCategories: CategoryItem[];
 }
 
+interface IntelligenceItem {
+  id: string;
+  kind: string;
+  title: string;
+  description: string;
+  metric: string;
+  severity: 'info' | 'warn' | 'alert';
+  actionable: string;
+}
+
 export default function ReportsScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
@@ -34,11 +44,14 @@ export default function ReportsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState('overview');
+  const [intelligence, setIntelligence] = useState<IntelligenceItem[]>([]);
 
   const fetch = useCallback(async () => {
     try {
       const res = await api.get(`/api/insights?year=${new Date().getFullYear()}`);
       setInsights(res.data);
+      const intelRes = await api.get('/api/intelligence').catch(() => null);
+      if (intelRes) setIntelligence(intelRes.data?.items || []);
     } catch { /* ignore */ }
     finally { setLoading(false); setRefreshing(false); }
   }, []);
@@ -57,7 +70,7 @@ export default function ReportsScreen() {
       </View>
 
       <View style={styles.tabRow}>
-        {['overview', 'income', 'expenses'].map((t) => (
+        {['overview', 'income', 'expenses', 'intelligence'].map((t) => (
           <TouchableOpacity key={t} onPress={() => setTab(t)} style={[styles.tab, { backgroundColor: tab === t ? theme.primary : theme.surface }]}>
             <Text style={{ color: tab === t ? '#fff' : theme.text, fontSize: 13, fontWeight: '600' }}>{t.charAt(0).toUpperCase() + t.slice(1)}</Text>
           </TouchableOpacity>
@@ -153,6 +166,40 @@ export default function ReportsScreen() {
               })}
             </View>
           </>
+        ) : tab === 'intelligence' ? (
+          <>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Spending Intelligence</Text>
+            <Text style={[styles.sectionSub, { color: theme.textTertiary }]}>
+              Anomalies, spending pace, subscriptions, lifestyle creep, and tax gaps from your data.
+            </Text>
+            {intelligence.length === 0 ? (
+              <View style={[styles.sectionCard, { backgroundColor: theme.surface }]}>
+                <Text style={{ color: theme.textTertiary, fontSize: 13, textAlign: 'center', paddingVertical: 16 }}>
+                  No intelligence insights right now. Add more transactions to unlock insights.
+                </Text>
+              </View>
+            ) : (
+              intelligence.map((item) => {
+                const severityColor = item.severity === 'alert' ? theme.expense : item.severity === 'warn' ? '#F59E0B' : theme.primary;
+                const bg = item.severity === 'alert' ? 'rgba(239,68,68,0.08)' : item.severity === 'warn' ? 'rgba(245,158,11,0.08)' : 'rgba(0,0,0,0.03)';
+                return (
+                  <View key={item.id} style={[styles.intelCard, { backgroundColor: theme.surface, borderLeftColor: severityColor }]}>
+                    <View style={styles.intelHeader}>
+                      <Ionicons name={item.severity === 'alert' ? 'alert-circle' : item.severity === 'warn' ? 'warning' : 'bulb'} size={16} color={severityColor} />
+                      <Text style={[styles.intelMetric, { color: severityColor }]}>{item.metric}</Text>
+                    </View>
+                    <Text style={[styles.intelTitle, { color: theme.text }]}>{item.title}</Text>
+                    <Text style={[styles.intelDesc, { color: theme.textSecondary }]}>{item.description}</Text>
+                    {item.actionable ? (
+                      <Text style={[styles.intelAction, { color: theme.primary }]}>
+                        <Ionicons name="bulb" size={12} color={theme.primary} /> {item.actionable}
+                      </Text>
+                    ) : null}
+                  </View>
+                );
+              })
+            )}
+          </>
         ) : (
           <View style={[styles.sectionCard, { backgroundColor: theme.surface }]}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Expense Analysis</Text>
@@ -198,4 +245,11 @@ const styles = StyleSheet.create({
   compRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   compBar: { height: 12, marginBottom: 2 },
   compFill: { height: '100%', borderRadius: 4 },
+  sectionSub: { fontSize: 12, marginBottom: 16 },
+  intelCard: { borderRadius: 14, padding: 16, marginBottom: 12, borderLeftWidth: 3 },
+  intelHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  intelMetric: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
+  intelTitle: { fontSize: 14, fontWeight: '700', marginTop: 8 },
+  intelDesc: { fontSize: 12, marginTop: 4, lineHeight: 18 },
+  intelAction: { fontSize: 12, fontWeight: '600', marginTop: 8 },
 });

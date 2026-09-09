@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DataTable } from "@/components/ui/data-table"
 import { formatDate } from "@/lib/utils"
-import { createColumnHelper } from "@tanstack/react-table"
+import { createColumnHelper, type ColumnDef } from "@tanstack/react-table"
 import { Shield, Plus, Trash2, Search, ToggleLeft, ToggleRight, Users, ChevronDown, ChevronRight } from "lucide-react"
 import {
   Dialog,
@@ -26,6 +26,122 @@ interface FeatureFlag {
   tier: string
   createdAt: string
   updatedAt: string
+}
+
+// Static category mapping for feature grouping
+const CATEGORY_ORDER = [
+  "Core Tracking",
+  "Reports & Analytics",
+  "Intelligence",
+  "Imports & Integrations",
+  "Investments",
+  "Insurance",
+  "Loans & Borrowings",
+  "Tax & Planning",
+  "AI & Analytics",
+  "User & Profile",
+  "Admin & Enterprise",
+  "Learning",
+  "Settings",
+  "Premium",
+]
+
+const CATEGORY_MAP: Record<string, string> = {
+  expense_tracking: "Core Tracking",
+  income_tracking: "Core Tracking",
+  bank_accounts: "Core Tracking",
+  recurring_plans: "Core Tracking",
+  subscriptions: "Core Tracking",
+  goals: "Core Tracking",
+  budgets: "Core Tracking",
+  net_worth: "Core Tracking",
+  auto_link: "Core Tracking",
+  deals: "Core Tracking",
+  reminders: "Core Tracking",
+  multi_profile: "Core Tracking",
+  expense_archive: "Core Tracking",
+  vendor_management: "Core Tracking",
+  emergency_fund: "Core Tracking",
+  basic_reports: "Reports & Analytics",
+  advanced_reports: "Reports & Analytics",
+  pdf_export: "Reports & Analytics",
+  xlsx_export: "Reports & Analytics",
+  income_expense_trends: "Reports & Analytics",
+  financial_health_score: "Reports & Analytics",
+  spending_intelligence: "Intelligence",
+  anomaly_detection: "Intelligence",
+  subscription_detection: "Intelligence",
+  lifestyle_creep: "Intelligence",
+  seasonal_spending: "Intelligence",
+  weekend_effect: "Intelligence",
+  velocity_tracking: "Intelligence",
+  tax_optimization: "Intelligence",
+  bank_import: "Imports & Integrations",
+  csv_import: "Imports & Integrations",
+  ofx_import: "Imports & Integrations",
+  qfx_import: "Imports & Integrations",
+  iif_import: "Imports & Integrations",
+  bank_pdf_parser: "Imports & Integrations",
+  gmail_import: "Imports & Integrations",
+  gmail_parser: "Imports & Integrations",
+  gpay_takeout: "Imports & Integrations",
+  google_drive: "Imports & Integrations",
+  google_takeout: "Imports & Integrations",
+  receipt_ocr: "Imports & Integrations",
+  auto_categorize: "Imports & Integrations",
+  investment_tracking: "Investments",
+  mutual_funds: "Investments",
+  nps: "Investments",
+  ppf: "Investments",
+  fd_tracking: "Investments",
+  portfolio_xirr: "Investments",
+  portfolio_rebalancing: "Investments",
+  broker_zerodha: "Investments",
+  broker_groww: "Investments",
+  broker_sharekhan: "Investments",
+  mf_central: "Investments",
+  insurance_tracking: "Insurance",
+  insurance_gap: "Insurance",
+  loans: "Loans & Borrowings",
+  borrowings: "Loans & Borrowings",
+  what_if_simulator: "Tax & Planning",
+  retirement_planner: "Tax & Planning",
+  risk_profiling: "Tax & Planning",
+  estate_planning: "Tax & Planning",
+  goals_plans: "Tax & Planning",
+  ai_advisor: "AI & Analytics",
+  llm_chatbot: "AI & Analytics",
+  unlimited_chatbot: "AI & Analytics",
+  family_dashboard: "User & Profile",
+  profile_management: "User & Profile",
+  onboarding_wizard: "User & Profile",
+  email_subscriptions: "User & Profile",
+  credit_score: "User & Profile",
+  admin_console: "Admin & Enterprise",
+  audit_log: "Admin & Enterprise",
+  backup_restore: "Admin & Enterprise",
+  scheduled_reports: "Admin & Enterprise",
+  user_management: "Admin & Enterprise",
+  profile_management_admin: "Admin & Enterprise",
+  financial_education: "Learning",
+  commodities_tracker: "Learning",
+  mutual_fund_research: "Learning",
+  retirement_education: "Learning",
+  books: "Learning",
+  environment_overrides: "Settings",
+  api_keys: "Settings",
+  session_link: "Settings",
+  privacy_controls: "Settings",
+  database_settings: "Settings",
+  bank_account_settings: "Settings",
+  integrations: "Settings",
+  account_aggregator: "Premium",
+  dedicated_support: "Premium",
+  multi_family_dashboard: "Premium",
+}
+
+function getCategory(name: string): string {
+  return CATEGORY_MAP[name] || "Other"
 }
 
 interface UserFeature {
@@ -70,6 +186,8 @@ export default function AdminFeaturesPage() {
   const [newName, setNewName] = useState("")
   const [newTier, setNewTier] = useState("free")
   const [createError, setCreateError] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<"table" | "grouped">("grouped")
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(CATEGORY_ORDER))
 
   const fetchFeatures = useCallback(async () => {
     setLoading(true)
@@ -199,9 +317,29 @@ export default function AdminFeaturesPage() {
     [features, searchQuery]
   )
 
+  const groupedFeatures = useMemo(() => {
+    const groups: Record<string, FeatureFlag[]> = {}
+    for (const cat of CATEGORY_ORDER) groups[cat] = []
+    for (const f of filteredFeatures) {
+      const cat = getCategory(f.name)
+      if (!groups[cat]) groups[cat] = []
+      groups[cat].push(f)
+    }
+    return groups
+  }, [filteredFeatures])
+
+  const toggleCategory = (cat: string) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(cat)) next.delete(cat)
+      else next.add(cat)
+      return next
+    })
+  }
+
   const columnHelper = createColumnHelper<FeatureFlag>()
 
-  const columns = [
+  const columns: ColumnDef<FeatureFlag, any>[] = [
     columnHelper.accessor("name", {
       header: "Name",
       cell: (info) => (
@@ -300,7 +438,27 @@ export default function AdminFeaturesPage() {
       {/* Feature Flags Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Feature Definitions</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">
+              Feature Definitions ({features.length})
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <div className="flex rounded-md border text-xs overflow-hidden">
+                <button
+                  onClick={() => setViewMode("grouped")}
+                  className={`px-3 py-1.5 ${viewMode === "grouped" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                >
+                  Grouped
+                </button>
+                <button
+                  onClick={() => setViewMode("table")}
+                  className={`px-3 py-1.5 ${viewMode === "table" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                >
+                  Table
+                </button>
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -324,8 +482,89 @@ export default function AdminFeaturesPage() {
           </div>
           {loading ? (
             <div className="py-12 text-center text-muted-foreground">Loading features...</div>
-          ) : (
+          ) : viewMode === "table" ? (
             <DataTable columns={columns} data={filteredFeatures} pageSize={20} />
+          ) : (
+            <div className="space-y-3">
+              {CATEGORY_ORDER.map((cat) => {
+                const catFeatures = groupedFeatures[cat]
+                if (!catFeatures || catFeatures.length === 0) return null
+                const isExpanded = expandedCategories.has(cat)
+                const enabledCount = catFeatures.filter((f) => f.enabled).length
+                return (
+                  <div key={cat} className="rounded-lg border">
+                    <button
+                      onClick={() => toggleCategory(cat)}
+                      className="flex w-full items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className="font-medium text-sm">{cat}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {catFeatures.length}
+                        </Badge>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {enabledCount}/{catFeatures.length} enabled
+                      </span>
+                    </button>
+                    {isExpanded && (
+                      <div className="border-t px-4 py-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                          {catFeatures.map((f) => (
+                            <div
+                              key={f.id}
+                              className={`rounded-md border p-3 ${
+                                f.enabled
+                                  ? "bg-emerald-500/5 border-emerald-200 dark:border-emerald-800"
+                                  : "bg-muted/30 border-muted"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-mono text-xs font-medium truncate">{f.name}</span>
+                                <button
+                                  onClick={() => toggleFeature(f.id, f.enabled)}
+                                  className={`shrink-0 ${f.enabled ? "text-emerald-500" : "text-muted-foreground"}`}
+                                >
+                                  {f.enabled ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                                </button>
+                              </div>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Select
+                                  value={f.tier}
+                                  onValueChange={(v) => updateFeatureTier(f.id, v)}
+                                >
+                                  <SelectTrigger className="h-6 w-20 text-[10px]">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="free">Free</SelectItem>
+                                    <SelectItem value="pro">Pro</SelectItem>
+                                    <SelectItem value="premium">Premium</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 text-destructive hover:text-destructive ml-auto"
+                                  onClick={() => deleteFeature(f.id)}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           )}
         </CardContent>
       </Card>

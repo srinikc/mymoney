@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme, RefreshControl, ActivityIndicator, Modal, TextInput, Alert, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 import PurposePicker from '../components/PurposePicker';
 
 interface InvestmentItem {
@@ -51,19 +52,20 @@ export default function InvestmentsScreen() {
   const [formProjectionYears, setFormProjectionYears] = useState('');
   const [formPurpose, setFormPurpose] = useState('');
 
-  const fetch = useCallback(async () => {
-    setError(null);
-    try {
-      const res = await api.get('/api/investments');
-      const d = res.data;
-      const list = Array.isArray(d?.investments) ? d.investments : Array.isArray(d) ? d : [];
+  const investmentsQuery = useApiQuery<any>(['investments'], '/api/investments');
+  useEffect(() => {
+    if (investmentsQuery.data !== undefined) {
+      const list = Array.isArray(investmentsQuery.data?.investments) ? investmentsQuery.data.investments : Array.isArray(investmentsQuery.data) ? investmentsQuery.data : [];
       setData(list);
       setTotalValue(list.reduce((sum: number, i: InvestmentItem) => sum + (i.currentValue || i.value || 0), 0));
-    } catch { setError('Failed to load investments'); }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { fetch(); }, [fetch]);
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [investmentsQuery.data]);
+  useEffect(() => {
+    if (investmentsQuery.isError) setError('Failed to load investments');
+  }, [investmentsQuery.isError]);
+  const fetch = () => { void investmentsQuery.refetch(); };
 
   const openAdd = () => {
     setEditItem(null); setShowForm(false); setFormName(''); setFormType('stocks'); setFormAmount(''); setFormCurrentValue(''); setFormPurchaseDate(new Date().toISOString().split('T')[0]); setFormEmpContribution(''); setFormEmprContribution(''); setFormRate(''); setFormProjectionYears(''); setFormPurpose('');

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme, RefreshControl, ActivityIndicator, Modal, TextInput, Alert,
 } from 'react-native';
@@ -8,6 +8,7 @@ import { Colors } from '../constants/Colors';
 import { formatDate } from '../utils/format';
 import { scheduleReminderNotification, cancelReminderNotification } from '../lib/notifications';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 interface ReminderItem {
   id?: string;
@@ -36,17 +37,19 @@ export default function RemindersScreen() {
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const fetch = useCallback(async () => {
-    setError(null);
-    try {
-      const res = await api.get('/api/reminders');
-      const d = res.data;
+  const remindersQuery = useApiQuery<any>(['reminders'], '/api/reminders');
+  useEffect(() => {
+    if (remindersQuery.data !== undefined) {
+      const d = remindersQuery.data;
       setData(Array.isArray(d?.reminders) ? d.reminders : Array.isArray(d) ? d : []);
-    } catch { setError('Failed to load reminders'); }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { fetch(); }, [fetch]);
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [remindersQuery.data]);
+  useEffect(() => {
+    if (remindersQuery.isError) setError('Failed to load reminders');
+  }, [remindersQuery.isError]);
+  const fetch = () => { void remindersQuery.refetch(); };
 
   const handleSave = async () => {
     if (!formTitle.trim()) { setFormError('Please enter a title'); return; }

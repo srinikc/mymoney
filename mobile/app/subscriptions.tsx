@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme,
   RefreshControl, ActivityIndicator, TextInput, Alert,
@@ -8,6 +8,7 @@ import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { formatCurrency, formatDate } from '../utils/format';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 const billingCycles = [
   { label: 'Monthly', value: 'monthly' },
@@ -46,17 +47,19 @@ export default function SubscriptionsScreen() {
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const fetch = useCallback(async () => {
-    setError(null);
-    try {
-      const res = await api.get('/api/subscriptions');
-      const d = res.data;
+  const subsQuery = useApiQuery<any>(['subscriptions'], '/api/subscriptions');
+  useEffect(() => {
+    if (subsQuery.data !== undefined) {
+      const d = subsQuery.data;
       setData(Array.isArray(d?.subscriptions) ? d.subscriptions : Array.isArray(d) ? d : []);
-    } catch { setError('Failed to load subscriptions'); } // eslint-disable-line no-empty
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { fetch(); }, [fetch]);
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [subsQuery.data]);
+  useEffect(() => {
+    if (subsQuery.isError) setError('Failed to load subscriptions');
+  }, [subsQuery.isError]);
+  const fetch = () => { void subsQuery.refetch(); };
 
   const monthlyTotal = data.reduce((s, i) => {
     const amt = i.amount || i.price || 0;

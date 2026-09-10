@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme, RefreshControl, ActivityIndicator, Modal, TextInput, Alert,
 } from 'react-native';
@@ -7,6 +7,7 @@ import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 import PurposePicker from '../components/PurposePicker';
 
 interface Asset {
@@ -55,17 +56,18 @@ export default function AssetsScreen() {
   const showLocation = isProperty;
   const activeTypeDesc = ASSET_TYPES.find((t) => t.value === formType)?.desc || '';
 
-  const fetch = useCallback(async () => {
-    setError(null);
-    try {
-      const { data: res } = await api.get('/api/assets');
-      setData(res.assets || res);
-    } catch { setError('Failed to load'); }
-    setLoading(false);
-    setRefreshing(false);
-  }, []);
-
-  useEffect(() => { fetch(); }, [fetch]);
+  const assetsQuery = useApiQuery<any>(['assets'], '/api/assets');
+  useEffect(() => {
+    if (assetsQuery.data !== undefined) {
+      setData(assetsQuery.data.assets || assetsQuery.data);
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [assetsQuery.data]);
+  useEffect(() => {
+    if (assetsQuery.isError) setError('Failed to load');
+  }, [assetsQuery.isError]);
+  const fetch = () => { void assetsQuery.refetch(); };
 
   const total = data.reduce((s, a) => s + (a.value || a.amount || 0), 0);
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme,
   RefreshControl, ActivityIndicator, Modal, TextInput, Alert
@@ -8,6 +8,7 @@ import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { formatDate } from '../utils/format';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 interface Deal {
   id: number;
@@ -34,20 +35,18 @@ export default function DealsScreen() {
   const [form, setForm] = useState({ merchant: '', title: '', description: '', discount: '', couponCode: '', url: '', validUntil: '', category: '' });
   const [formLoading, setFormLoading] = useState(false);
 
-  const fetch = useCallback(async () => {
-    setError(null);
-    try {
-      const res = await api.get('/api/deals');
-      setDeals(Array.isArray(res.data) ? res.data : []);
-    } catch {
-      setError('Failed to load deals');
-    } finally {
+  const dealsQuery = useApiQuery<any>(['deals'], '/api/deals');
+  useEffect(() => {
+    if (dealsQuery.data !== undefined) {
+      setDeals(Array.isArray(dealsQuery.data) ? dealsQuery.data : []);
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
-
-  useEffect(() => { fetch(); }, [fetch]);
+  }, [dealsQuery.data]);
+  useEffect(() => {
+    if (dealsQuery.isError) setError('Failed to load deals');
+  }, [dealsQuery.isError]);
+  const fetch = () => { void dealsQuery.refetch(); };
 
   const openAdd = () => {
     setForm({ merchant: '', title: '', description: '', discount: '', couponCode: '', url: '', validUntil: '', category: '' });

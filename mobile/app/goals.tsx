@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme,
   RefreshControl, ActivityIndicator, Modal, TextInput, Alert,
@@ -8,6 +8,7 @@ import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 import PurposePicker from '../components/PurposePicker';
 
 interface GoalItem {
@@ -38,17 +39,18 @@ export default function GoalsScreen() {
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const fetch = useCallback(async () => {
-    setError(null);
-    try {
-      const res = await api.get('/api/goals');
-      const data = res.data;
-      setGoals(Array.isArray(data?.goals) ? data.goals : Array.isArray(data) ? data : []);
-    } catch { setError('Failed to load goals'); }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { fetch(); }, [fetch]);
+  const goalsQuery = useApiQuery<any>(['goals'], '/api/goals');
+  useEffect(() => {
+    if (goalsQuery.data !== undefined) {
+      setGoals(Array.isArray(goalsQuery.data?.goals) ? goalsQuery.data.goals : Array.isArray(goalsQuery.data) ? goalsQuery.data : []);
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [goalsQuery.data]);
+  useEffect(() => {
+    if (goalsQuery.isError) setError('Failed to load goals');
+  }, [goalsQuery.isError]);
+  const fetch = () => { void goalsQuery.refetch(); };
 
   const handleSave = async () => {
     if (!formName.trim() || !formTarget) { setFormError('Please fill all fields'); return; }

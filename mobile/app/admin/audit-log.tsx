@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme,
   RefreshControl, ActivityIndicator, TextInput,
@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import api from '../../api/client';
+import { useApiQuery } from '../../hooks/use-api-query';
 
 interface AuditEntry {
   id: number;
@@ -60,35 +61,40 @@ export default function AdminAuditLogScreen() {
   const [showActionPicker, setShowActionPicker] = useState(false);
   const [showEntityPicker, setShowEntityPicker] = useState(false);
 
-  const fetch = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      params.set('page', page.toString());
-      params.set('limit', '50');
-      if (actionFilter) params.set('action', actionFilter);
-      if (entityFilter) params.set('entity', entityFilter);
-      if (userIdFilter) params.set('userId', userIdFilter);
-      if (fromDate) params.set('from', new Date(fromDate).toISOString());
-      if (toDate) params.set('to', new Date(toDate).toISOString());
-
-      const res = await api.get(`/api/admin/audit-log?${params.toString()}`);
-      const data = res.data;
-      setLogs(data.logs || []);
-      setTotalPages(data.pagination?.totalPages || 1);
-      setTotal(data.pagination?.total || 0);
-    } catch (err: unknown) {
-      if ((err as { response?: { status?: number } }).response?.status === 403) setError('Admin access required');
-      else setError('Failed to load audit log');
-      setLogs([]);
-    } finally {
+  const logsQuery = useApiQuery<any>(
+    ['admin-audit-log', page, actionFilter, entityFilter, userIdFilter, fromDate, toDate],
+    '/api/admin/audit-log',
+    {
+      params: {
+        page: String(page),
+        limit: '50',
+        ...(actionFilter ? { action: actionFilter } : {}),
+        ...(entityFilter ? { entity: entityFilter } : {}),
+        ...(userIdFilter ? { userId: userIdFilter } : {}),
+        ...(fromDate ? { from: new Date(fromDate).toISOString() } : {}),
+        ...(toDate ? { to: new Date(toDate).toISOString() } : {}),
+      },
+    },
+  );
+  useEffect(() => {
+    if (logsQuery.data !== undefined) {
+      setLogs(logsQuery.data.logs || []);
+      setTotalPages(logsQuery.data.pagination?.totalPages || 1);
+      setTotal(logsQuery.data.pagination?.total || 0);
       setLoading(false);
       setRefreshing(false);
     }
-  }, [page, actionFilter, entityFilter, userIdFilter, fromDate, toDate]);
-
-  useEffect(() => { fetch(); }, [fetch]);
+  }, [logsQuery.data]);
+  useEffect(() => {
+    if (logsQuery.isError) {
+      const status = (logsQuery.error as any)?.response?.status;
+      setError(status === 403 ? 'Admin access required' : 'Failed to load audit log');
+      setLogs([]);
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [logsQuery.isError]);
+  const fetch = () => { void logsQuery.refetch(); };
 
   const resetFilters = () => {
     setActionFilter('');

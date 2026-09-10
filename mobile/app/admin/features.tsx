@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme,
   RefreshControl, ActivityIndicator, Modal, TextInput, Alert,
@@ -8,6 +8,7 @@ import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { formatDate } from '../../utils/format';
 import api from '../../api/client';
+import { useApiQuery } from '../../hooks/use-api-query';
 
 interface FeatureFlag {
   id: number;
@@ -60,25 +61,31 @@ export default function AdminFeaturesScreen() {
   const [newTier, setNewTier] = useState('free');
   const [createError, setCreateError] = useState<string | null>(null);
 
-  const fetch = useCallback(async () => {
-    setError(null);
-    try {
-      const [featRes, usersRes] = await Promise.all([
-        api.get('/api/admin/features'),
-        api.get('/api/admin/features/users'),
-      ]);
-      setFeatures(Array.isArray(featRes.data) ? featRes.data : []);
-      setUsers(usersRes.data?.users || []);
-    } catch (err: unknown) {
-      if ((err as { response?: { status?: number } }).response?.status === 403) setError('Admin access required');
-      else setError('Failed to load data');
-    } finally {
+  const featuresQuery = useApiQuery<any>(['admin-features'], '/api/admin/features');
+  const featureUsersQuery = useApiQuery<any>(['admin-feature-users'], '/api/admin/features/users');
+  useEffect(() => {
+    if (featuresQuery.data !== undefined) {
+      setFeatures(Array.isArray(featuresQuery.data) ? featuresQuery.data : []);
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
-
-  useEffect(() => { fetch(); }, [fetch]);
+  }, [featuresQuery.data]);
+  useEffect(() => {
+    if (featureUsersQuery.data !== undefined) {
+      setUsers(featureUsersQuery.data?.users || []);
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [featureUsersQuery.data]);
+  useEffect(() => {
+    if (featuresQuery.isError || featureUsersQuery.isError) {
+      const status = (featuresQuery.error as any)?.response?.status || (featureUsersQuery.error as any)?.response?.status;
+      setError(status === 403 ? 'Admin access required' : 'Failed to load data');
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [featuresQuery.isError, featureUsersQuery.isError]);
+  const fetch = () => { featuresQuery.refetch(); featureUsersQuery.refetch(); };
 
   const toggleFeature = async (featureId: number, currentEnabled: boolean) => {
     try {

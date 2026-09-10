@@ -9,6 +9,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import { invalidateCache } from "@/shared/auto-categorize-cache"
+import { cacheDel, CacheKeys } from "@/lib/cache"
 
 interface ApplyCorrection {
   vendor: string
@@ -83,6 +84,7 @@ export async function POST(req: Request) {
 
     // Invalidate cache so next GET re-computes with updated rules
     invalidateCache(userId)
+    await cacheDel(CacheKeys.autoCatResults(userId))
 
     return NextResponse.json({
       success: true,

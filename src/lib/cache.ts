@@ -62,6 +62,16 @@ export const CacheKeys = {
   incomeSummary: (profileId: number, month: number, year: number) =>
     `income:sum:${profileId}:${month}:${year}`,
   emergencyFund: (profileId: number) => `emfund:${profileId}`,
+  expenses: (profileId: number, queryHash: string) =>
+    `exp:${profileId}:${queryHash}`,
+  autoCatResults: (userId: number) => `autocat:${userId}`,
+  autoCatCategories: () => `autocat:cats`,
+  adminUsers: () => `admin:users`,
+  adminFeatures: () => `admin:features`,
+  adminProfiles: () => `admin:profiles`,
+  adminLoans: () => `admin:loans`,
+  adminFunds: () => `admin:funds`,
+  adminAuditLog: (queryHash: string) => `admin:audit:${queryHash}`,
 } as const;
 
 export async function cached<T>(

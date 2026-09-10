@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth"
 import { requireRole, type AuthUser } from "@/lib/roles"
 import { validateBody } from "@/shared/validate"
 import { ProfileCreateSchema } from "@/shared/validation"
+import { cached, CACHE_TTL, CacheKeys, cacheDel } from "@/lib/cache"
 
 /**
  * GET /api/admin/profiles — List all profiles with user info (admin-only)
@@ -13,45 +14,47 @@ export async function GET(_req: Request) {
   const forbid = requireRole(session?.user as AuthUser, "admin")
   if (forbid) return forbid
 
-  const profiles = await prisma.profile.findMany({
-    orderBy: [{ createdAt: "desc" }],
-    select: {
-      id: true,
-      name: true,
-      isDefault: true,
-      createdAt: true,
-      updatedAt: true,
-      userId: true,
-      user: {
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
+  const result = await cached(CacheKeys.adminProfiles(), CACHE_TTL.SHORT, async () => {
+    const profiles = await prisma.profile.findMany({
+      orderBy: [{ createdAt: "desc" }],
+      select: {
+        id: true,
+        name: true,
+        isDefault: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+          },
+        },
+        _count: {
+          select: {
+            expenses: true,
+            budgets: true,
+            goals: true,
+          },
         },
       },
-      _count: {
-        select: {
-          expenses: true,
-          budgets: true,
-          goals: true,
-        },
-      },
-    },
-  })
+    })
 
-  const result = profiles.map((p) => ({
-    id: p.id,
-    name: p.name,
-    isDefault: p.isDefault,
-    createdAt: p.createdAt,
-    updatedAt: p.updatedAt,
-    userId: p.userId,
-    user: p.user,
-    expenseCount: p._count.expenses,
-    budgetCount: p._count.budgets,
-    goalCount: p._count.goals,
-  }))
+    return profiles.map((p) => ({
+      id: p.id,
+      name: p.name,
+      isDefault: p.isDefault,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      userId: p.userId,
+      user: p.user,
+      expenseCount: p._count.expenses,
+      budgetCount: p._count.budgets,
+      goalCount: p._count.goals,
+    }))
+  })
 
   return NextResponse.json(result)
 }
@@ -97,4 +100,5 @@ export async function POST(req: Request) {
   })
 
   return NextResponse.json(profile, { status: 201 })
+  await cacheDel(CacheKeys.adminProfiles())
 }

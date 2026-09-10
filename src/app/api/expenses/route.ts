@@ -3,16 +3,18 @@ import { prisma } from "@/lib/prisma"
 import { validateBody } from "@/shared/validate"
 import { ExpenseCreateSchema } from "@/shared/validation"
 import { getAuthContext, handleAuthError } from "@/lib/with-auth"
-import { cacheDel, cacheDelPattern, CacheKeys, invalidateProfile } from "@/lib/cache"
+import { cacheDel, cacheDelPattern, CacheKeys, invalidateProfile, cached, CACHE_TTL } from "@/lib/cache"
+import { createHash } from "crypto"
 import type { Prisma } from "@prisma/client"
 
 async function invalidateExpenseCaches(profileId: number) {
-  // Expense mutations affect insights, health score, net worth, and intelligence.
+  // Expense mutations affect insights, health score, net worth, intelligence, and expenses list.
   await invalidateProfile(profileId) // intel:*
   await cacheDelPattern(`insights:${profileId}:*`)
   await cacheDelPattern(`health:${profileId}:*`)
   await cacheDelPattern(`networth:${profileId}*`)
   await cacheDel(CacheKeys.expenseYears(profileId))
+  await cacheDelPattern(`exp:${profileId}:*`)
 }
 
 /**
@@ -78,6 +80,13 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url)
 
+  // Build cache key from sorted query params
+  const paramEntries = Array.from(searchParams.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+  const queryHash = createHash("md5").update(JSON.stringify(paramEntries)).digest("hex").slice(0, 12)
+
+  const cacheKey = CacheKeys.expenses(profileId, queryHash)
+
+  const result = await cached(cacheKey, CACHE_TTL.SHORT, async () => {
   // Single-value params (kept for backward compatibility)
   const categoryId = searchParams.get("categoryId")
   const month = searchParams.get("month")
@@ -309,7 +318,7 @@ export async function GET(req: Request) {
     return out
   }
 
-  return NextResponse.json({
+  return {
     data: expenses,
     total,
     page,
@@ -322,7 +331,10 @@ export async function GET(req: Request) {
     distinctVendors: dedupeInsensitive(distinctVendors.map((v) => v.vendor)),
     distinctSubCategories: dedupeInsensitive(distinctSubCategories.map((s) => s.subCategory)),
     distinctBankAccounts: dedupeInsensitive(distinctBankAccounts.map((b) => b.bankAccount)),
+  }
   })
+
+  return NextResponse.json(result)
 }
 
 export async function POST(req: Request) {

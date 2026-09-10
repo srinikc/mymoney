@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { requireRole, type AuthUser } from "@/lib/roles"
+import { cached, CACHE_TTL, CacheKeys, cacheDel } from "@/lib/cache"
 
 export const runtime = "nodejs"
 
@@ -10,10 +11,12 @@ export async function GET() {
   const forbid = requireRole(session?.user as AuthUser, "admin")
   if (forbid) return forbid
 
-  const products = await prisma.loanProduct.findMany({
-    orderBy: [{ displayOrder: "asc" }, { id: "asc" }],
+  const result = await cached(CacheKeys.adminLoans(), CACHE_TTL.SHORT, async () => {
+    return prisma.loanProduct.findMany({
+      orderBy: [{ displayOrder: "asc" }, { id: "asc" }],
+    })
   })
-  return NextResponse.json({ products })
+  return NextResponse.json({ products: result })
 }
 
 export async function POST(req: Request) {
@@ -61,6 +64,7 @@ export async function POST(req: Request) {
       },
     })
     return NextResponse.json({ ok: true, product: created })
+    await cacheDel(CacheKeys.adminLoans())
   } catch (e) {
     console.error("admin loans POST error:", e)
     return NextResponse.json({ error: "internal error" }, { status: 500 })

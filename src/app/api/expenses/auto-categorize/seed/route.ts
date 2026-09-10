@@ -18,6 +18,7 @@ import {
   type CategorizeResult,
 } from "@/shared/auto-categorize"
 import { invalidateCache } from "@/shared/auto-categorize-cache"
+import { cacheDel, CacheKeys } from "@/lib/cache"
 
 // Default path to the GPay takeout file
 const GPAY_HTML_PATH = "C:\\Users\\ADMIN\\Downloads\\takeout-20260822T124005Z-1-001\\Takeout\\Google Pay\\My Activity\\My Activity.html"
@@ -138,6 +139,7 @@ export async function POST(req: Request) {
 
     // Invalidate cache so next GET re-computes with new rules
     invalidateCache(userId)
+    await cacheDel(CacheKeys.autoCatResults(userId))
 
     return NextResponse.json({
       totalTransactions: txns.length,

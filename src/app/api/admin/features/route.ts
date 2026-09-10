@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth"
 import { requireRole, type AuthUser } from "@/lib/roles"
 import { validateBody } from "@/shared/validate"
 import { FeatureFlagCreateSchema } from "@/shared/validation"
+import { cached, CACHE_TTL, CacheKeys, cacheDel } from "@/lib/cache"
 
 /**
  * GET /api/admin/features — List all feature flags (admin-only)
@@ -13,8 +14,10 @@ export async function GET(_req: Request) {
   const forbid = requireRole(session?.user as AuthUser, "admin")
   if (forbid) return forbid
 
-  const features = await prisma.featureFlag.findMany({
-    orderBy: { name: "asc" },
+  const features = await cached(CacheKeys.adminFeatures(), CACHE_TTL.SHORT, async () => {
+    return prisma.featureFlag.findMany({
+      orderBy: { name: "asc" },
+    })
   })
 
   return NextResponse.json(features)
@@ -46,4 +49,5 @@ export async function POST(req: Request) {
   })
 
   return NextResponse.json(feature, { status: 201 })
+  await cacheDel(CacheKeys.adminFeatures())
 }

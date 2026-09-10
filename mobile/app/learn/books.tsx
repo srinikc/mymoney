@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import api from '../../api/client';
+import { useApiQuery } from '../../hooks/use-api-query';
 
 interface Book {
   id: string;
@@ -60,23 +61,14 @@ export default function BooksScreen() {
   const [category, setCategory] = useState('all');
   const [activeBook, setActiveBook] = useState<Book | null>(null);
 
+  const booksQuery = useApiQuery<BooksResponse>(['books', category], '/api/books', { params: category !== 'all' ? { category } : {} });
   useEffect(() => {
-    void load();
-  }, [category]);
+    if (booksQuery.data !== undefined) { setData(booksQuery.data); setLoading(false); setRefreshing(false); }
+  }, [booksQuery.data]);
 
-  async function load() {
+  function load() {
     setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (category !== 'all') params.set('category', category);
-      const res = await api.get<BooksResponse>(`/api/books?${params}`);
-      setData(res.data);
-    } catch (e) {
-      // noop
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    booksQuery.refetch();
   }
 
   if (loading && !data) {

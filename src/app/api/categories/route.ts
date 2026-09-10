@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { validateBody } from "@/shared/validate"
 import { CategoryCreateSchema } from "@/shared/validation"
+import { cached, CACHE_TTL, CacheKeys, cacheDel } from "@/lib/cache"
 
 const defaultCategories = [
   { name: "Food & Dining", type: "expense", icon: "utensils", color: "#ef4444" },
@@ -23,12 +24,14 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const includeSubs = searchParams.get("include") === "subCategories"
 
-  let categories = await prisma.category.findMany({ orderBy: { name: "asc" } })
-
-  if (categories.length === 0) {
-    await prisma.category.createMany({ data: defaultCategories })
-    categories = await prisma.category.findMany({ orderBy: { name: "asc" } })
-  }
+  const data = await cached(CacheKeys.categories(), CACHE_TTL.LONG, async () => {
+    let categories = await prisma.category.findMany({ orderBy: { name: "asc" } })
+    if (categories.length === 0) {
+      await prisma.category.createMany({ data: defaultCategories })
+      categories = await prisma.category.findMany({ orderBy: { name: "asc" } })
+    }
+    return categories
+  })
 
   if (includeSubs) {
     const expenseSubCats = await prisma.expense.findMany({
@@ -43,10 +46,10 @@ export async function GET(req: Request) {
       ...expenseSubCats.map((s) => s.subCategory).filter(Boolean),
       ...budgetSubCats.map((s) => s.subCategory).filter(Boolean),
     ])
-    return NextResponse.json({ categories, subCategories: [...all] })
+    return NextResponse.json({ categories: data, subCategories: [...all] })
   }
 
-  return NextResponse.json(categories)
+  return NextResponse.json(data)
 }
 
 export async function POST(req: Request) {
@@ -61,4 +64,5 @@ export async function POST(req: Request) {
     },
   })
   return NextResponse.json(category, { status: 201 })
+  await cacheDel(CacheKeys.categories())
 }

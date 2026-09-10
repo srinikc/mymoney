@@ -117,7 +117,7 @@ export default function HealthDashboardPage() {
           <Button size="sm" onClick={dlPdf} disabled={pdfL}><Download className="mr-1.5 h-4 w-4" />{pdfL ? "Generating..." : "Download PDF"}</Button>
         </div>
       </div>
-      <HealthGauge score={hs?.overall ?? 0} metrics={metrics} />
+      <HealthGauge score={hs?.overall ?? 0} />
       <div>
         <h2 className="mb-4 text-lg font-semibold">Score Components</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

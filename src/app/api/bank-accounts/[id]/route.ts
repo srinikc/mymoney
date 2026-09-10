@@ -33,6 +33,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         ifscCode: body.ifscCode,
         branch: body.branch,
         balance: body.balance,
+        isEmergencyFund: body.isEmergencyFund,
         notes: body.notes,
       },
     })

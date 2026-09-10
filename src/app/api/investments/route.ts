@@ -3,12 +3,15 @@ import { prisma } from "@/lib/prisma"
 import { withAuth } from "@/lib/with-auth"
 import { validateBody } from "@/shared/validate"
 import { InvestmentCreateSchema, InvestmentUpdateSchema } from "@/shared/validation"
+import { cached, CACHE_TTL, CacheKeys, cacheDel } from "@/lib/cache"
 
 export async function GET() {
   const auth = await withAuth()
   if (auth.error) return auth.error
   const { profileId } = auth
-  const investments = await prisma.investment.findMany({ where: { profileId }, orderBy: { purchaseDate: "desc" } })
+  const investments = await cached(CacheKeys.investments(profileId), CACHE_TTL.SHORT, async () => {
+    return prisma.investment.findMany({ where: { profileId }, orderBy: { purchaseDate: "desc" } })
+  })
   return NextResponse.json(investments)
 }
 
@@ -48,6 +51,12 @@ export async function POST(req: Request) {
     },
   })
   return NextResponse.json(investment, { status: 201 })
+  // Invalidate caches affected by investment changes
+  if (profileId) {
+    await cacheDel(CacheKeys.investments(profileId))
+    await cacheDel(CacheKeys.netWorth(profileId))
+    await cacheDel(CacheKeys.healthScore(profileId))
+  }
 }
 
 export async function PUT(req: Request) {
@@ -90,6 +99,12 @@ export async function PUT(req: Request) {
     },
   })
   return NextResponse.json(investment)
+  // Invalidate caches
+  if (profileId) {
+    await cacheDel(CacheKeys.investments(profileId))
+    await cacheDel(CacheKeys.netWorth(profileId))
+    await cacheDel(CacheKeys.healthScore(profileId))
+  }
 }
 
 export async function DELETE(req: Request) {
@@ -104,5 +119,10 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
   await prisma.investment.delete({ where: { id: existing.id } })
+  if (profileId) {
+    await cacheDel(CacheKeys.investments(profileId))
+    await cacheDel(CacheKeys.netWorth(profileId))
+    await cacheDel(CacheKeys.healthScore(profileId))
+  }
   return NextResponse.json({ success: true })
 }

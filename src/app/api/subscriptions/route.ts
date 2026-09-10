@@ -3,14 +3,17 @@ import { prisma } from "@/lib/prisma"
 import { withAuth } from "@/lib/with-auth"
 import { validateBody } from "@/shared/validate"
 import { SubscriptionCreateSchema, SubscriptionUpdateSchema } from "@/shared/validation"
+import { cached, CACHE_TTL, CacheKeys, cacheDel } from "@/lib/cache"
 
 export async function GET() {
   const auth = await withAuth()
   if (auth.error) return auth.error
   const { profileId } = auth
-  const subscriptions = await prisma.subscription.findMany({
-    where: { profileId },
-    orderBy: [{ nextDueDate: "asc" }, { createdAt: "desc" }],
+  const subscriptions = await cached(CacheKeys.subscriptions(profileId), CACHE_TTL.SHORT, async () => {
+    return prisma.subscription.findMany({
+      where: { profileId },
+      orderBy: [{ nextDueDate: "asc" }, { createdAt: "desc" }],
+    })
   })
   return NextResponse.json(subscriptions)
 }
@@ -35,6 +38,7 @@ export async function POST(req: Request) {
     },
   })
   return NextResponse.json(subscription, { status: 201 })
+  if (profileId) await cacheDel(CacheKeys.subscriptions(profileId))
 }
 
 export async function PUT(req: Request) {
@@ -61,6 +65,7 @@ export async function PUT(req: Request) {
     },
   })
   return NextResponse.json(subscription)
+  if (profileId) await cacheDel(CacheKeys.subscriptions(profileId))
 }
 
 export async function DELETE(req: Request) {
@@ -75,5 +80,6 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
   await prisma.subscription.delete({ where: { id: existing.id } })
+  if (profileId) await cacheDel(CacheKeys.subscriptions(profileId))
   return NextResponse.json({ success: true })
 }

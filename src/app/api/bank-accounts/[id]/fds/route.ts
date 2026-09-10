@@ -43,6 +43,27 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       },
     })
 
+    // Link FD to a goal (100% allocation) via InvestmentGoalAllocation if goalId provided
+    if (body.goalId) {
+      const goalId = Number(body.goalId)
+      const goal = await prisma.goal.findFirst({
+        where: { id: goalId, profileId: profileId || undefined },
+        select: { id: true },
+      })
+      if (goal) {
+        const allocationValue = body.maturityAmount ?? body.principal ?? 0
+        await prisma.investmentGoalAllocation.create({
+          data: {
+            fixedDepositId: fd.id,
+            goalId,
+            allocationPct: 100,
+            allocationValue: Number(allocationValue),
+            notes: body.notes || null,
+          },
+        })
+      }
+    }
+
     return NextResponse.json(fd, { status: 201 })
   } catch (error) {
     console.error("FDs POST error:", error)

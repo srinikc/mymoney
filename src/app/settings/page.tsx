@@ -116,6 +116,23 @@ export default function SettingsPage() {
           </Link>
         )}
 
+        {isAdmin && (
+          <Link href="/admin/backup">
+            <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full border-purple-200 dark:border-purple-800">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <Shield className="h-5 w-5 text-purple-500" />
+                  <CardTitle className="text-base">Backup & Restore</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">Disaster recovery: Cloudflare R2 + Supabase Storage backup, restore, and schedule</p>
+                <Badge variant="outline" className="mt-2 text-xs border-amber-200 text-amber-700">Admin only</Badge>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
+
         <Link href="/settings/bank-accounts">
           <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
             <CardHeader>

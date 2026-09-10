@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getRedisStatus } from "@/lib/redis"
 import { getVersionInfo } from "@/lib/version"
 import { logger } from "@/lib/logger"
 
@@ -47,19 +46,29 @@ async function checkDb(timeoutMs: number): Promise<Subsystem> {
   }
 }
 
-function checkRedis(): Subsystem {
+async function checkRedis(): Promise<Subsystem> {
   const start = Date.now()
   try {
-    const status = getRedisStatus()
-    if (status === "connected") {
-      return { name: "redis", status: "ok", latencyMs: Date.now() - start, detail: status }
+    const { getRedisClient } = await import("@/lib/redis")
+    const client = getRedisClient()
+    if (!client) {
+      return { name: "redis", status: "degraded", latencyMs: Date.now() - start, detail: "disabled (in-memory fallback)" }
     }
-    if (status === "disabled") {
-      return { name: "redis", status: "ok", latencyMs: Date.now() - start, detail: "disabled (in-memory fallback)" }
+    // Wait for Redis to be ready (up to 3s) before pinging
+    if (client.status !== "ready") {
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("Redis not ready")), 3000)
+        client.once("ready", () => { clearTimeout(timer); resolve() })
+        client.once("error", (err: Error) => { clearTimeout(timer); reject(err) })
+      })
     }
-    return { name: "redis", status: "degraded", latencyMs: Date.now() - start, detail: status }
+    const pong = await Promise.race([
+      client.ping(),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("ping timeout")), 2000)),
+    ])
+    return { name: "redis", status: "ok", latencyMs: Date.now() - start, detail: pong }
   } catch (e) {
-    return { name: "redis", status: "down", latencyMs: Date.now() - start, detail: (e as Error).message }
+    return { name: "redis", status: "degraded", latencyMs: Date.now() - start, detail: (e as Error).message }
   }
 }
 
@@ -67,7 +76,7 @@ export async function GET() {
   const version = getVersionInfo()
   const checks = await Promise.all([
     checkDb(2000),
-    Promise.resolve(checkRedis()),
+    checkRedis(),
   ])
 
   const allOk = checks.every((c) => c.status === "ok")

@@ -38,6 +38,16 @@ interface Transaction {
 }
 
 const BANK_TYPES = ['savings', 'current', 'salary', 'credit_card', 'loan'];
+const FD_STATUSES = ['active', 'matured', 'closed'];
+
+function calcFdMaturity(principal: number, rate: number, start?: string, maturity?: string): number | null {
+  if (!principal || !rate || !start || !maturity) return null;
+  const s = new Date(start).getTime();
+  const e = new Date(maturity).getTime();
+  if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) return null;
+  const t = (e - s) / (365.25 * 24 * 60 * 60 * 1000);
+  return Math.round(principal * Math.pow(1 + rate / 400, 4 * t));
+}
 
 export default function BankAccountsScreen() {
   const colorScheme = useColorScheme();
@@ -70,6 +80,10 @@ export default function BankAccountsScreen() {
   const [fdStart, setFdStart] = useState('');
   const [fdMaturity, setFdMaturity] = useState('');
   const [fdMaturityAmt, setFdMaturityAmt] = useState('');
+  const [fdStatus, setFdStatus] = useState('active');
+  const [fdGoalId, setFdGoalId] = useState<number | null>(null);
+  const [fdNotes, setFdNotes] = useState('');
+  const [goals, setGoals] = useState<{ id: number; name: string; status?: string }[]>([]);
 
   // Cash state
   const [cashAmount, setCashAmount] = useState('');
@@ -99,6 +113,12 @@ export default function BankAccountsScreen() {
   }, []);
 
   useEffect(() => { fetchAccounts(); fetchCash(); }, [fetchAccounts, fetchCash]);
+
+  useEffect(() => {
+    api.get('/api/goals').then((r) => setGoals(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+  }, []);
+
+  const fdAutoMaturity = calcFdMaturity(parseFloat(fdPrincipal || '0'), parseFloat(fdRate || '0'), fdStart || undefined, fdMaturity || undefined);
 
   const handleSaveCash = async () => {
     setSavingCash(true);
@@ -130,9 +150,14 @@ export default function BankAccountsScreen() {
   const handleSaveFd = async () => {
     if (!selectedAccount || !fdPrincipal) return;
     try {
-      await api.post(`/api/bank-accounts/${selectedAccount.id}/fds`, { fdNumber, principal: parseFloat(fdPrincipal), interestRate: parseFloat(fdRate || '0'), startDate: fdStart, maturityDate: fdMaturity, maturityAmount: fdMaturityAmt ? parseFloat(fdMaturityAmt) : null });
+      await api.post(`/api/bank-accounts/${selectedAccount.id}/fds`, {
+        fdNumber, principal: parseFloat(fdPrincipal), interestRate: parseFloat(fdRate || '0'),
+        startDate: fdStart, maturityDate: fdMaturity,
+        maturityAmount: fdMaturityAmt ? parseFloat(fdMaturityAmt) : fdAutoMaturity,
+        goalId: fdGoalId, status: fdStatus, notes: fdNotes || null,
+      });
       setShowFdForm(false);
-      setFdNumber(''); setFdPrincipal(''); setFdRate(''); setFdStart(''); setFdMaturity(''); setFdMaturityAmt('');
+      setFdNumber(''); setFdPrincipal(''); setFdRate(''); setFdStart(''); setFdMaturity(''); setFdMaturityAmt(''); setFdStatus('active'); setFdGoalId(null); setFdNotes('');
       const res = await api.get(`/api/bank-accounts/${selectedAccount.id}`);
       setSelectedAccount(res.data);
     } catch { Alert.alert('Error', 'Failed to save FD'); }
@@ -189,6 +214,35 @@ export default function BankAccountsScreen() {
                   <TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={fdRate} onChangeText={setFdRate} keyboardType="decimal-pad" placeholder="Interest Rate (%)" placeholderTextColor={theme.textTertiary} />
                   <TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={fdStart} onChangeText={setFdStart} placeholder="Start Date (YYYY-MM-DD)" placeholderTextColor={theme.textTertiary} />
                   <TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={fdMaturity} onChangeText={setFdMaturity} placeholder="Maturity Date" placeholderTextColor={theme.textTertiary} />
+                  {fdAutoMaturity !== null && !fdMaturityAmt && (
+                    <Text style={{ color: theme.income, fontSize: 12, fontWeight: '600' }}>Auto maturity: {formatCurrency(fdAutoMaturity)}</Text>
+                  )}
+                  <TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={fdMaturityAmt} onChangeText={setFdMaturityAmt} keyboardType="numeric" placeholder="Maturity Amount (₹) — auto if blank" placeholderTextColor={theme.textTertiary} />
+
+                  <Text style={{ color: theme.textTertiary, fontSize: 12, fontWeight: '600', marginTop: 4 }}>Status</Text>
+                  <View style={styles.typeRow}>{FD_STATUSES.map((s) => (
+                    <TouchableOpacity key={s} onPress={() => setFdStatus(s)} style={[styles.typeBtn, { backgroundColor: fdStatus === s ? theme.primary : theme.background }]}>
+                      <Text style={{ color: fdStatus === s ? '#fff' : theme.text, fontSize: 12 }}>{s}</Text>
+                    </TouchableOpacity>
+                  ))}</View>
+
+                  {goals.length > 0 && (
+                    <>
+                      <Text style={{ color: theme.textTertiary, fontSize: 12, fontWeight: '600', marginTop: 4 }}>Link to Goal (optional)</Text>
+                      <View style={styles.typeRow}>
+                        <TouchableOpacity onPress={() => setFdGoalId(null)} style={[styles.typeBtn, { backgroundColor: fdGoalId === null ? theme.primary : theme.background }]}>
+                          <Text style={{ color: fdGoalId === null ? '#fff' : theme.text, fontSize: 12 }}>None</Text>
+                        </TouchableOpacity>
+                        {goals.filter((g) => !g.status || g.status === 'active').map((g) => (
+                          <TouchableOpacity key={g.id} onPress={() => setFdGoalId(g.id)} style={[styles.typeBtn, { backgroundColor: fdGoalId === g.id ? theme.primary : theme.background }]}>
+                            <Text style={{ color: fdGoalId === g.id ? '#fff' : theme.text, fontSize: 12 }}>{g.name}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </>
+                  )}
+
+                  <TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={fdNotes} onChangeText={setFdNotes} placeholder="Notes (optional)" placeholderTextColor={theme.textTertiary} />
                   <TouchableOpacity onPress={handleSaveFd} style={[styles.saveBtn, { backgroundColor: theme.primary }]}>
                     <Text style={{ color: '#fff', fontWeight: '700' }}>Save FD</Text>
                   </TouchableOpacity>
@@ -281,6 +335,7 @@ export default function BankAccountsScreen() {
               }
               renderItem={({ item }) => {
                 const fdTotal = item.fixedDeposits.reduce((s: number, f: FixedDeposit) => s + f.principal, 0);
+                const fdMatTotal = item.fixedDeposits.reduce((s: number, f: FixedDeposit) => s + (f.maturityAmount ?? f.principal), 0);
                 const activeFds = item.fixedDeposits.filter((f: FixedDeposit) => f.status === 'active').length;
                 return (
                   <TouchableOpacity onPress={() => { setSelectedAccount(item); if (item.id) fetchTransactions(item.id); }} style={[styles.card, { backgroundColor: theme.surface }]}>
@@ -289,9 +344,25 @@ export default function BankAccountsScreen() {
                         <Ionicons name="business" size={18} color={typeColors[item.type]} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.cardTitle, { color: theme.text }]}>{item.bankName}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Text style={[styles.cardTitle, { color: theme.text }]}>{item.bankName}</Text>
+                          <TouchableOpacity
+                            onPress={() => { setSelectedAccount(item); setDetailTab('fds'); setShowFdForm(true); if (item.id) fetchTransactions(item.id); }}
+                            style={{ backgroundColor: theme.primaryLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 3 }}
+                          >
+                            <Ionicons name="add" size={12} color={theme.primary} />
+                            <Text style={{ color: theme.primary, fontSize: 11, fontWeight: '700' }}>FD</Text>
+                          </TouchableOpacity>
+                        </View>
                         <Text style={[styles.cardSubtext, { color: theme.textTertiary }]}>{item.name} · {item.accountNumber || ''}</Text>
-                        {activeFds > 0 && <Text style={{ fontSize: 11, color: theme.income, marginTop: 2 }}>{activeFds} FD · {formatCurrency(fdTotal)}</Text>}
+                        {activeFds > 0 ? (
+                          <>
+                            <Text style={{ fontSize: 11, color: theme.income, marginTop: 2 }}>{activeFds} FD · Invested {formatCurrency(fdTotal)}</Text>
+                            <Text style={{ fontSize: 11, color: theme.income, marginTop: 1 }}>Maturity {formatCurrency(fdMatTotal)}</Text>
+                          </>
+                        ) : (
+                          <Text style={{ fontSize: 11, color: theme.textTertiary, marginTop: 2 }}>No FDs</Text>
+                        )}
                       </View>
                       <Text style={[styles.cardAmount, { color: theme.text }]}>{formatCurrency(item.balance)}</Text>
                     </View>

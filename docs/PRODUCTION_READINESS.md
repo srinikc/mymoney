@@ -299,14 +299,14 @@ Scrape with Prometheus, visualize in Grafana. Or use Vercel Analytics
 
 ## 4. Backup & disaster recovery
 
-### 4.1 Database backups
+### 4.1 Database and file backups
 
-- **Supabase free tier**: 7-day PITR (point-in-time recovery)
-- **Supabase Pro**: 30-day PITR, daily snapshots
-- **Manual**: `pg_dump` every 6 hours, store in S3
+- **Database**: Supabase free tier includes 7-day PITR (point-in-time recovery); Supabase Pro offers 30-day PITR and daily snapshots.
+- **File uploads** (receipts, tax docs): Stored in Supabase Storage (persistent, survives deploys) and included in backup snapshots.
+- **Manual backup strategy** (optional, for extra redundancy): `pg_dump` every 6 hours + archive of Supabase Storage buckets, stored in S3 or compatible object storage.
 
 ```bash
-# Daily backup cron
+# Daily backup cron (database only)
 0 */6 * * * pg_dump $DATABASE_URL | gzip > /backups/mymoney-$(date +\%Y\%m\%d-\%H\%M).sql.gz
 ```
 

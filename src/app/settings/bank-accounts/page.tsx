@@ -27,7 +27,7 @@ export default function BankAccountsSettingsPage() {
   const [accounts, setAccounts] = useState<BankAccountItem[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ bankName: "", name: "", accountNumber: "", type: "savings", ifscCode: "", balance: "" })
+  const [form, setForm] = useState({ bankName: "", name: "", accountNumber: "", type: "savings", ifscCode: "", balance: "", isEmergencyFund: false })
 
   const fetchAccounts = async () => {
     const res = await fetch("/api/bank-accounts")
@@ -48,7 +48,7 @@ export default function BankAccountsSettingsPage() {
       if (!res.ok) throw new Error((await res.json()).error || "Failed to save account")
       toast.success("Bank account added")
       setShowForm(false)
-      setForm({ bankName: "", name: "", accountNumber: "", type: "savings", ifscCode: "", balance: "" })
+      setForm({ bankName: "", name: "", accountNumber: "", type: "savings", ifscCode: "", balance: "", isEmergencyFund: false })
       fetchAccounts()
     } catch (err: unknown) {
       toast.error((err as Error).message || "Failed to save account")
@@ -112,6 +112,15 @@ export default function BankAccountsSettingsPage() {
                 <Input type="number" value={form.balance} onChange={(e) => setForm({ ...form, balance: e.target.value })} placeholder="0" />
               </div>
             </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.isEmergencyFund}
+                onChange={(e) => setForm({ ...form, isEmergencyFund: e.target.checked })}
+                className="h-4 w-4 rounded border-muted"
+              />
+              This is my <strong>emergency fund</strong> account
+            </label>
             <Button onClick={handleSave}>Save Account</Button>
           </CardContent>
         </Card>

@@ -1,14 +1,18 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
-import { ArrowLeft, Building2, Plus, PiggyBank, Search, Loader2, Pencil, Trash2 } from "lucide-react"
+import { calcFdMaturity } from "@/shared/fd-utils"
+import { ArrowLeft, Building2, Plus, PiggyBank, Search, Loader2, Pencil, Trash2, Wallet } from "lucide-react"
 
 interface BankAccountData {
   id: number
@@ -29,6 +33,7 @@ interface FixedDepositData {
   maturityDate?: string
   maturityAmount?: number
   status: string
+  notes?: string | null
 }
 
 interface TransactionData {
@@ -39,6 +44,14 @@ interface TransactionData {
   category?: string
   amount: number
 }
+
+interface GoalData {
+  id: number
+  name: string
+  status?: string
+}
+
+const FD_STATUSES = ["active", "matured", "closed"]
 
 export default function BankAccountDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -52,7 +65,9 @@ export default function BankAccountDetailPage() {
   const [showFdForm, setShowFdForm] = useState(false)
   const [showBalanceEdit, setShowBalanceEdit] = useState(false)
   const [balanceInput, setBalanceInput] = useState("")
-  const [fdForm, setFdForm] = useState({ fdNumber: "", principal: "", interestRate: "", startDate: "", maturityDate: "", maturityAmount: "" })
+  const [goals, setGoals] = useState<GoalData[]>([])
+  const [fdSaving, setFdSaving] = useState(false)
+  const [fdForm, setFdForm] = useState({ fdNumber: "", principal: "", interestRate: "", startDate: "", maturityDate: "", maturityAmount: "", goalId: "", status: "active", notes: "" })
 
   const fetchAccount = useCallback(async () => {
     const res = await fetch(`/api/bank-accounts/${id}`)
@@ -71,14 +86,49 @@ export default function BankAccountDetailPage() {
 
   useEffect(() => { fetchAccount() }, [fetchAccount])
 
+  useEffect(() => {
+    fetch("/api/goals").then((r) => r.json()).then((d) => setGoals(Array.isArray(d) ? d : [])).catch(() => {})
+  }, [])
+
+  const autoMaturity = useMemo(() => {
+    return calcFdMaturity(
+      parseFloat(fdForm.principal) || 0,
+      parseFloat(fdForm.interestRate) || 0,
+      fdForm.startDate || null,
+      fdForm.maturityDate || null,
+    )
+  }, [fdForm.principal, fdForm.interestRate, fdForm.startDate, fdForm.maturityDate])
+
   const handleBalanceUpdate = async () => {
     await fetch(`/api/bank-accounts/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...account, balance: parseFloat(balanceInput) || 0 }) })
     setShowBalanceEdit(false); fetchAccount()
   }
 
   const handleAddFd = async () => {
-    await fetch(`/api/bank-accounts/${id}/fds`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...fdForm, principal: parseFloat(fdForm.principal) || 0, interestRate: parseFloat(fdForm.interestRate) || 0 }) })
-    setShowFdForm(false); setFdForm({ fdNumber: "", principal: "", interestRate: "", startDate: "", maturityDate: "", maturityAmount: "" }); fetchAccount()
+    const principal = parseFloat(fdForm.principal) || 0
+    if (principal <= 0) { toast.error("Principal is required"); return }
+    setFdSaving(true)
+    try {
+      const body = {
+        fdNumber: fdForm.fdNumber || null,
+        principal,
+        interestRate: parseFloat(fdForm.interestRate) || 0,
+        startDate: fdForm.startDate || null,
+        maturityDate: fdForm.maturityDate || null,
+        maturityAmount: fdForm.maturityAmount ? parseFloat(fdForm.maturityAmount) : autoMaturity,
+        goalId: fdForm.goalId ? Number(fdForm.goalId) : null,
+        status: fdForm.status || "active",
+        notes: fdForm.notes || null,
+      }
+      const res = await fetch(`/api/bank-accounts/${id}/fds`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || "Failed to save FD") }
+      toast.success("FD added")
+      setShowFdForm(false); setFdForm({ fdNumber: "", principal: "", interestRate: "", startDate: "", maturityDate: "", maturityAmount: "", goalId: "", status: "active", notes: "" }); fetchAccount()
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to save FD")
+    } finally {
+      setFdSaving(false)
+    }
   }
 
   const handleDeleteFd = async (fdId: number) => {
@@ -134,14 +184,62 @@ export default function BankAccountDetailPage() {
             <Card>
               <CardContent className="p-4 space-y-3">
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Input placeholder="FD Number" value={fdForm.fdNumber} onChange={(e) => setFdForm({ ...fdForm, fdNumber: e.target.value })} />
-                  <Input type="number" placeholder="Principal (₹)" value={fdForm.principal} onChange={(e) => setFdForm({ ...fdForm, principal: e.target.value })} />
-                  <Input type="number" placeholder="Interest Rate (%)" value={fdForm.interestRate} onChange={(e) => setFdForm({ ...fdForm, interestRate: e.target.value })} />
-                  <Input placeholder="Start Date (YYYY-MM-DD)" value={fdForm.startDate} onChange={(e) => setFdForm({ ...fdForm, startDate: e.target.value })} />
-                  <Input placeholder="Maturity Date" value={fdForm.maturityDate} onChange={(e) => setFdForm({ ...fdForm, maturityDate: e.target.value })} />
-                  <Input type="number" placeholder="Maturity Amount (₹)" value={fdForm.maturityAmount} onChange={(e) => setFdForm({ ...fdForm, maturityAmount: e.target.value })} />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">FD Number</Label>
+                    <Input value={fdForm.fdNumber} onChange={(e) => setFdForm({ ...fdForm, fdNumber: e.target.value })} placeholder="e.g. FD123456" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Status</Label>
+                    <Select value={fdForm.status} onValueChange={(v) => setFdForm({ ...fdForm, status: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {FD_STATUSES.map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Principal (₹) *</Label>
+                    <Input type="number" value={fdForm.principal} onChange={(e) => setFdForm({ ...fdForm, principal: e.target.value })} placeholder="100000" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Interest Rate (%)</Label>
+                    <Input type="number" value={fdForm.interestRate} onChange={(e) => setFdForm({ ...fdForm, interestRate: e.target.value })} placeholder="7.1" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Start Date</Label>
+                    <Input type="date" value={fdForm.startDate} onChange={(e) => setFdForm({ ...fdForm, startDate: e.target.value })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Maturity Date</Label>
+                    <Input type="date" value={fdForm.maturityDate} onChange={(e) => setFdForm({ ...fdForm, maturityDate: e.target.value })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Maturity Amount (₹)</Label>
+                    <Input type="number" value={fdForm.maturityAmount} onChange={(e) => setFdForm({ ...fdForm, maturityAmount: e.target.value })} placeholder={autoMaturity ? String(autoMaturity) : "auto-calc"} />
+                    {autoMaturity !== null && !fdForm.maturityAmount && (
+                      <p className="text-[10px] text-emerald-600">Auto: {formatCurrency(autoMaturity)}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Goal (optional)</Label>
+                    <Select value={fdForm.goalId} onValueChange={(v) => setFdForm({ ...fdForm, goalId: v })}>
+                      <SelectTrigger><SelectValue placeholder="Link to a goal" /></SelectTrigger>
+                      <SelectContent>
+                        {goals.filter((g) => !g.status || g.status === "active").map((g) => (
+                          <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <Label className="text-xs">Notes</Label>
+                    <Input value={fdForm.notes} onChange={(e) => setFdForm({ ...fdForm, notes: e.target.value })} placeholder="e.g. Emergency fund, kid's education" />
+                  </div>
                 </div>
-                <Button onClick={handleAddFd}>Save FD</Button>
+                <Button onClick={handleAddFd} disabled={fdSaving}>
+                  {fdSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Wallet className="h-4 w-4 mr-1" />}
+                  {fdSaving ? "Saving..." : "Save FD"}
+                </Button>
               </CardContent>
             </Card>
           )}

@@ -4,24 +4,31 @@ import { withAuth } from "@/lib/with-auth"
 import { sendPushToUser } from "@/lib/expo-push"
 import { validateBody } from "@/shared/validate"
 import { ReminderCreateSchema, ReminderUpdateSchema } from "@/shared/validation"
+import { cached, CACHE_TTL, CacheKeys, cacheDel } from "@/lib/cache"
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
-  const type = searchParams.get("type") // "upcoming" | "completed" | "all"
+  const type = searchParams.get("type") || "all"
 
-  const where: Record<string, unknown> = {}
-  if (type === "upcoming") {
-    where.isCompleted = false
-    where.dueDate = { not: null }
-  } else if (type === "completed") {
-    where.isCompleted = true
-  }
+  const auth = await withAuth()
+  if (auth.error) return auth.error
+  const { profileId } = auth
 
-  const reminders = await prisma.reminder.findMany({
-    where,
-    orderBy: [{ isCompleted: "asc" }, { dueDate: "asc" }],
-    take: 50,
-    include: { category: true },
+  const reminders = await cached(CacheKeys.reminders(profileId, type), CACHE_TTL.SHORT, async () => {
+    const where: Record<string, unknown> = {}
+    if (type === "upcoming") {
+      where.isCompleted = false
+      where.dueDate = { not: null }
+    } else if (type === "completed") {
+      where.isCompleted = true
+    }
+
+    return prisma.reminder.findMany({
+      where,
+      orderBy: [{ isCompleted: "asc" }, { dueDate: "asc" }],
+      take: 50,
+      include: { category: true },
+    })
   })
 
   return NextResponse.json(reminders)
@@ -61,6 +68,8 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json(reminder, { status: 201 })
+  const auth2 = await withAuth()
+  if (!auth2.error) await cacheDel(CacheKeys.reminders(auth2.profileId, "all"))
 }
 
 export async function PUT(req: Request) {
@@ -81,6 +90,8 @@ export async function PUT(req: Request) {
     },
   })
   return NextResponse.json(reminder)
+  const auth = await withAuth()
+  if (!auth.error) await cacheDel(CacheKeys.reminders(auth.profileId, "all"))
 }
 
 export async function DELETE(req: Request) {
@@ -88,5 +99,7 @@ export async function DELETE(req: Request) {
   const id = searchParams.get("id")
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })
   await prisma.reminder.delete({ where: { id: Number.parseInt(id) } })
+  const auth = await withAuth()
+  if (!auth.error) await cacheDel(CacheKeys.reminders(auth.profileId, "all"))
   return NextResponse.json({ success: true })
 }

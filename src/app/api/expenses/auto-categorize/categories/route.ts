@@ -7,9 +7,12 @@
 
 import { NextResponse } from "next/server"
 import { getAutoCatCategories, loadKeywordsFromDB } from "@/shared/auto-categorize"
+import { cached, CACHE_TTL, CacheKeys } from "@/lib/cache"
 
 export async function GET() {
-  const keywords = await loadKeywordsFromDB()
-  const categories = getAutoCatCategories(keywords)
+  const categories = await cached(CacheKeys.autoCatCategories(), CACHE_TTL.LONG, async () => {
+    const keywords = await loadKeywordsFromDB()
+    return getAutoCatCategories(keywords)
+  })
   return NextResponse.json(categories)
 }

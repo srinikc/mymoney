@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { requireRole, type AuthUser } from "@/lib/roles"
 import bcrypt from "bcryptjs"
+import { cached, CACHE_TTL, CacheKeys, cacheDel } from "@/lib/cache"
 
 /**
  * GET /api/admin/users — List all users with profiles (admin-only)
@@ -13,6 +14,7 @@ export async function GET() {
   if (forbid) return forbid
 
   try {
+    const result = await cached(CacheKeys.adminUsers(), CACHE_TTL.SHORT, async () => {
     const users = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
     select: {
@@ -39,7 +41,7 @@ export async function GET() {
     },
   })
 
-  const result = users.map((u) => {
+  return users.map((u) => {
     const providers = new Set(u.accounts.map((a) => a.provider))
     const authMethod = providers.has("google") && providers.size > 0 && !u.hashedPassword
       ? "google"
@@ -61,6 +63,7 @@ export async function GET() {
       profiles: u.profiles,
     }
   })
+    })
 
   return NextResponse.json(result)
   } catch (error) {
@@ -174,6 +177,7 @@ export async function POST(req: Request) {
     })
 
     return NextResponse.json(user, { status: 201 })
+    await cacheDel(CacheKeys.adminUsers())
   } catch (error) {
     console.error("Error creating user:", error)
     return NextResponse.json({ error: "Failed to create user" }, { status: 500 })

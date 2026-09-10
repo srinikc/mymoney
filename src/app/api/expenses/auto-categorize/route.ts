@@ -10,6 +10,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import { getAutoCatResults } from "@/shared/auto-categorize-cache"
+import { cached, CACHE_TTL, CacheKeys, cacheDel } from "@/lib/cache"
 
 const GPAY_HTML_PATH = "C:\\Users\\ADMIN\\Downloads\\takeout-20260822T124005Z-1-001\\Takeout\\Google Pay\\My Activity\\My Activity.html"
 
@@ -50,7 +51,9 @@ export async function GET(req: Request) {
     const categoryFilter = searchParams.get("categories") || ""
     const sourceFilter = searchParams.get("source") || ""
 
-    const results = await getAutoCatResults(filePath, userId)
+    const results = await cached(CacheKeys.autoCatResults(userId), CACHE_TTL.SHORT, async () => {
+      return getAutoCatResults(filePath, userId)
+    })
     if (results.length === 0) {
       return NextResponse.json(
         { error: `File not found: ${filePath}. Click "Seed from GPay HTML" first.` },

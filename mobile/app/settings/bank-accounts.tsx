@@ -45,6 +45,7 @@ export default function BankAccountsSettingsScreen() {
   const [formType, setFormType] = useState('savings');
   const [formIfsc, setFormIfsc] = useState('');
   const [formBalance, setFormBalance] = useState('');
+  const [formEmergency, setFormEmergency] = useState(false);
 
   const fetchAccounts = useCallback(async () => {
     setError(null);
@@ -67,9 +68,10 @@ export default function BankAccountsSettingsScreen() {
         type: formType,
         ifscCode: formIfsc,
         balance: parseFloat(formBalance) || 0,
+        isEmergencyFund: formEmergency,
       });
       setShowForm(false);
-      setFormBank(''); setFormName(''); setFormNumber(''); setFormType('savings'); setFormIfsc(''); setFormBalance('');
+      setFormBank(''); setFormName(''); setFormNumber(''); setFormType('savings'); setFormIfsc(''); setFormBalance(''); setFormEmergency(false);
       fetchAccounts();
     } catch { Alert.alert('Error', 'Failed to save account'); }
   };
@@ -184,6 +186,10 @@ export default function BankAccountsSettingsScreen() {
             </View>
             <TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formIfsc} onChangeText={setFormIfsc} placeholder="IFSC Code" placeholderTextColor={theme.textTertiary} />
             <TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={formBalance} onChangeText={setFormBalance} keyboardType="numeric" placeholder="Balance (₹)" placeholderTextColor={theme.textTertiary} />
+            <TouchableOpacity onPress={() => setFormEmergency(!formEmergency)} style={styles.checkRow}>
+              <Ionicons name={formEmergency ? "checkbox" : "square-outline"} size={20} color={formEmergency ? theme.primary : theme.textTertiary} />
+              <Text style={{ color: theme.text, fontSize: 13, flex: 1 }}>This is my <Text style={{ fontWeight: '700' }}>emergency fund</Text> account</Text>
+            </TouchableOpacity>
             <TouchableOpacity onPress={handleSave} style={[styles.saveBtn, { backgroundColor: theme.primary }]}>
               <Text style={styles.saveBtnText}>Save Account</Text>
             </TouchableOpacity>
@@ -227,6 +233,7 @@ const styles = StyleSheet.create({
   input: { borderRadius: 12, padding: 14, fontSize: 14, marginBottom: 12 },
   typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
   typeBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8 },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, marginBottom: 4 },
   saveBtn: { height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 });

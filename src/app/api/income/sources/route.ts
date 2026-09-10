@@ -4,16 +4,17 @@ import { getAuthContext } from "@/lib/with-auth"
 import { validateBody } from "@/shared/validate"
 import { IncomeSourceCreateSchema } from "@/shared/income-validation"
 import { syncProfileAnnualIncome } from "@/shared/income-sync"
+import { cached, CACHE_TTL, CacheKeys, cacheDel } from "@/lib/cache"
 
 export async function GET(_req: Request) {
     const { profileId } = await getAuthContext()
-
     const where = profileId ? { profileId } : {}
-
-    const sources = await prisma.incomeSource.findMany({
-      where,
-      include: { category: true },
-      orderBy: { createdAt: "desc" },
+    const sources = await cached(CacheKeys.incomeSources(profileId), CACHE_TTL.SHORT, async () => {
+      return prisma.incomeSource.findMany({
+        where,
+        include: { category: true },
+        orderBy: { createdAt: "desc" },
+      })
     })
     return NextResponse.json(sources)
 }
@@ -75,4 +76,8 @@ export async function POST(req: Request) {
       }
     }
     return NextResponse.json(source, { status: 201 })
+    if (profileId) {
+      await cacheDel(CacheKeys.incomeSources(profileId))
+      await cacheDel(CacheKeys.incomeSummary(profileId, new Date().getMonth() + 1, new Date().getFullYear()))
+    }
 }

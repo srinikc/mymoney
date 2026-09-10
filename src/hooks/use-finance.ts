@@ -1,9 +1,9 @@
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, keepPreviousData } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { apiFetch } from "@/hooks/use-dashboard"
-import type { Investment, Goal, Category } from "@/types"
+import type { Investment, Goal, Category, Expense } from "@/types"
 import { IncomeSourceResponseSchema, type IncomeSourceResponse } from "@/shared/income-validation"
 
 export type IncomeSource = IncomeSourceResponse & { sourceCategory: string }
@@ -130,6 +130,96 @@ export function useBankAccountsData() {
       accounts: d.accounts || [],
       totals: d.totals || { balance: 0, fdValue: 0 },
     }),
+  })
+}
+
+export interface PaginatedResponse {
+  data: Expense[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+  distinctPersons: string[]
+  distinctRecurrenceTypes: string[]
+  distinctPaymentModes: string[]
+  distinctVendors: string[]
+  distinctSubCategories: string[]
+  distinctBankAccounts: string[]
+  totalAmount: number
+}
+
+export type SortField = "date" | "amount" | "vendor" | "person" | "paymentMode" | "bankAccount"
+export type SortDir = "asc" | "desc"
+export type FilterMode = "contains" | "not-contains"
+
+export interface ExpenseListParams {
+  page: number
+  search: string
+  sessionFilter: string
+  categoryFilter: string[]
+  personFilter: string[]
+  recurrenceFilter: string[]
+  paymentModeFilter: string[]
+  vendorFilter: string[]
+  vendorFilterMode: FilterMode
+  subCategoryFilter: string[]
+  subCategoryFilterMode: FilterMode
+  bankFilter: string[]
+  notesFilter: string
+  descriptionFilter: string
+  otherTypeFilter: string
+  flaggedFilter: boolean
+  dateFrom: string
+  dateTo: string
+  amountMin: string
+  amountMax: string
+  sortField: SortField
+  sortDir: SortDir
+}
+
+export function buildExpenseListParams(p: ExpenseListParams): string {
+  const params = new URLSearchParams({
+    page: String(p.page),
+    pageSize: "100",
+  })
+  if (p.search) params.set("search", p.search)
+  if (p.sessionFilter) params.set("importSessionId", p.sessionFilter)
+
+  // Multi-select filters: send comma-separated values
+  if (p.categoryFilter.length > 0) params.set("categoryIds", p.categoryFilter.join(","))
+  if (p.personFilter.length > 0) params.set("persons", p.personFilter.join(","))
+  if (p.recurrenceFilter.length > 0) params.set("recurrenceTypes", p.recurrenceFilter.join(","))
+  if (p.paymentModeFilter.length > 0) params.set("paymentModes", p.paymentModeFilter.join(","))
+  if (p.vendorFilter.length > 0) {
+    params.set("vendors", p.vendorFilter.join(","))
+    params.set("vendorMode", p.vendorFilterMode)
+  }
+  if (p.subCategoryFilter.length > 0) {
+    params.set("subCategories", p.subCategoryFilter.join(","))
+    params.set("subCategoryMode", p.subCategoryFilterMode)
+  }
+  if (p.bankFilter.length > 0) params.set("bankAccounts", p.bankFilter.join(","))
+  if (p.notesFilter) params.set("notes", p.notesFilter)
+  if (p.descriptionFilter) params.set("description", p.descriptionFilter)
+  if (p.otherTypeFilter) params.set("otherType", p.otherTypeFilter)
+  if (p.flaggedFilter) params.set("flagged", "true")
+
+  if (p.dateFrom) params.set("dateFrom", p.dateFrom)
+  if (p.dateTo) params.set("dateTo", p.dateTo)
+  if (p.amountMin) params.set("amountMin", p.amountMin)
+  if (p.amountMax) params.set("amountMax", p.amountMax)
+  params.set("sortField", p.sortField)
+  params.set("sortDir", p.sortDir)
+
+  return params.toString()
+}
+
+export function useExpensesList(p: ExpenseListParams) {
+  const params = buildExpenseListParams(p)
+  return useQuery({
+    queryKey: queryKeys.expenses(params),
+    queryFn: () => apiFetch<PaginatedResponse>(`/api/expenses?${params}`),
+    placeholderData: keepPreviousData,
   })
 }
 

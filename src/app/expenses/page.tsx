@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,7 +15,7 @@ import { DriveDialog } from "@/components/expenses/drive-dialog"
 import { BankAnalysisDialog } from "@/components/expenses/bank-analysis-dialog"
 import { formatCurrency, formatDate, toLocalDateString } from "@/lib/utils"
 import { TableSkeleton } from "@/components/ui/page-skeleton"
-import type { Expense, Category } from "@/types"
+import type { Expense } from "@/types"
 import { toast } from "sonner"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import DatePicker from "@/components/ui/date-picker"
@@ -23,6 +24,9 @@ import {
   Upload, Search, Download, FileSpreadsheet,
   Loader2, Cloud, LogOut, Edit3, ChevronLeft, ChevronRight, RefreshCw, AlertCircle, AlertTriangle, CheckCircle2, X, Trash2,
 } from "lucide-react"
+import { queryKeys } from "@/lib/query-keys"
+import { useCategories } from "@/hooks/use-reports"
+import { useExpensesList, buildExpenseListParams, type PaginatedResponse, type SortField, type SortDir, type FilterMode } from "@/hooks/use-finance"
 
 interface DriveFile {
   id: string; name: string; size?: string; createdTime?: string
@@ -33,32 +37,11 @@ interface ImportSession {
   autoMapped: number; status: string; createdAt: string
 }
 
-interface PaginatedResponse {
-  data: Expense[]
-  total: number
-  page: number
-  pageSize: number
-  totalPages: number
-  distinctPersons: string[]
-  distinctRecurrenceTypes: string[]
-  distinctPaymentModes: string[]
-  distinctVendors: string[]
-  distinctSubCategories: string[]
-  distinctBankAccounts: string[]
-  totalAmount: number
-}
-
-type SortField = "date" | "amount" | "vendor" | "person" | "paymentMode" | "bankAccount"
-type SortDir = "asc" | "desc"
-type FilterMode = "contains" | "not-contains"
-
 export default function ExpensesPage() {
-  const [expenses, setExpenses] = useState<Expense[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
+  const queryClient = useQueryClient()
   const [importSessions, setImportSessions] = useState<ImportSession[]>([])
   const [flaggedCount, setFlaggedCount] = useState(0)
   const [flaggedFilter, setFlaggedFilter] = useState(false)
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
 
   // Multi-select filter state (arrays of selected values)
@@ -81,23 +64,89 @@ export default function ExpensesPage() {
   const [sortField, setSortField] = useState<SortField>("date")
   const [sortDir, setSortDir] = useState<SortDir>("desc")
   const [page, setPage] = useState(1)
-  const [total, setTotal] = useState(0)
-  const [totalPages, setTotalPages] = useState(1)
-  const [distinctPersons, setDistinctPersons] = useState<string[]>([])
-  const [distinctRecurrenceTypes, setDistinctRecurrenceTypes] = useState<string[]>([])
-  const [distinctPaymentModes, setDistinctPaymentModes] = useState<string[]>([])
-  const [distinctVendors, setDistinctVendors] = useState<string[]>([])
-  const [distinctSubCategories, setDistinctSubCategories] = useState<string[]>([])
-  const [distinctBankAccounts, setDistinctBankAccounts] = useState<string[]>([])
   const [savedVendors, setSavedVendors] = useState<string[]>([])
   const [savedVendorSubCats, setSavedVendorSubCats] = useState<string[]>([])
   const [savedVendorPersons, setSavedVendorPersons] = useState<string[]>([])
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
   const [datePreset, setDatePreset] = useState("all")
-  const [totalAmount, setTotalAmount] = useState(0)
   const [amountMin, setAmountMin] = useState("")
   const [amountMax, setAmountMax] = useState("")
+
+  const listQuery = useExpensesList({
+    page,
+    search,
+    sessionFilter,
+    categoryFilter,
+    personFilter,
+    recurrenceFilter,
+    paymentModeFilter,
+    vendorFilter,
+    vendorFilterMode,
+    subCategoryFilter,
+    subCategoryFilterMode,
+    bankFilter,
+    notesFilter,
+    descriptionFilter,
+    otherTypeFilter,
+    flaggedFilter,
+    dateFrom,
+    dateTo,
+    amountMin,
+    amountMax,
+    sortField,
+    sortDir,
+  })
+  const listKey = queryKeys.expenses(buildExpenseListParams({
+    page,
+    search,
+    sessionFilter,
+    categoryFilter,
+    personFilter,
+    recurrenceFilter,
+    paymentModeFilter,
+    vendorFilter,
+    vendorFilterMode,
+    subCategoryFilter,
+    subCategoryFilterMode,
+    bankFilter,
+    notesFilter,
+    descriptionFilter,
+    otherTypeFilter,
+    flaggedFilter,
+    dateFrom,
+    dateTo,
+    amountMin,
+    amountMax,
+    sortField,
+    sortDir,
+  }))
+  const data = listQuery.data
+  const expenses = data?.data ?? []
+  const loading = listQuery.isLoading
+  const total = data?.total ?? 0
+  const totalPages = data?.totalPages ?? 1
+  const distinctPersons = data?.distinctPersons ?? []
+  const distinctRecurrenceTypes = data?.distinctRecurrenceTypes ?? []
+  const distinctPaymentModes = data?.distinctPaymentModes ?? []
+  const distinctVendors = data?.distinctVendors ?? []
+  const distinctSubCategories = data?.distinctSubCategories ?? []
+  const distinctBankAccounts = data?.distinctBankAccounts ?? []
+  const totalAmount = data?.totalAmount ?? 0
+
+  const categoriesQuery = useCategories()
+  const categories = categoriesQuery.data ?? []
+
+  // The server may clamp/round the requested page; mirror its response back
+  // into the query key input (same behavior as the previous loadData).
+  useEffect(() => {
+    if (data && data.page !== page) setPage(data.page)
+  }, [data, page])
+
+  const reloadList = () => {
+    queryClient.invalidateQueries({ queryKey: ["expenses"] })
+    queryClient.invalidateQueries({ queryKey: ["categories"] })
+  }
   const [importResult, setImportResult] = useState<string | null>(null)
   const [gdriveConnected, setGdriveConnected] = useState(false)
   const [gdriveEmail, setGdriveEmail] = useState("")
@@ -167,7 +216,7 @@ export default function ExpensesPage() {
           toast.success("Expense added")
           if (data.id) setHighlightId(data.id)
         }
-        loadData()
+        reloadList()
         if (data.id || data.createdIds?.[0]) {
           setTimeout(() => setHighlightId(null), 4000)
         }
@@ -190,71 +239,6 @@ export default function ExpensesPage() {
     }
     await doAddExpense(newForm, repeat)
   }
-
-  const loadData = useCallback(async (targetPage?: number) => {
-    const p = targetPage ?? page
-    const params = new URLSearchParams({
-      page: String(p),
-      pageSize: "100",
-    })
-    if (search) params.set("search", search)
-    if (sessionFilter) params.set("importSessionId", sessionFilter)
-
-    // Multi-select filters: send comma-separated values
-    if (categoryFilter.length > 0) params.set("categoryIds", categoryFilter.join(","))
-    if (personFilter.length > 0) params.set("persons", personFilter.join(","))
-    if (recurrenceFilter.length > 0) params.set("recurrenceTypes", recurrenceFilter.join(","))
-    if (paymentModeFilter.length > 0) params.set("paymentModes", paymentModeFilter.join(","))
-    if (vendorFilter.length > 0) {
-      params.set("vendors", vendorFilter.join(","))
-      params.set("vendorMode", vendorFilterMode)
-    }
-    if (subCategoryFilter.length > 0) {
-      params.set("subCategories", subCategoryFilter.join(","))
-      params.set("subCategoryMode", subCategoryFilterMode)
-    }
-    if (bankFilter.length > 0) params.set("bankAccounts", bankFilter.join(","))
-    if (notesFilter) params.set("notes", notesFilter)
-    if (descriptionFilter) params.set("description", descriptionFilter)
-    if (otherTypeFilter) params.set("otherType", otherTypeFilter)
-    if (flaggedFilter) params.set("flagged", "true")
-
-    if (dateFrom) params.set("dateFrom", dateFrom)
-    if (dateTo) params.set("dateTo", dateTo)
-    if (amountMin) params.set("amountMin", amountMin)
-    if (amountMax) params.set("amountMax", amountMax)
-    params.set("sortField", sortField)
-    params.set("sortDir", sortDir)
-
-    try {
-      const [expRes, catRes] = await Promise.all([
-        fetch(`/api/expenses?${params}`),
-        fetch("/api/categories"),
-      ])
-      if (!expRes.ok) {
-        const errData = await expRes.json().catch(() => ({ error: "Request failed" }))
-        throw new Error(errData.error || `HTTP ${expRes.status}`)
-      }
-      const result: PaginatedResponse = await expRes.json()
-      setExpenses(result.data)
-      setTotal(result.total)
-      setPage(result.page)
-      setTotalPages(result.totalPages)
-      setDistinctPersons(result.distinctPersons)
-      setDistinctRecurrenceTypes(result.distinctRecurrenceTypes)
-      setDistinctPaymentModes(result.distinctPaymentModes || [])
-      setDistinctVendors(result.distinctVendors || [])
-      setDistinctSubCategories(result.distinctSubCategories || [])
-      setDistinctBankAccounts(result.distinctBankAccounts || [])
-      setTotalAmount(result.totalAmount || 0)
-      setCategories(await catRes.json())
-    } catch (err) {
-      console.error("Failed to load expenses:", err)
-    }
-    setLoading(false)
-  }, [search, categoryFilter, sessionFilter, personFilter, recurrenceFilter, paymentModeFilter, vendorFilter, subCategoryFilter, bankFilter, notesFilter, descriptionFilter, otherTypeFilter, flaggedFilter, vendorFilterMode, subCategoryFilterMode, dateFrom, dateTo, amountMin, amountMax, sortField, sortDir, page])
-
-  useEffect(() => { loadData() }, [loadData])
 
   useEffect(() => {
     fetch("/api/auth/status").then(r => r.json()).then(data => {
@@ -937,7 +921,7 @@ const handleImportFromDrive = async (fileId: string) => {
       setImportResult(msg)
       setDriveDialogOpen(false)
       setPage(1)
-      loadData(1)
+      reloadList()
       fetch("/api/import-sessions").then(r => r.json()).then(setImportSessions)
       fetch("/api/vendors/all").then(r => r.json()).then(d => {
         const vendors = d.vendors || []
@@ -990,7 +974,7 @@ const handleImportFromDrive = async (fileId: string) => {
       })
       const updated = await res.json()
       if (res.ok) {
-        setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)))
+        queryClient.setQueryData<PaginatedResponse>(listKey, (old) => (old ? { ...old, data: old.data.map((e) => (e.id === updated.id ? updated : e)) } : old))
         setEditingId(null)
         toast.success("Expense updated")
       } else {
@@ -1023,7 +1007,7 @@ const handleImportFromDrive = async (fileId: string) => {
           for (const id of ids) next.delete(id)
           return next
         })
-        await Promise.all([refreshFlaggedCount(), loadData()])
+        await Promise.all([refreshFlaggedCount(), reloadList()])
       } else {
         toast.error("Failed to mark as valid")
       }
@@ -1037,7 +1021,7 @@ const handleImportFromDrive = async (fileId: string) => {
     try {
       const res = await fetch(`/api/expenses?id=${id}`, { method: "DELETE" })
       if (res.ok) {
-        setExpenses((prev) => prev.filter((e) => e.id !== id))
+        queryClient.setQueryData<PaginatedResponse>(listKey, (old) => (old ? { ...old, data: old.data.filter((e) => e.id !== id) } : old))
         setSelectedIds((prev) => {
           const next = new Set(prev)
           next.delete(id)
@@ -1045,7 +1029,7 @@ const handleImportFromDrive = async (fileId: string) => {
         })
         setEditingId(null)
         toast.success("Expense archived")
-        loadData()
+        reloadList()
       } else {
         toast.error("Failed to archive expense")
       }
@@ -1095,7 +1079,7 @@ const handleImportFromDrive = async (fileId: string) => {
       if (res.ok) {
         setSelectedIds(new Set())
         toast.success(`${ids.length} expense${ids.length > 1 ? "s" : ""} archived`)
-        loadData()
+        reloadList()
       } else {
         const data = await res.json().catch(() => ({}))
         toast.error(data.error || "Batch archive failed")
@@ -1129,7 +1113,7 @@ const handleImportFromDrive = async (fileId: string) => {
       toast.success(`Hard-deleted ${data.count} expenses (${confirmRangeDelete.scope})`)
       setSelectedIds(new Set())
       setPage(1)
-      loadData()
+      reloadList()
     } catch {
       toast.error("Delete failed")
     } finally {
@@ -1233,7 +1217,7 @@ const handleImportFromDrive = async (fileId: string) => {
             </Button>
           )}
 
-          <Button variant="outline" size="sm" onClick={() => loadData()}>
+          <Button variant="outline" size="sm" onClick={() => reloadList()}>
             <RefreshCw className="mr-2 h-4 w-4" /> Refresh
           </Button>
 
@@ -2059,7 +2043,7 @@ const handleImportFromDrive = async (fileId: string) => {
       <BankAnalysisDialog
         open={bankAnalysisOpen}
         onOpenChange={setBankAnalysisOpen}
-        onApplied={() => { loadData(); fetch("/api/import-sessions").then(r => r.json()).then(setImportSessions) }}
+        onApplied={() => { reloadList(); fetch("/api/import-sessions").then(r => r.json()).then(setImportSessions) }}
       />
 
       <TransactionConfirm

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, useColorScheme, ActivityIndicator,
 } from 'react-native';
@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
-import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 interface NetWorthData {
   assets?: number;
@@ -24,16 +24,11 @@ export default function NetWorthScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetch = useCallback(async () => {
-    setError(null);
-    try {
-      const res = await api.get('/api/net-worth');
-      setData(res.data);
-    } catch { setError('Failed to load net worth'); }
-    finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { fetch(); }, [fetch]);
+  const nwQuery = useApiQuery<NetWorthData>(['net-worth'], '/api/net-worth');
+  useEffect(() => {
+    if (nwQuery.data !== undefined) { setData(nwQuery.data); setLoading(false); }
+  }, [nwQuery.data]);
+  useEffect(() => { if (nwQuery.isError) { setError('Failed to load net worth'); setLoading(false); } }, [nwQuery.isError]);
 
   const netWorth = (data?.assets || data?.totalAssets || 0) - (data?.liabilities || data?.totalLiabilities || 0);
 

@@ -54,9 +54,7 @@ export default function LoansScreen() {
       setRefreshing(false);
     }
   }, [loansQuery.data]);
-  useEffect(() => {
-    if (loansQuery.isError) setError('Failed to load loans');
-  }, [loansQuery.isError]);
+  useEffect(() => { if (loansQuery.isError) { setError('Failed to load loans'); setLoading(false); setRefreshing(false); } }, [loansQuery.isError]);
   const fetch = () => { void loansQuery.refetch(); };
 
   const openAdd = () => {

@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme, RefreshControl, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
-import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 interface TrendItem {
   month: string;
@@ -46,17 +46,18 @@ export default function ReportsScreen() {
   const [tab, setTab] = useState('overview');
   const [intelligence, setIntelligence] = useState<IntelligenceItem[]>([]);
 
-  const fetch = useCallback(async () => {
-    try {
-      const res = await api.get(`/api/insights?year=${new Date().getFullYear()}`);
-      setInsights(res.data);
-      const intelRes = await api.get('/api/intelligence').catch(() => null);
-      if (intelRes) setIntelligence(intelRes.data?.items || []);
-    } catch { /* ignore */ }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { fetch(); }, [fetch]);
+  const insightsQuery = useApiQuery<any>(['reports-insights'], '/api/insights', { params: { year: new Date().getFullYear() } });
+  const intelQuery = useApiQuery<any>(['intelligence'], '/api/intelligence');
+  useEffect(() => {
+    if (insightsQuery.data !== undefined) { setInsights(insightsQuery.data); setLoading(false); setRefreshing(false); }
+  }, [insightsQuery.data]);
+  useEffect(() => {
+    if (intelQuery.data !== undefined) setIntelligence(intelQuery.data?.items || []);
+  }, [intelQuery.data]);
+  useEffect(() => {
+    if (!insightsQuery.isLoading) { setLoading(false); setRefreshing(false); }
+  }, [insightsQuery.isLoading]);
+  const fetch = () => { insightsQuery.refetch(); intelQuery.refetch(); };
 
   const maxTrend = Math.max(1, ...(insights?.monthlyTrend || []).map((m: TrendItem) => m.amount));
   const maxIncome = Math.max(1, ...(insights?.incomeTrend || []).map((m: TrendItem) => m.amount));

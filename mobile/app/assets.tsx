@@ -64,9 +64,7 @@ export default function AssetsScreen() {
       setRefreshing(false);
     }
   }, [assetsQuery.data]);
-  useEffect(() => {
-    if (assetsQuery.isError) setError('Failed to load');
-  }, [assetsQuery.isError]);
+  useEffect(() => { if (assetsQuery.isError) { setError('Failed to load'); setLoading(false); setRefreshing(false); } }, [assetsQuery.isError]);
   const fetch = () => { void assetsQuery.refetch(); };
 
   const total = data.reduce((s, a) => s + (a.value || a.amount || 0), 0);

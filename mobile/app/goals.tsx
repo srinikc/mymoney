@@ -47,9 +47,7 @@ export default function GoalsScreen() {
       setRefreshing(false);
     }
   }, [goalsQuery.data]);
-  useEffect(() => {
-    if (goalsQuery.isError) setError('Failed to load goals');
-  }, [goalsQuery.isError]);
+  useEffect(() => { if (goalsQuery.isError) { setError('Failed to load goals'); setLoading(false); setRefreshing(false); } }, [goalsQuery.isError]);
   const fetch = () => { void goalsQuery.refetch(); };
 
   const handleSave = async () => {

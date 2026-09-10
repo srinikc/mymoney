@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme,
   RefreshControl, ActivityIndicator
@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
-import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 interface HealthComponent {
   score: number;
@@ -63,26 +63,26 @@ export default function HealthScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
-  const fetchAll = useCallback(async () => {
-    setError('');
-    try {
-      const [hr, gr, rr] = await Promise.allSettled([
-        api.get('/api/health-score'),
-        api.get('/api/gap-analysis'),
-        api.get('/api/recommendations'),
-      ]);
-      if (hr.status === 'fulfilled') setHealthScore(hr.value.data);
-      if (gr.status === 'fulfilled') setGaps(gr.value.data?.gaps || []);
-      if (rr.status === 'fulfilled') setRecommendations(rr.value.data?.recommendations || []);
-    } catch {
-      setError('Failed to load data');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  const hsQuery = useApiQuery<any>(['health-score'], '/api/health-score');
+  const gapsQuery = useApiQuery<any>(['gap-analysis'], '/api/gap-analysis');
+  const recsQuery = useApiQuery<any>(['recommendations'], '/api/recommendations');
+  useEffect(() => {
+    if (hsQuery.data !== undefined) setHealthScore(hsQuery.data);
+  }, [hsQuery.data]);
+  useEffect(() => {
+    if (gapsQuery.data !== undefined) setGaps(gapsQuery.data?.gaps || []);
+  }, [gapsQuery.data]);
+  useEffect(() => {
+    if (recsQuery.data !== undefined) setRecommendations(recsQuery.data?.recommendations || []);
+  }, [recsQuery.data]);
+  useEffect(() => {
+    if (hsQuery.data !== undefined && gapsQuery.data !== undefined && recsQuery.data !== undefined) setLoading(false);
+  }, [hsQuery.data, gapsQuery.data, recsQuery.data]);
+  useEffect(() => {
+    if (hsQuery.isError || gapsQuery.isError || recsQuery.isError) { setError('Failed to load data'); setLoading(false); setRefreshing(false); }
+    else setError('');
+  }, [hsQuery.isError, gapsQuery.isError, recsQuery.isError]);
+  const fetchAll = () => Promise.all([hsQuery.refetch(), gapsQuery.refetch(), recsQuery.refetch()]);
 
   const overall = healthScore?.overall ?? 0;
   const components = healthScore?.components || {};
@@ -114,7 +114,7 @@ export default function HealthScreen() {
       ) : (
         <ScrollView
           contentContainerStyle={styles.content}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchAll(); }} tintColor={theme.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchAll().finally(() => setRefreshing(false)); }} tintColor={theme.primary} />}
         >
           <View style={[styles.gaugeCard, { backgroundColor: theme.surface }]}>
             <View style={[styles.gaugeOuter, { borderColor: scColor(overall >= 70 ? 'good' : overall >= 40 ? 'warning' : 'critical') }]}>

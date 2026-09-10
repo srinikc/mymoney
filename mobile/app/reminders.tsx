@@ -46,9 +46,7 @@ export default function RemindersScreen() {
       setRefreshing(false);
     }
   }, [remindersQuery.data]);
-  useEffect(() => {
-    if (remindersQuery.isError) setError('Failed to load reminders');
-  }, [remindersQuery.isError]);
+  useEffect(() => { if (remindersQuery.isError) { setError('Failed to load reminders'); setLoading(false); setRefreshing(false); } }, [remindersQuery.isError]);
   const fetch = () => { void remindersQuery.refetch(); };
 
   const handleSave = async () => {

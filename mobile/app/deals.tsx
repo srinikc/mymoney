@@ -43,9 +43,7 @@ export default function DealsScreen() {
       setRefreshing(false);
     }
   }, [dealsQuery.data]);
-  useEffect(() => {
-    if (dealsQuery.isError) setError('Failed to load deals');
-  }, [dealsQuery.isError]);
+  useEffect(() => { if (dealsQuery.isError) { setError('Failed to load deals'); setLoading(false); setRefreshing(false); } }, [dealsQuery.isError]);
   const fetch = () => { void dealsQuery.refetch(); };
 
   const openAdd = () => {

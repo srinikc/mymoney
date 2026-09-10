@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme, RefreshControl, ActivityIndicator, Modal, TextInput, Alert, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 interface SourceItem {
   id: number;
@@ -46,20 +47,22 @@ export default function IncomeScreen() {
   const [formPaymentMode, setFormPaymentMode] = useState('Bank Transfer');
   const [formStartDate, setFormStartDate] = useState('');
 
-  const fetch = useCallback(async () => {
-    setError(null);
-    try {
-      const [sRes, sumRes] = await Promise.all([
-        api.get('/api/income/sources'),
-        api.get('/api/income/summary'),
-      ]);
-      setSources(Array.isArray(sRes.data?.sources) ? sRes.data.sources : Array.isArray(sRes.data) ? sRes.data : []);
-      setSummary(sumRes.data || null);
-    } catch { setError('Failed to load income data'); }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { fetch(); }, [fetch]);
+  const sourcesQuery = useApiQuery<any>(['income', 'sources'], '/api/income/sources');
+  const summaryQuery = useApiQuery<any>(['income', 'summary'], '/api/income/summary');
+  useEffect(() => {
+    if (sourcesQuery.data !== undefined) {
+      setSources(Array.isArray(sourcesQuery.data?.sources) ? sourcesQuery.data.sources : Array.isArray(sourcesQuery.data) ? sourcesQuery.data : []);
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [sourcesQuery.data]);
+  useEffect(() => {
+    if (summaryQuery.data !== undefined) setSummary(summaryQuery.data || null);
+  }, [summaryQuery.data]);
+  useEffect(() => {
+    if (sourcesQuery.isError || summaryQuery.isError) { setError('Failed to load income data'); setLoading(false); setRefreshing(false); }
+  }, [sourcesQuery.isError, summaryQuery.isError]);
+  const fetch = () => { sourcesQuery.refetch(); summaryQuery.refetch(); };
 
   const openAdd = () => {
     setEditItem(null);

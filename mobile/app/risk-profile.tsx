@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme,
   ActivityIndicator
@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 const CFG: Record<string, { label: string; color: string; icon: keyof typeof Ionicons.glyphMap }> = {
   conservative: { label: 'Conservative', color: '#3B82F6', icon: 'shield-checkmark' },
@@ -42,19 +43,19 @@ export default function RiskProfileScreen() {
   const [result, setResult] = useState<RiskResult | null>(null);
   const [error, setError] = useState('');
 
-  const fetchQ = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('/api/risk-profile');
-      const data = res.data;
-      const qs = data.questions || [];
+  const questionsQuery = useApiQuery<any>(['risk-profile'], '/api/risk-profile');
+  useEffect(() => {
+    if (questionsQuery.data !== undefined) {
+      const qs = questionsQuery.data.questions || [];
       setQuestions(qs);
       setAnswers(Array.from({ length: qs.length }, () => 0));
-    } catch { setError('Failed to load questions'); }
-    finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { fetchQ(); }, [fetchQ]);
+      setLoading(false);
+    }
+  }, [questionsQuery.data]);
+  useEffect(() => {
+    if (questionsQuery.isError) { setError('Failed to load questions'); setLoading(false); }
+  }, [questionsQuery.isError]);
+  const fetchQ = () => { setLoading(true); questionsQuery.refetch(); };
 
   const handleNext = () => {
     if (selected === null) return;

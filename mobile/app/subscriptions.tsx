@@ -56,9 +56,7 @@ export default function SubscriptionsScreen() {
       setRefreshing(false);
     }
   }, [subsQuery.data]);
-  useEffect(() => {
-    if (subsQuery.isError) setError('Failed to load subscriptions');
-  }, [subsQuery.isError]);
+  useEffect(() => { if (subsQuery.isError) { setError('Failed to load subscriptions'); setLoading(false); setRefreshing(false); } }, [subsQuery.isError]);
   const fetch = () => { void subsQuery.refetch(); };
 
   const monthlyTotal = data.reduce((s, i) => {

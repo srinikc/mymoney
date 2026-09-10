@@ -50,9 +50,7 @@ export default function InsuranceScreen() {
       setRefreshing(false);
     }
   }, [insuranceQuery.data]);
-  useEffect(() => {
-    if (insuranceQuery.isError) setError('Failed to load insurance');
-  }, [insuranceQuery.isError]);
+  useEffect(() => { if (insuranceQuery.isError) { setError('Failed to load insurance'); setLoading(false); setRefreshing(false); } }, [insuranceQuery.isError]);
   const fetch = () => { void insuranceQuery.refetch(); };
 
   const openAdd = () => {

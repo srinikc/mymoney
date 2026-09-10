@@ -62,9 +62,7 @@ export default function InvestmentsScreen() {
       setRefreshing(false);
     }
   }, [investmentsQuery.data]);
-  useEffect(() => {
-    if (investmentsQuery.isError) setError('Failed to load investments');
-  }, [investmentsQuery.isError]);
+  useEffect(() => { if (investmentsQuery.isError) { setError('Failed to load investments'); setLoading(false); setRefreshing(false); } }, [investmentsQuery.isError]);
   const fetch = () => { void investmentsQuery.refetch(); };
 
   const openAdd = () => {

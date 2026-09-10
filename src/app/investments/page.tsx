@@ -41,7 +41,6 @@ function InvestmentForm({
           <SelectContent>
             <SelectItem value="stocks">Stocks / Shares</SelectItem>
             <SelectItem value="mutual_funds">Mutual Funds</SelectItem>
-            <SelectItem value="fixed_deposit">Fixed Deposit</SelectItem>
             <SelectItem value="ppf">PPF</SelectItem>
             <SelectItem value="nps">NPS</SelectItem>
             <SelectItem value="gold">Gold ETF</SelectItem>
@@ -109,10 +108,13 @@ export default function InvestmentsPage() {
   const loadData = async () => {
     const res = await fetch("/api/investments")
     const data = await res.json()
-    setInvestments(data.map((i: Investment) => ({
-      ...i,
-      returnPercent: i.amount > 0 ? Math.round(((i.currentValue - i.amount) / i.amount) * 100) : 0,
-    })))
+    // Exclude legacy fixed_deposit rows — FDs are managed via the bank account page
+    setInvestments(data
+      .filter((i: Investment) => i.type !== "fixed_deposit")
+      .map((i: Investment) => ({
+        ...i,
+        returnPercent: i.amount > 0 ? Math.round(((i.currentValue - i.amount) / i.amount) * 100) : 0,
+      })))
     setLoading(false)
   }
 

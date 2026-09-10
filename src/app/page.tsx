@@ -30,7 +30,7 @@ interface NetWorth {
 }
 
 interface BankAccountSummary {
-  id: number; name: string; bankName: string; balance: number; type: string
+  id: number; name: string; bankName: string; balance: number; type: string; isEmergencyFund?: boolean
 }
 
 interface HealthData {
@@ -53,6 +53,7 @@ export default function DashboardPage() {
   const [years, setYears] = useState<number[]>([])
   const [healthScore, setHealthScore] = useState<HealthData | null>(null)
   const [activeTab, setActiveTab] = useState("overview")
+  const [spendChartView, setSpendChartView] = useState<"pie" | "bar">("pie")
 
   const currentYear = new Date().getFullYear()
   const [selectedYear, setSelectedYear] = useState<string>("all")
@@ -133,6 +134,7 @@ export default function DashboardPage() {
   const selectedMonthNum = selectedMonth ? Number.parseInt(selectedMonth) : undefined
   const selectedQuarterNum = selectedQuarter ? Number.parseInt(selectedQuarter) : undefined
   const selectedYearNum = isYearSelected ? Number.parseInt(selectedYear) : currentYear
+  const trendYear = isYearSelected ? selectedYearNum : currentYear
 
   type RowItem = { label: string; value: number; href: string }
   type StatRow = [RowItem, RowItem]
@@ -198,7 +200,10 @@ export default function DashboardPage() {
   const prevMonth = insights.monthlyTrend.at(-2)?.amount ?? 0
   const expChange = lastMonth - prevMonth
 
-  const statCards = [
+  const statCards: ({
+    title: string; icon: typeof IndianRupee; rows?: StatRow[]; change?: { text: string; up: boolean };
+    singleValue?: number; href?: string; sub?: string; subDetail?: string; up?: boolean
+  })[] = [
     {
       title: "Total Income", icon: IndianRupee, rows: incomeRows,
       change: undefined as undefined | { text: string; up: boolean },
@@ -208,25 +213,30 @@ export default function DashboardPage() {
       change: { text: `${expChange >= 0 ? "+" : ""}${formatCurrency(expChange)} vs last month`, up: expChange < 0 },
     },
     {
-      title: "Investments", icon: TrendingUp, singleValue: insights.totalInvestments, href: "/investments",
-      sub: `Current: ${formatCurrency(insights.totalCurrentValue)}`,
-      subDetail: `Returns: ${formatCurrency(insights.investmentReturns)}`,
-      up: insights.investmentReturns >= 0,
-    },
-    {
       title: "Active Goals", icon: Target, singleValue: insights.activeGoals, href: "/goals",
       sub: `${insights.goalProgress.toFixed(0)}% avg progress`, up: insights.goalProgress > 50,
     },
   ]
 
+  // Budget card (current month)
+  const budgetInfo = {
+    budget: insights.monthlyBudget || insights.currentMonthBudget || 0,
+    spent: insights.currentMonthSpent || insights.currentMonthExpenses || 0,
+    pct: (insights.budgetUtilization || (insights.monthlyBudget > 0 ? (insights.currentMonthExpenses / insights.monthlyBudget) * 100 : 0)),
+  }
+  const budgetLeft = Math.max(0, budgetInfo.budget - budgetInfo.spent)
+  const budgetOver = budgetInfo.spent > budgetInfo.budget
+
   const wealthCards = [
     { title: "Net Worth", value: netWorth?.netWorth ?? 0, icon: Scale, href: "/net-worth", color: "text-emerald-500 bg-emerald-500/10" },
     { title: "Total Assets", value: netWorth?.totalAssets ?? 0, icon: Briefcase, href: "/assets", color: "text-blue-500 bg-blue-500/10" },
     { title: "Total Loans", value: insights.totalLoans, icon: Wallet, href: "/loans", color: "text-red-500 bg-red-500/10" },
-    { title: "EPF & Pension", value: insights.totalPF, icon: PiggyBank, href: "/investments", color: "text-amber-500 bg-amber-500/10" },
     { title: "Insurance Premium", value: insights.totalInsurancePremium, icon: Shield, href: "/insurance", color: "text-purple-500 bg-purple-500/10" },
     { title: "Subscriptions", value: insights.totalSubscriptionMonthly * 12, icon: CreditCard, href: "/subscriptions", color: "text-pink-500 bg-pink-500/10" },
   ]
+
+  const inv = insights.investmentBreakdown || { stocks: { currentValue: 0 }, epfPension: { currentValue: 0 }, others: { currentValue: 0 } }
+  const fdTotal = netWorth?.breakdown.fixedDeposits ?? 0
 
   const bankTotal = accounts.reduce((s, a) => s + a.balance, 0) + (cashBalance?.amount || 0)
   const liquidTotal = (netWorth?.breakdown.bankBalance ?? 0) + (netWorth?.breakdown.cash ?? 0) + (netWorth?.breakdown.fixedDeposits ?? 0)
@@ -240,10 +250,11 @@ export default function DashboardPage() {
       weight: 30,
       target: 30,
       targetLabel: "30%+ of income",
-      description: "The percentage of your income that you keep after expenses. A higher savings rate means you're building wealth faster.",
+      description: "The percentage of your income that you keep after expenses. A higher savings rate means you're building wealth faster. This is the most impactful metric — it directly determines how quickly you reach financial goals.",
       tips: [
-        "Track every expense for a month to find areas to cut",
-        "Automate savings — set up a transfer on payday",
+        "Go to /income to track all income sources — the more complete, the more accurate",
+        "Go to /expenses to find your top 3 spending categories and cut non-essentials",
+        "Automate savings — set up a SIP or auto-transfer on payday (before you spend)",
         "Aim for at least 30% — the FIRE community targets 50%+",
       ],
       link: { href: "/income", label: "View income & expenses" },
@@ -254,16 +265,16 @@ export default function DashboardPage() {
       weight: 25,
       target: 80,
       targetLabel: "80%+ (staying within budget)",
-      description: "How well your actual spending stays within the budgets you've set. If no budgets are configured, this metric doesn't apply.",
+      description: "How well your actual spending stays within the budgets you've set. If no budgets are configured, this metric doesn't apply — set up budgets first.",
       tips: healthScore.budgetAdherence === null
         ? [
-            "You haven't set any budgets yet — this is the first step",
-            "Start with your top 3 spending categories",
+            "Go to /budgets to set up your first budgets — start with rent, groceries, and transport",
+            "Start with your top 3 spending categories (check /reports for breakdown)",
             "Review and adjust budgets monthly based on actual spending",
           ]
         : [
-            "Review your top overspending categories",
-            "Set realistic budgets based on past 3 months of data",
+            "Go to /reports → Spending to see which categories you're overspending in",
+            "Go to /budgets to adjust budgets that are consistently over/under",
             "Use the 50/30/20 rule: 50% needs, 30% wants, 20% savings",
           ],
       link: { href: "/budgets", label: healthScore.budgetAdherence === null ? "Set up budgets" : "Manage budgets" },
@@ -274,11 +285,12 @@ export default function DashboardPage() {
       weight: 25,
       target: 70,
       targetLabel: "70%+ (consistent spending)",
-      description: "How consistent your monthly spending is. Large spikes or drops suggest irregular spending patterns. Steady, predictable spending is healthier.",
+      description: "Measures how consistent your monthly spending is month-to-month. Score is based on the coefficient of variation — lower variance means more predictable, controlled spending. A score of 50 means insufficient data (need 2+ months).",
       tips: [
-        "Identify which months have unusually high spending",
-        "Smooth out large purchases across the year",
-        "Set up recurring budgets for predictable expenses",
+        "Go to /reports → Spending to see your monthly trend and identify spike months",
+        "Set up recurring budgets for predictable expenses (rent, EMI, subscriptions)",
+        "Smooth out large purchases — spread festive/shopping spending across the year",
+        "Check /reports → Intelligence for alerts on unusual spending patterns",
       ],
       link: { href: "/reports", label: "View spending reports" },
     },
@@ -288,13 +300,14 @@ export default function DashboardPage() {
       weight: 20,
       target: 100,
       targetLabel: "6 months of expenses",
-      description: `Your liquid assets (bank accounts + cash) cover ${healthScore.monthsOfCoverage} months of expenses. Target: 6 months for financial security.`,
+      description: `Your liquid assets (bank accounts + cash) cover ${healthScore.monthsOfCoverage} months of expenses. Target: 6 months for financial security. Currently: ₹${(healthScore.totalLiquid || 0).toLocaleString("en-IN")} liquid vs ₹${(healthScore.monthlyExpense || 0).toLocaleString("en-IN")}/mo expenses.`,
       tips: [
-        "Keep emergency fund in a liquid, easily accessible account",
-        "Don't invest emergency money in stocks or long-term FDs",
+        "Go to /emergency-fund to set up your personalized target and run-up plan",
+        "Keep emergency fund in a liquid, easily accessible account (not stocks/FDs)",
         "Start with 1 month, then build to 3, then 6",
+        "Go to /bank-accounts to add all your savings accounts for accurate tracking",
       ],
-      link: { href: "/bank-accounts", label: "Manage bank accounts" },
+      link: { href: "/emergency-fund", label: "Plan your emergency fund" },
     },
   ] : []
 
@@ -349,6 +362,17 @@ export default function DashboardPage() {
   )
 
   // ── Return ──────────────────────────────────────────────────────────────
+  const scrollToSection = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
+  const SECTION_NAV = [
+    { id: "cash-flow", label: "Cash Flow" },
+    { id: "wealth", label: "Wealth" },
+    { id: "health", label: "Health" },
+    { id: "recent", label: "Recent" },
+  ]
+
   return (
     <div className="space-y-6">
       <TutorialOverlay />
@@ -362,267 +386,304 @@ export default function DashboardPage() {
       <AdContainer slotIdPrefix="dashboard" />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="wealth">Wealth</TabsTrigger>
-          <TabsTrigger value="spending">Spending</TabsTrigger>
-          <TabsTrigger value="income">Income</TabsTrigger>
-          <TabsTrigger value="health">Health</TabsTrigger>
-          <TabsTrigger value="retirement">Retirement</TabsTrigger>
-        </TabsList>
+        <div className="sticky top-0 z-10 bg-background pt-2">
+          <TabsList className="flex-wrap h-auto gap-1">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="spending">Spending</TabsTrigger>
+            <TabsTrigger value="income">Income</TabsTrigger>
+            <TabsTrigger value="health">Health</TabsTrigger>
+            <TabsTrigger value="retirement">Retirement</TabsTrigger>
+          </TabsList>
+          {activeTab === "overview" && (
+            <div className="mt-1 flex gap-1 flex-wrap pb-1">
+              {SECTION_NAV.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => scrollToSection(s.id)}
+                  className="text-[10px] px-2 py-1 rounded-full bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {/* OVERVIEW TAB                                                        */}
         {/* ═══════════════════════════════════════════════════════════════════ */}
-        <TabsContent value="overview" className="space-y-6">
+        <TabsContent value="overview" className="space-y-6 mt-3">
           {filterBar}
 
-          {/* Stat cards */}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {statCards.map((card) => {
-              const Icon = card.icon
-              const hasRows = "rows" in card
-              return (
-                <Card key={card.title} className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 h-full">
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="rounded bg-primary/10 p-1 text-primary">
-                        <Icon className="h-3 w-3" />
-                      </div>
-                      <span className="text-[11px] font-medium text-muted-foreground leading-tight">{card.title}</span>
-                    </div>
-                    {hasRows ? (
-                      <div className="space-y-1">
-                        {card.rows?.map((row, ri) => (
-                          <div key={ri} className="flex items-baseline justify-between text-[11px] leading-tight">
-                            <div className="flex items-baseline gap-1.5">
-                              {row[0].label ? (
-                                <Link href={row[0].href} className="hover:underline">
-                                  <span className="text-muted-foreground">{row[0].label}:</span>
-                                  <span className="font-semibold ml-1">{formatCurrency(row[0].value)}</span>
-                                </Link>
-                              ) : <span />}
-                            </div>
-                            <div className="flex items-baseline gap-1.5">
-                              {row[1].label ? (
-                                <Link href={row[1].href} className="hover:underline">
-                                  <span className="text-muted-foreground">{row[1].label}:</span>
-                                  <span className="font-semibold ml-1">{formatCurrency(row[1].value)}</span>
-                                </Link>
-                              ) : <span />}
-                            </div>
-                          </div>
-                        ))}
-                        {"change" in card && card.change ? (
-                          <p className={`flex items-center gap-1 text-[10px] mt-1 leading-tight ${card.change.up ? "text-emerald-500" : "text-red-500"}`}>
-                            {card.change.up ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
-                            <span>{card.change.text}</span>
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <>
-                        <div className="text-base font-bold leading-tight">
-                          {"singleValue" in card ? (
-                            <Link href={"href" in card ? card.href : "#"} className="hover:underline">
-                              {card.title === "Active Goals" ? (
-                                <AnimatedCounter value={card.singleValue} />
-                              ) : (
-                                <AnimatedCounter value={card.singleValue} format={formatCurrency} />
-                              )}
-                            </Link>
-                          ) : null}
-                        </div>
-                        {"sub" in card && card.sub ? (
-                          <p className="text-[10px] mt-0.5 leading-tight text-muted-foreground">{card.sub}</p>
-                        ) : null}
-                        {"subDetail" in card && card.subDetail ? (
-                          <p className="text-[10px] mt-0.5 leading-tight text-muted-foreground">{card.subDetail}</p>
-                        ) : null}
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-
-          {/* Liquid assets strip */}
-          <Card>
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Landmark className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">Liquid Assets</span>
-                </div>
-                <Link href="#" onClick={() => setActiveTab("wealth")} className="text-[10px] text-primary hover:underline flex items-center gap-1">
-                  Full breakdown <ArrowUpRight className="h-2.5 w-2.5" />
-                </Link>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Total: </span>
-                  <span className="font-bold">{formatCurrency(liquidTotal)}</span>
-                </div>
-                {netWorth?.breakdown.bankBalance ? (
-                  <span className="text-muted-foreground">{formatCurrency(netWorth.breakdown.bankBalance)} in banks</span>
-                ) : null}
-                {netWorth?.breakdown.cash ? (
-                  <span className="text-muted-foreground">{formatCurrency(netWorth.breakdown.cash)} cash</span>
-                ) : null}
-                {netWorth?.breakdown.fixedDeposits ? (
-                  <span className="text-muted-foreground">{formatCurrency(netWorth.breakdown.fixedDeposits)} in FDs</span>
-                ) : null}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Health Score mini */}
-          {healthScore && (
-            <HealthGauge
-              score={healthScore.score}
-              metrics={[]}
-              variant="compact"
-            />
-          )}
-
-          {/* Recent Expenses */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Recent Expenses</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {insights.recentExpenses.map((expense) => (
-                  <div key={expense.id} className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="flex h-10 w-10 items-center justify-center rounded-full text-white text-xs font-bold"
-                        style={{ backgroundColor: expense.category?.color || "#6366f1" }}
-                      >
-                        {expense.category?.name?.[0] || "?"}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{expense.vendor || expense.category?.name || "Unknown"}</p>
-                        <p className="text-xs text-muted-foreground">{formatDate(expense.date)}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold">{formatCurrency(expense.amount)}</p>
-                      <Badge variant="secondary" className="text-[10px]">{expense.category?.name}</Badge>
-                    </div>
-                  </div>
-                ))}
-                {insights.recentExpenses.length === 0 && (
-                  <p className="text-center text-sm text-muted-foreground py-8">No expenses yet. Import your GPay data!</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ═══════════════════════════════════════════════════════════════════ */}
-        {/* WEALTH TAB                                                          */}
-        {/* ═══════════════════════════════════════════════════════════════════ */}
-        <TabsContent value="wealth" className="space-y-6">
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            {wealthCards.map((card) => {
-              const Icon = card.icon
-              return (
-                <Link key={card.title} href={card.href} className="block">
-                  <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 h-full">
+          {/* ── CASH FLOW ─────────────────────────────────────────────────── */}
+          <div id="cash-flow" className="scroll-mt-24">
+            <SectionHeading title="Cash Flow" subtitle="Income, spending, budget & goals for the selected period" />
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {statCards.map((card) => {
+                const Icon = card.icon
+                const hasRows = "rows" in card
+                return (
+                  <Card key={card.title} className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 h-full">
                     <CardContent className="p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className={`rounded p-1 ${card.color}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="rounded bg-primary/10 p-1 text-primary">
                           <Icon className="h-3 w-3" />
                         </div>
                         <span className="text-[11px] font-medium text-muted-foreground leading-tight">{card.title}</span>
                       </div>
-                      <div className="text-base font-bold leading-tight" title={formatCurrencyWithFull(card.value)}>
-                        <AnimatedCounter value={card.value} format={formatCurrency} />
-                      </div>
+                      {hasRows ? (
+                        <div className="space-y-1">
+                          {card.rows?.map((row, ri) => (
+                            <div key={ri} className="flex items-baseline justify-between text-[11px] leading-tight">
+                              <div className="flex items-baseline gap-1.5">
+                                {row[0].label ? (
+                                  <Link href={row[0].href} className="hover:underline">
+                                    <span className="text-muted-foreground">{row[0].label}:</span>
+                                    <span className="font-semibold ml-1">{formatCurrency(row[0].value)}</span>
+                                  </Link>
+                                ) : <span />}
+                              </div>
+                              <div className="flex items-baseline gap-1.5">
+                                {row[1].label ? (
+                                  <Link href={row[1].href} className="hover:underline">
+                                    <span className="text-muted-foreground">{row[1].label}:</span>
+                                    <span className="font-semibold ml-1">{formatCurrency(row[1].value)}</span>
+                                  </Link>
+                                ) : <span />}
+                              </div>
+                            </div>
+                          ))}
+                          {"change" in card && card.change ? (
+                            <p className={`flex items-center gap-1 text-[10px] mt-1 leading-tight ${card.change.up ? "text-emerald-500" : "text-red-500"}`}>
+                              {card.change.up ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+                              <span>{card.change.text}</span>
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="text-base font-bold leading-tight">
+                            {"singleValue" in card && card.singleValue !== undefined ? (
+                              <Link href={card.href ?? "#"} className="hover:underline">
+                                {card.title === "Active Goals" ? (
+                                  <AnimatedCounter value={card.singleValue} />
+                                ) : (
+                                  <AnimatedCounter value={card.singleValue} format={formatCurrency} />
+                                )}
+                              </Link>
+                            ) : null}
+                          </div>
+                          {"sub" in card && card.sub ? (
+                            <p className="text-[10px] mt-0.5 leading-tight text-muted-foreground">{card.sub}</p>
+                          ) : null}
+                          {"subDetail" in card && card.subDetail ? (
+                            <p className="text-[10px] mt-0.5 leading-tight text-muted-foreground">{card.subDetail}</p>
+                          ) : null}
+                        </>
+                      )}
                     </CardContent>
                   </Card>
-                </Link>
-              )
-            })}
+                )
+              })}
+
+              {/* Budget card */}
+              <Card className="h-full">
+                <CardContent className="p-3 flex flex-col">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="rounded bg-amber-500/10 p-1 text-amber-600"><Wallet className="h-3 w-3" /></div>
+                    <span className="text-[11px] font-medium text-muted-foreground leading-tight">Monthly Budget</span>
+                  </div>
+                  <div className="flex items-baseline justify-between text-[11px]">
+                    <span className="text-muted-foreground">Budget:</span>
+                    <Link href="/budgets" className="hover:underline"><span className="font-semibold">{formatCurrency(budgetInfo.budget)}</span></Link>
+                  </div>
+                  <div className="flex items-baseline justify-between text-[11px] mt-0.5">
+                    <span className="text-muted-foreground">Spent:</span>
+                    <span className="font-semibold">{formatCurrency(budgetInfo.spent)}</span>
+                  </div>
+                  <div className="flex items-baseline justify-between text-[11px] mt-0.5">
+                    <span className="text-muted-foreground">{budgetOver ? "Over by:" : "Left:"}</span>
+                    <span className={`font-semibold ${budgetOver ? "text-red-500" : "text-emerald-500"}`}>{formatCurrency(budgetOver ? budgetInfo.spent - budgetInfo.budget : budgetLeft)}</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 w-full rounded-full bg-secondary">
+                    <div className={`h-1.5 rounded-full ${budgetOver ? "bg-red-500" : budgetInfo.pct >= 80 ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(100, budgetInfo.pct)}%` }} />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">{Math.round(budgetInfo.pct)}% used</p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
-          {/* Investment breakdown */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Investments</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">Portfolio Value</p>
-                  <p className="text-lg font-bold">{formatCurrency(insights.totalCurrentValue)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Returns</p>
-                  <p className={`text-lg font-bold ${insights.investmentReturns >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-                    {formatCurrency(insights.investmentReturns)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">EPF & Pension</p>
-                  <p className="text-lg font-bold">{formatCurrency(insights.totalPF)}</p>
-                </div>
-              </div>
-              <Link href="/investments" className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-4">
-                View all investments <ArrowUpRight className="h-3 w-3" />
-              </Link>
-            </CardContent>
-          </Card>
+          {/* ── WEALTH ────────────────────────────────────────────────────── */}
+          <div id="wealth" className="scroll-mt-24 space-y-4">
+            <SectionHeading title="Wealth" subtitle="What you own, invest and owe" />
 
-          {/* Fixed Deposits */}
-          {netWorth?.breakdown.fixedDeposits ? (
+            {/* Wealth summary cards */}
+            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              {wealthCards.map((card) => {
+                const Icon = card.icon
+                return (
+                  <Link key={card.title} href={card.href} className="block">
+                    <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 h-full">
+                      <CardContent className="p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className={`rounded p-1 ${card.color}`}>
+                            <Icon className="h-3 w-3" />
+                          </div>
+                          <span className="text-[11px] font-medium text-muted-foreground leading-tight">{card.title}</span>
+                        </div>
+                        <div className="text-base font-bold leading-tight" title={formatCurrencyWithFull(card.value)}>
+                          <AnimatedCounter value={card.value} format={formatCurrency} />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                )
+              })}
+            </div>
+
+            {/* Investments breakdown card */}
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Fixed Deposits</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">{formatCurrency(netWorth.breakdown.fixedDeposits)}</p>
-                <p className="text-xs text-muted-foreground mt-1">Maturity value across all FDs</p>
-              </CardContent>
-            </Card>
-          ) : null}
-
-          {/* Bank Accounts detail */}
-          <Card>
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Landmark className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">Bank Accounts</span>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="rounded bg-primary/10 p-1 text-primary"><TrendingUp className="h-4 w-4" /></div>
+                    <div>
+                      <p className="text-sm font-medium leading-tight">Investments</p>
+                      <p className="text-xs text-muted-foreground">Total value {formatCurrency(inv.stocks.currentValue + inv.epfPension.currentValue + inv.others.currentValue)}</p>
+                    </div>
+                  </div>
+                  <Link href="/investments" className="text-[10px] text-primary hover:underline flex items-center gap-1">View all <ArrowUpRight className="h-2.5 w-2.5" /></Link>
                 </div>
-                <Link href="/bank-accounts" className="text-[10px] text-primary hover:underline flex items-center gap-1">Manage <ArrowUpRight className="h-2.5 w-2.5" /></Link>
-              </div>
-              {accounts.length === 0 && !cashBalance ? (
-                <p className="text-xs text-muted-foreground">No accounts recorded.</p>
-              ) : (
-                <div className="flex flex-wrap gap-3">
-                  {accounts.map((acc) => (
-                    <div key={acc.id} className="flex items-center gap-2 text-sm">
-                      <span className="text-muted-foreground">{acc.bankName}</span>
-                      <span className="font-semibold">{formatCurrency(acc.balance)}</span>
-                    </div>
-                  ))}
-                  {(cashBalance && cashBalance.amount > 0) && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-muted-foreground">Cash</span>
-                      <span className="font-semibold">{formatCurrency(cashBalance.amount)}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 text-sm border-l pl-3">
-                    <span className="text-muted-foreground">Total</span>
-                    <span className="font-bold">{formatCurrency(bankTotal)}</span>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                  <div className="rounded-md border p-2.5">
+                    <p className="text-[10px] text-muted-foreground">Stocks</p>
+                    <p className="text-sm font-bold">{formatCurrency(inv.stocks.currentValue)}</p>
+                  </div>
+                  <div className="rounded-md border p-2.5">
+                    <p className="text-[10px] text-muted-foreground">EPF & Pension</p>
+                    <p className="text-sm font-bold">{formatCurrency(inv.epfPension.currentValue)}</p>
+                  </div>
+                  <div className="rounded-md border p-2.5">
+                    <p className="text-[10px] text-muted-foreground">MF, NPS, Gold & others</p>
+                    <p className="text-sm font-bold">{formatCurrency(inv.others.currentValue)}</p>
+                  </div>
+                  <div className="rounded-md border p-2.5">
+                    <p className="text-[10px] text-muted-foreground">Returns</p>
+                    <p className={`text-sm font-bold ${insights.investmentReturns >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+                      {insights.investmentReturns >= 0 ? "+" : ""}{formatCurrency(insights.investmentReturns)}
+                    </p>
+                  </div>
+                  <div className="rounded-md border p-2.5">
+                    <p className="text-[10px] text-muted-foreground">Invested</p>
+                    <p className="text-sm font-bold">{formatCurrency(insights.totalInvestments)}</p>
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            {/* Bank accounts + liquid + FD */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="rounded bg-primary/10 p-1 text-primary"><Landmark className="h-4 w-4" /></div>
+                    <p className="text-sm font-medium leading-tight">Bank Accounts & Liquid</p>
+                  </div>
+                  <Link href="/bank-accounts" className="text-[10px] text-primary hover:underline flex items-center gap-1">Manage <ArrowUpRight className="h-2.5 w-2.5" /></Link>
+                </div>
+                {accounts.length === 0 && !cashBalance && fdTotal === 0 ? (
+                  <p className="text-xs text-muted-foreground">No accounts recorded. Add one to track balances.</p>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                      {accounts.map((acc) => (
+                        <div key={acc.id} className="flex flex-col">
+                          <span className="text-muted-foreground text-xs flex items-center gap-1">
+                            {acc.bankName}
+                            {acc.isEmergencyFund && <Badge variant="secondary" className="text-[9px] px-1 py-0">Emergency</Badge>}
+                          </span>
+                          <span className="font-semibold">{formatCurrency(acc.balance)}</span>
+                        </div>
+                      ))}
+                      {(cashBalance && cashBalance.amount > 0) && (
+                        <div className="flex flex-col">
+                          <span className="text-muted-foreground text-xs">Cash</span>
+                          <span className="font-semibold">{formatCurrency(cashBalance.amount)}</span>
+                        </div>
+                      )}
+                      {fdTotal > 0 && (
+                        <div className="flex flex-col">
+                          <span className="text-muted-foreground text-xs">FDs (maturity)</span>
+                          <span className="font-semibold">{formatCurrency(fdTotal)}</span>
+                        </div>
+                      )}
+                      <div className="flex flex-col border-l pl-4">
+                        <span className="text-muted-foreground text-xs">Total Liquid</span>
+                        <span className="font-bold text-emerald-600">{formatCurrency(liquidTotal)}</span>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-3">
+                      FDs and bank accounts are managed in Bank Accounts.
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* ── HEALTH ────────────────────────────────────────────────────── */}
+          <div id="health" className="scroll-mt-24 space-y-4">
+            <SectionHeading title="Health" subtitle="Financial health score with the areas that need attention" />
+            {healthScore ? (
+              <HealthGauge
+                score={healthScore.score}
+                metrics={healthMetrics}
+                variant="compact"
+                onDetailsClick={() => setActiveTab("health")}
+              />
+            ) : null}
+          </div>
+
+          {/* ── RECENT ────────────────────────────────────────────────────── */}
+          <div id="recent" className="scroll-mt-24 space-y-4">
+            <SectionHeading title="Recent" subtitle="Latest expenses" />
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">Recent Expenses</CardTitle>
+                  <Link href="/expenses" className="text-[10px] text-primary hover:underline flex items-center gap-1">See All <ArrowUpRight className="h-2.5 w-2.5" /></Link>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {insights.recentExpenses.map((expense) => (
+                    <div key={expense.id} className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="flex h-10 w-10 items-center justify-center rounded-full text-white text-xs font-bold"
+                          style={{ backgroundColor: expense.category?.color || "#6366f1" }}
+                        >
+                          {expense.category?.name?.[0] || "?"}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{expense.vendor || expense.category?.name || "Unknown"}</p>
+                          <p className="text-xs text-muted-foreground">{formatDate(expense.date)}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold">{formatCurrency(expense.amount)}</p>
+                        <Badge variant="secondary" className="text-[10px]">{expense.category?.name}</Badge>
+                      </div>
+                    </div>
+                  ))}
+                  {insights.recentExpenses.length === 0 && (
+                    <p className="text-center text-sm text-muted-foreground py-8">No expenses yet. Import your GPay data!</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* ═══════════════════════════════════════════════════════════════════ */}
@@ -634,7 +695,7 @@ export default function DashboardPage() {
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Monthly Spending Trend</CardTitle>
+                <CardTitle className="text-lg">Monthly Spending Trend — {trendYear}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-[300px]">
@@ -657,61 +718,70 @@ export default function DashboardPage() {
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Category Breakdown</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg">Category Spending — {trendYear}</CardTitle>
+                <div className="flex rounded-md border text-xs overflow-hidden">
+                  <button
+                    onClick={() => setSpendChartView("pie")}
+                    className={`px-2.5 py-1 ${spendChartView === "pie" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                  >
+                    Pie
+                  </button>
+                  <button
+                    onClick={() => setSpendChartView("bar")}
+                    className={`px-2.5 py-1 ${spendChartView === "bar" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                  >
+                    Bar
+                  </button>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="flex h-[300px] items-center gap-4">
-                  <div className="w-1/2">
+                {spendChartView === "pie" ? (
+                  <div className="flex h-[300px] items-center gap-4">
+                    <div className="w-1/2">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={insights.categoryBreakdown.slice(0, 6)}
+                            cx="50%" cy="50%" innerRadius={60} outerRadius={90}
+                            dataKey="amount" nameKey="name"
+                            isAnimationActive={true} animationDuration={800} animationEasing="ease-out" animationBegin={200}
+                          >
+                            {insights.categoryBreakdown.slice(0, 6).map((_, i) => (
+                              <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip content={<ChartTooltip formatter={(value) => formatIndianCurrency(value)} />} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="w-1/2 space-y-2">
+                      {insights.categoryBreakdown.slice(0, 6).map((cat, i) => (
+                        <div key={cat.name} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <div className="h-3 w-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                            <span className="text-muted-foreground">{cat.name}</span>
+                          </div>
+                          <span className="font-medium">{formatCurrency(cat.amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={insights.categoryBreakdown.slice(0, 6)}
-                          cx="50%" cy="50%" innerRadius={60} outerRadius={90}
-                          dataKey="amount" nameKey="name"
-                          isAnimationActive={true} animationDuration={800} animationEasing="ease-out" animationBegin={200}
-                        >
-                          {insights.categoryBreakdown.slice(0, 6).map((_, i) => (
-                            <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                          ))}
-                        </Pie>
+                      <BarChart data={insights.topCategories} layout="vertical">
+                        <XAxis type="number" stroke="#888" fontSize={12} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+                        <YAxis type="category" dataKey="name" stroke="#888" fontSize={12} width={100} />
                         <Tooltip content={<ChartTooltip formatter={(value) => formatIndianCurrency(value)} />} />
-                      </PieChart>
+                        <Bar dataKey="amount" fill="#6366f1" radius={[0, 4, 4, 0]} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
+                      </BarChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="w-1/2 space-y-2">
-                    {insights.categoryBreakdown.slice(0, 6).map((cat, i) => (
-                      <div key={cat.name} className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <div className="h-3 w-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                          <span className="text-muted-foreground">{cat.name}</span>
-                        </div>
-                        <span className="font-medium">{formatCurrency(cat.amount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Top Spending Categories</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[250px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={insights.topCategories} layout="vertical">
-                    <XAxis type="number" stroke="#888" fontSize={12} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                    <YAxis type="category" dataKey="name" stroke="#888" fontSize={12} width={100} />
-                    <Tooltip content={<ChartTooltip formatter={(value) => formatIndianCurrency(value)} />} />
-                    <Bar dataKey="amount" fill="#6366f1" radius={[0, 4, 4, 0]} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* ═══════════════════════════════════════════════════════════════════ */}
@@ -850,6 +920,15 @@ export default function DashboardPage() {
           <RetirementTab />
         </TabsContent>
       </Tabs>
+    </div>
+  )
+}
+
+function SectionHeading({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <div className="mb-3">
+      <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+      {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
     </div>
   )
 }

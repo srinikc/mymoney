@@ -12,6 +12,7 @@ import { toast } from "sonner"
 import {
   LifeBuoy,
   Loader2,
+  Save,
   TrendingUp,
   Wallet,
   Target,
@@ -46,6 +47,7 @@ interface Breakdown {
 
 interface EFundResponse extends EmergencyFundResult {
   breakdown: Breakdown
+  hasOverrides?: boolean
 }
 
 const JOB_LABELS: Record<string, string> = {
@@ -62,6 +64,7 @@ const JOB_LABELS: Record<string, string> = {
 
 export default function EmergencyFundPage() {
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [data, setData] = useState<EFundResponse | null>(null)
   const [overrides, setOverrides] = useState<{
     jobType?: string
@@ -69,6 +72,7 @@ export default function EmergencyFundPage() {
     monthlyEssentials?: number
     existingSavings?: number
   }>({})
+  const [hasUnsaved, setHasUnsaved] = useState(false)
 
   useEffect(() => {
     void load()
@@ -81,11 +85,37 @@ export default function EmergencyFundPage() {
       if (!res.ok) throw new Error("Failed to load")
       const json: EFundResponse = await res.json()
       setData(json)
+      setHasUnsaved(false)
     } catch {
       toast.error("Failed to load emergency fund data")
     } finally {
       setLoading(false)
     }
+  }
+
+  async function saveOverrides() {
+    setSaving(true)
+    try {
+      const res = await fetch("/api/emergency-fund", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(overrides),
+      })
+      if (!res.ok) throw new Error("Failed to save")
+      toast.success("Emergency fund settings saved")
+      setHasUnsaved(false)
+      // Reload to get recomputed values
+      await load()
+    } catch {
+      toast.error("Failed to save settings")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function setOverride<K extends keyof typeof overrides>(key: K, value: typeof overrides[K]) {
+    setOverrides((p) => ({ ...p, [key]: value }))
+    setHasUnsaved(true)
   }
 
   if (loading || !data) {
@@ -184,15 +214,28 @@ export default function EmergencyFundPage() {
       {/* Customize */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Sparkles className="h-4 w-4" /> Customize your plan
-          </CardTitle>
-          <CardDescription>Defaults are computed from your data. Adjust to fit your situation.</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Sparkles className="h-4 w-4" /> Customize your plan
+              </CardTitle>
+              <CardDescription>Defaults are computed from your data. Adjust to fit your situation.</CardDescription>
+            </div>
+            <Button
+              size="sm"
+              onClick={saveOverrides}
+              disabled={saving || !hasUnsaved}
+              className="gap-1.5"
+            >
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              {saving ? "Saving..." : hasUnsaved ? "Save" : "Saved"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label className="text-xs">Job type</Label>
-            <Select value={display.jobType} onValueChange={(v) => setOverrides((p) => ({ ...p, jobType: v }))}>
+            <Select value={display.jobType} onValueChange={(v) => setOverride("jobType", v)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -209,7 +252,7 @@ export default function EmergencyFundPage() {
               type="number"
               min={0}
               value={display.dependents}
-              onChange={(e) => setOverrides((p) => ({ ...p, dependents: Math.max(0, Number(e.target.value)) }))}
+              onChange={(e) => setOverride("dependents", Math.max(0, Number(e.target.value)))}
             />
           </div>
           <div className="space-y-2">
@@ -218,7 +261,7 @@ export default function EmergencyFundPage() {
               type="number"
               min={0}
               value={display.monthlyEssentials}
-              onChange={(e) => setOverrides((p) => ({ ...p, monthlyEssentials: Math.max(0, Number(e.target.value)) }))}
+              onChange={(e) => setOverride("monthlyEssentials", Math.max(0, Number(e.target.value)))}
             />
           </div>
           <div className="space-y-2">
@@ -227,7 +270,7 @@ export default function EmergencyFundPage() {
               type="number"
               min={0}
               value={display.existingSavings}
-              onChange={(e) => setOverrides((p) => ({ ...p, existingSavings: Math.max(0, Number(e.target.value)) }))}
+              onChange={(e) => setOverride("existingSavings", Math.max(0, Number(e.target.value)))}
             />
           </div>
         </CardContent>

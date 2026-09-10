@@ -37,6 +37,14 @@ interface QuickStat {
   type: 'income' | 'expense' | 'saved';
 }
 
+function SectionLabel({ label, theme }: { label: string; theme: any }) {
+  return (
+    <View style={{ marginTop: 14, marginBottom: 8, paddingHorizontal: 2 }}>
+      <Text style={{ fontSize: 13, fontWeight: '700', color: theme.text, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</Text>
+    </View>
+  );
+}
+
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
@@ -324,6 +332,8 @@ theme.textSecondary }]}>Q{q}</Text>
             </Animated.View>
             )}
 
+            <SectionLabel label="Cash Flow" theme={theme} />
+
             {dashboardTab === 'overview' && (
             <View style={styles.statsRow}>
               {quickStats.map((stat, i) => (
@@ -408,6 +418,7 @@ theme.textSecondary }]}>Q{q}</Text>
             </View>
             )}
 
+            {dashboardTab === 'wealth' && <SectionLabel label="Wealth" theme={theme} />}
             {dashboardTab === 'wealth' && (
             <View style={styles.wealthRow}>
               <TouchableOpacity style={[styles.wealthCard, { backgroundColor: theme.surface }]} onPress={() => 
@@ -516,6 +527,7 @@ router.push('/insurance')}>
             </View>
             )}
 
+            {dashboardTab === 'health' && <SectionLabel label="Health" theme={theme} />}
             {dashboardTab === 'health' && healthScore !== null && (
               <View style={[styles.healthCard, { backgroundColor: theme.surface }]}>
                 <View style={styles.healthHeader}>
@@ -598,6 +610,7 @@ router.push('/expenses')}>
 
             {dashboardTab === 'overview' && (
             <>
+            <SectionLabel label="Recent" theme={theme} />
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Transactions</Text>
               <TouchableOpacity onPress={() => router.push('/list')}>

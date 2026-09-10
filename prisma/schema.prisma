@@ -855,6 +855,7 @@ model BankAccount {
   currency      String   @default("INR")
   source        String   @default("manual") // manual | aa (future)
   isActive      Boolean  @default(true)
+  isEmergencyFund Boolean @default(false) // tagged as the emergency fund account
   lastSynced    DateTime? // last balance sync from email
   notes         String?
 

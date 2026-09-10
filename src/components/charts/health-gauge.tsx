@@ -21,6 +21,7 @@ interface HealthGaugeProps {
   score: number
   metrics?: HealthMetric[]
   variant?: "compact" | "full"
+  onDetailsClick?: () => void
 }
 
 function getScoreColor(score: number): string {
@@ -148,7 +149,7 @@ function MetricRow({ metric, isOpen, onToggle }: { metric: HealthMetric; isOpen:
   )
 }
 
-export function HealthGauge({ score, metrics = [], variant = "compact" }: HealthGaugeProps) {
+export function HealthGauge({ score, metrics = [], variant = "compact", onDetailsClick }: HealthGaugeProps) {
   const [openMetric, setOpenMetric] = useState<string | null>(null)
   const clampedScore = Math.min(100, Math.max(0, score))
   const circumference = 2 * Math.PI * 60
@@ -206,20 +207,52 @@ export function HealthGauge({ score, metrics = [], variant = "compact" }: Health
 
             {/* Compact: mini score for inline display on Overview */}
             {!isFull && (
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-1.5 rounded-full bg-secondary">
-                  <motion.div
-                    className="h-1.5 rounded-full"
-                    style={{ backgroundColor: color }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${clampedScore}%` }}
-                    transition={{ duration: 0.8, delay: 0.3 }}
-                  />
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-1.5 rounded-full bg-secondary">
+                    <motion.div
+                      className="h-1.5 rounded-full"
+                      style={{ backgroundColor: color }}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${clampedScore}%` }}
+                      transition={{ duration: 0.8, delay: 0.3 }}
+                    />
+                  </div>
+                  <button
+                    onClick={onDetailsClick}
+                    className="text-[10px] text-primary hover:underline whitespace-nowrap cursor-pointer"
+                  >
+                    Details →
+                  </button>
                 </div>
-                <Link href="#" className="text-[10px] text-primary hover:underline whitespace-nowrap">
-                  Details →
-                </Link>
-              </div>
+
+                {/* Compact: show lowest-scoring metrics for context */}
+                {metrics.length > 0 && (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {metrics
+                      .filter((m) => m.value !== null)
+                      .slice()
+                      .sort((a, b) => (a.value ?? 0) - (b.value ?? 0))
+                      .slice(0, 2)
+                      .map((m) => (
+                        <div key={m.label} className="rounded-lg border bg-card p-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-muted-foreground">{m.label}</span>
+                            <span className={`text-xs font-semibold ${getMetricColor(m.value)}`}>
+                              {Math.round(m.value ?? 0)}%
+                            </span>
+                          </div>
+                          <div className="mt-1 h-1.5 w-full rounded-full bg-secondary">
+                            <div
+                              className="h-1.5 rounded-full"
+                              style={{ backgroundColor: m.value !== null ? getScoreColor(m.value) : "#888", width: `${Math.min(100, Math.max(0, m.value ?? 0))}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </>
             )}
 
             {/* Full: expandable metric list */}

@@ -220,6 +220,7 @@ export default function ReportsPage() {
         ["Metric", "Value"],
         ["Total Expenses", formatIndianCurrency(insights.totalExpenses)],
         ["Monthly Average", formatIndianCurrency(insights.monthlyExpense)],
+        ["Year Total", formatIndianCurrency(insights.yearlyExpense)],
         ["Budget Utilization", `${insights.budgetUtilization.toFixed(1)}%`],
         ["Total Investments", formatIndianCurrency(insights.totalInvestments)],
         ["Investment Returns", formatIndianCurrency(insights.investmentReturns)],
@@ -540,12 +541,20 @@ export default function ReportsPage() {
               <CardContent><p className="text-2xl font-bold text-emerald-500">{formatIndianCurrency(insights.totalIncome)}</p></CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Expenses</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">
+                {selectedMonth ? `Month Total (${new Date(selectedYear, Number(selectedMonth) - 1, 1).toLocaleString("en-US", { month: "short" })})` : selectedQuarter ? `Quarter Total (Q${selectedQuarter})` : `Year Total (${selectedYear})`}
+              </CardTitle></CardHeader>
               <CardContent><p className="text-2xl font-bold">{formatIndianCurrency(insights.totalExpenses)}</p></CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Monthly Average</CardTitle></CardHeader>
-              <CardContent><p className="text-2xl font-bold">{formatIndianCurrency(insights.monthlyExpense)}</p></CardContent>
+              <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">
+                {selectedMonth ? "Yearly Average" : selectedQuarter ? "Monthly Average" : "Monthly Average"}
+              </CardTitle></CardHeader>
+              <CardContent><p className="text-2xl font-bold">
+                {selectedMonth
+                  ? formatIndianCurrency(Math.round(insights.yearlyExpense / 12))
+                  : formatIndianCurrency(insights.monthlyExpense)}
+              </p></CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Investments</CardTitle></CardHeader>

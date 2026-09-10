@@ -6,6 +6,17 @@ import { Colors } from '../../constants/Colors';
 import { formatCurrency, formatDate } from '../../utils/format';
 import api from '../../api/client';
 
+const FD_STATUSES = ['active', 'matured', 'closed'];
+
+function calcFdMaturity(principal: number, rate: number, start?: string, maturity?: string): number | null {
+  if (!principal || !rate || !start || !maturity) return null;
+  const s = new Date(start).getTime();
+  const e = new Date(maturity).getTime();
+  if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) return null;
+  const t = (e - s) / (365.25 * 24 * 60 * 60 * 1000);
+  return Math.round(principal * Math.pow(1 + rate / 400, 4 * t));
+}
+
 interface AccountDetail {
   id: number;
   bankName: string;
@@ -62,7 +73,13 @@ export default function BankAccountDetailScreen() {
   const [fdStart, setFdStart] = useState('');
   const [fdMaturity, setFdMaturity] = useState('');
   const [fdMaturityAmt, setFdMaturityAmt] = useState('');
+  const [fdStatus, setFdStatus] = useState('active');
+  const [fdGoalId, setFdGoalId] = useState<number | null>(null);
+  const [fdNotes, setFdNotes] = useState('');
+  const [goals, setGoals] = useState<{ id: number; name: string; status?: string }[]>([]);
   const [fdLoading, setFdLoading] = useState(false);
+
+  const fdAutoMaturity = calcFdMaturity(parseFloat(fdPrincipal || '0'), parseFloat(fdRate || '0'), fdStart || undefined, fdMaturity || undefined);
 
   const fetchAccount = useCallback(async () => {
     setError(null);
@@ -101,6 +118,10 @@ export default function BankAccountDetailScreen() {
   useEffect(() => { fetchAccount(); }, [fetchAccount]);
 
   useEffect(() => {
+    api.get('/api/goals').then((r) => setGoals(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (tab === 'transactions') {
       fetchTransactions(1);
     }
@@ -134,10 +155,13 @@ export default function BankAccountDetailScreen() {
         interestRate: fdRate ? parseFloat(fdRate) : null,
         startDate: fdStart,
         maturityDate: fdMaturity,
-        maturityAmount: fdMaturityAmt ? parseFloat(fdMaturityAmt) : null,
+        maturityAmount: fdMaturityAmt ? parseFloat(fdMaturityAmt) : fdAutoMaturity,
+        goalId: fdGoalId,
+        status: fdStatus,
+        notes: fdNotes || null,
       });
       setShowFdForm(false);
-      setFdNumber(''); setFdPrincipal(''); setFdRate(''); setFdStart(''); setFdMaturity(''); setFdMaturityAmt('');
+      setFdNumber(''); setFdPrincipal(''); setFdRate(''); setFdStart(''); setFdMaturity(''); setFdMaturityAmt(''); setFdStatus('active'); setFdGoalId(null); setFdNotes('');
       fetchAccount();
     } catch {
       Alert.alert('Error', 'Failed to add FD');
@@ -297,7 +321,35 @@ export default function BankAccountDetailScreen() {
                 <TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={fdRate} onChangeText={setFdRate} keyboardType="decimal-pad" placeholder="Interest Rate (%)" placeholderTextColor={theme.textTertiary} />
                 <TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={fdStart} onChangeText={setFdStart} placeholder="Start Date (YYYY-MM-DD)" placeholderTextColor={theme.textTertiary} />
                 <TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={fdMaturity} onChangeText={setFdMaturity} placeholder="Maturity Date" placeholderTextColor={theme.textTertiary} />
-                <TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={fdMaturityAmt} onChangeText={setFdMaturityAmt} keyboardType="decimal-pad" placeholder="Maturity Amount" placeholderTextColor={theme.textTertiary} />
+                {fdAutoMaturity !== null && !fdMaturityAmt && (
+                  <Text style={{ color: theme.income, fontSize: 12, fontWeight: '600' }}>Auto maturity: {formatCurrency(fdAutoMaturity)}</Text>
+                )}
+                <TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={fdMaturityAmt} onChangeText={setFdMaturityAmt} keyboardType="decimal-pad" placeholder="Maturity Amount — auto if blank" placeholderTextColor={theme.textTertiary} />
+
+                <Text style={{ color: theme.textTertiary, fontSize: 12, fontWeight: '600' }}>Status</Text>
+                <View style={styles.fdRowWrap}>{FD_STATUSES.map((s) => (
+                  <TouchableOpacity key={s} onPress={() => setFdStatus(s)} style={[styles.chipBtn, { backgroundColor: fdStatus === s ? theme.primary : theme.background }]}>
+                    <Text style={{ color: fdStatus === s ? '#fff' : theme.text, fontSize: 12 }}>{s}</Text>
+                  </TouchableOpacity>
+                ))}</View>
+
+                {goals.length > 0 && (
+                  <>
+                    <Text style={{ color: theme.textTertiary, fontSize: 12, fontWeight: '600' }}>Link to Goal (optional)</Text>
+                    <View style={styles.fdRowWrap}>
+                      <TouchableOpacity onPress={() => setFdGoalId(null)} style={[styles.chipBtn, { backgroundColor: fdGoalId === null ? theme.primary : theme.background }]}>
+                        <Text style={{ color: fdGoalId === null ? '#fff' : theme.text, fontSize: 12 }}>None</Text>
+                      </TouchableOpacity>
+                      {goals.filter((g) => !g.status || g.status === 'active').map((g) => (
+                        <TouchableOpacity key={g.id} onPress={() => setFdGoalId(g.id)} style={[styles.chipBtn, { backgroundColor: fdGoalId === g.id ? theme.primary : theme.background }]}>
+                          <Text style={{ color: fdGoalId === g.id ? '#fff' : theme.text, fontSize: 12 }}>{g.name}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
+
+                <TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.text }]} value={fdNotes} onChangeText={setFdNotes} placeholder="Notes (optional)" placeholderTextColor={theme.textTertiary} />
                 <TouchableOpacity onPress={handleAddFd} disabled={fdLoading} style={[styles.saveBtn, { backgroundColor: theme.primary }]}>
                   {fdLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>Save FD</Text>}
                 </TouchableOpacity>
@@ -373,4 +425,6 @@ const styles = StyleSheet.create({
   input: { borderRadius: 12, padding: 12, fontSize: 14 },
   saveBtn: { height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   fdRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  fdRowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
+  chipBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
 });

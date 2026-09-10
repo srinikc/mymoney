@@ -81,14 +81,37 @@ export async function GET(request: Request) {
     const allTimeExpenses = allTimeExpensesAgg._sum.amount || 0
     const currentMonthExpenses = currentMonthExpensesAgg._sum.amount || 0
 
+    // Monthly average for the selected period:
+    //  - specific month  → that month's total
+    //  - quarter         → quarter total / 3
+    //  - full year       → year total / 12 (default)
+    const periodMonthCount = month !== undefined ? 1 : (quarter !== undefined ? 3 : 12)
+    const monthlyExpense = Math.round(totalExpenses / periodMonthCount)
+
     const totalBudget = budgets.reduce((s, b) => s + b.amount, 0)
     const budgetUtilization = totalBudget > 0 ? (currentMonthExpenses / totalBudget) * 100 : 0
 
-    const totalInvestments = investments.reduce((s, i) => s + i.amount, 0)
-    const totalCurrentValue = investments.reduce((s, i) => s + i.currentValue, 0)
+    // Exclude legacy "fixed_deposit" rows from the investment portfolio —
+    // FDs are tracked via the FixedDeposit (bank) table, not Investment.
+    const portfolioInvestments = investments.filter((i) => i.type !== "fixed_deposit")
+    const totalInvestments = portfolioInvestments.reduce((s, i) => s + i.amount, 0)
+    const totalCurrentValue = portfolioInvestments.reduce((s, i) => s + i.currentValue, 0)
     const investmentReturns = totalCurrentValue - totalInvestments
     const totalPF = pfInvestments.reduce((s, i) => s + (i.currentValue || i.amount), 0)
     const totalLoans = loans.reduce((s, l) => s + l.principal, 0)
+
+    // Investment breakdown by type (for dashboard "Investments" card)
+    const isStock = (t: string) => t === "stocks"
+    const isPFPension = (t: string) => ["ppf", "nps", "epf", "pension", "gratuity"].includes((t || "").toLowerCase())
+    const breakdown = (pred: (t: string) => boolean) => {
+      const list = portfolioInvestments.filter((i) => pred(i.type || ""))
+      return { amount: list.reduce((s, i) => s + i.amount, 0), currentValue: list.reduce((s, i) => s + i.currentValue, 0) }
+    }
+    const investmentBreakdown = {
+      stocks: breakdown(isStock),
+      epfPension: breakdown(isPFPension),
+      others: breakdown((t) => !isStock(t) && !isPFPension(t)),
+    }
 
     const totalInsurancePremium = insurancePremiums.reduce((s, i) => s + (i.premium || 0), 0)
     const totalSubscriptionMonthly = subscriptionMonthly.reduce((s, sub) => {
@@ -205,7 +228,7 @@ export async function GET(request: Request) {
     const response = {
       totalExpenses,
       totalIncome: periodIncome,
-      monthlyExpense: totalExpenses,
+      monthlyExpense,
       monthlyBudget: totalBudget,
       budgetUtilization,
       yearlyExpense,
@@ -216,6 +239,7 @@ export async function GET(request: Request) {
       totalInvestments,
       totalCurrentValue,
       investmentReturns,
+      investmentBreakdown,
       totalPF,
       totalLoans,
       topCategories,

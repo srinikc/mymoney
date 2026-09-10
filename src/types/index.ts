@@ -209,6 +209,11 @@ export interface DashboardInsights {
   totalInvestments: number
   totalCurrentValue: number
   investmentReturns: number
+  investmentBreakdown: {
+    stocks: { amount: number; currentValue: number }
+    epfPension: { amount: number; currentValue: number }
+    others: { amount: number; currentValue: number }
+  }
   totalPF: number
   totalLoans: number
   yearlyExpense: number

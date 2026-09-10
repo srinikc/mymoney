@@ -8,6 +8,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Colors } from '../../constants/Colors';
 import { useAuthStore } from '../../store/auth';
 import api from '../../api/client';
+import { useApiQuery } from '../../hooks/use-api-query';
 
 export default function SessionLinkScreen() {
   const colorScheme = useColorScheme();
@@ -19,17 +20,13 @@ export default function SessionLinkScreen() {
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const tokenQuery = useApiQuery<any>(['session-token'], '/api/auth/session-token');
   useEffect(() => {
-    const fetchToken = async () => {
-      try {
-        const res = await api.get('/api/auth/session-token');
-        if (res.data?.token) setToken(res.data.token);
-      } catch { /* ignore */ } finally {
-        setLoading(false);
-      }
-    };
-    fetchToken();
-  }, []);
+    if (tokenQuery.data !== undefined) {
+      if (tokenQuery.data?.token) setToken(tokenQuery.data.token);
+      setLoading(false);
+    }
+  }, [tokenQuery.data]);
 
   const handleCopy = async () => {
     if (!token) return;

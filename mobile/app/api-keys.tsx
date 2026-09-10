@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 const KEY_FIELDS = [
   { key: 'LLM_PROVIDER', label: 'LLM Provider', type: 'select' as const, description: 'Choose AI provider. Base URL + model suggestions auto-fill.' },
@@ -36,12 +37,14 @@ export default function ApiKeysScreen() {
   const [saving, setSaving] = useState(false);
   const [visible, setVisible] = useState<Record<string, boolean>>({});
 
+  const keysQuery = useApiQuery<any>(['api-keys'], '/api/settings/api-keys');
   useEffect(() => {
-    api.get('/api/settings/api-keys')
-      .then((r) => { setKeys(r.data?.keys || {}); setProviders(r.data?.catalog?.providers || []); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    if (keysQuery.data !== undefined) {
+      setKeys(keysQuery.data?.keys || {});
+      setProviders(keysQuery.data?.catalog?.providers || []);
+      setLoading(false);
+    }
+  }, [keysQuery.data]);
 
   const setKey = (key: string, value: string) => setKeys({ ...keys, [key]: value });
 

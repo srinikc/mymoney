@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme, RefreshControl, ActivityIndicator, Modal, TextInput, Alert, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { formatCurrency, formatDate } from '../utils/format';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 interface FixedDeposit {
   id: number;
@@ -91,32 +92,38 @@ export default function BankAccountsScreen() {
   const [savingCash, setSavingCash] = useState(false);
   const [showCashForm, setShowCashForm] = useState(false);
 
-  const fetchAccounts = useCallback(async () => {
-    setError(null);
-    try {
-      const res = await api.get('/api/bank-accounts');
-      setAccounts(res.data?.accounts || []);
-      setTotals(res.data?.totals || { balance: 0, fdValue: 0 });
-    } catch { setError('Failed to load bank accounts'); }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
+  const accountsQuery = useApiQuery<any>(['bank-accounts'], '/api/bank-accounts');
+  const cashQuery = useApiQuery<any>(['cash-balance'], '/api/cash-balance');
+  const goalsQuery = useApiQuery<any>(['goals'], '/api/goals');
+  const cashInitedRef = useRef(false);
 
-  const fetchCash = useCallback(async () => {
-    try {
-      const res = await api.get('/api/cash-balance');
-      const c = res.data?.cash;
+  useEffect(() => {
+    if (accountsQuery.data !== undefined) {
+      setAccounts(accountsQuery.data?.accounts || []);
+      setTotals(accountsQuery.data?.totals || { balance: 0, fdValue: 0 });
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [accountsQuery.data]);
+  useEffect(() => {
+    if (cashQuery.data !== undefined && !cashInitedRef.current) {
+      cashInitedRef.current = true;
+      const c = cashQuery.data?.cash;
       if (c) {
         setCashAmount(c.amount != null ? String(c.amount) : '');
         setCashNotes(c.notes || '');
       }
-    } catch { /* ignore */ }
-  }, []);
-
-  useEffect(() => { fetchAccounts(); fetchCash(); }, [fetchAccounts, fetchCash]);
-
+    }
+  }, [cashQuery.data]);
   useEffect(() => {
-    api.get('/api/goals').then((r) => setGoals(Array.isArray(r.data) ? r.data : [])).catch(() => {});
-  }, []);
+    if (goalsQuery.data !== undefined) setGoals(Array.isArray(goalsQuery.data) ? goalsQuery.data : []);
+  }, [goalsQuery.data]);
+  useEffect(() => {
+    if (accountsQuery.isError) { setError('Failed to load bank accounts'); setLoading(false); setRefreshing(false); }
+  }, [accountsQuery.isError]);
+
+  const fetchAccounts = () => { void accountsQuery.refetch(); };
+  const fetchCash = () => { cashInitedRef.current = false; void cashQuery.refetch(); };
 
   const fdAutoMaturity = calcFdMaturity(parseFloat(fdPrincipal || '0'), parseFloat(fdRate || '0'), fdStart || undefined, fdMaturity || undefined);
 

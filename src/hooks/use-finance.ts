@@ -110,6 +110,29 @@ export function useBudgetCategoryTree() {
   })
 }
 
+export interface FixedDeposit {
+  id: number; fdNumber?: string; principal: number; interestRate: number
+  startDate?: string; maturityDate?: string; maturityAmount?: number; status: string
+  bankName?: string
+}
+
+export interface BankAccount {
+  id: number; name: string; bankName: string; accountNumber?: string; type: string
+  ifscCode?: string; balance: number; currency: string; source: string; isActive: boolean
+  fixedDeposits: FixedDeposit[]; lastSynced?: string | null
+}
+
+export function useBankAccountsData() {
+  return useQuery({
+    queryKey: queryKeys.bankAccounts(),
+    queryFn: () => apiFetch<{ accounts: BankAccount[]; totals: { balance: number; fdValue: number } }>("/api/bank-accounts"),
+    select: (d) => ({
+      accounts: d.accounts || [],
+      totals: d.totals || { balance: 0, fdValue: 0 },
+    }),
+  })
+}
+
 export function useInvestments() {
   return useQuery({
     queryKey: queryKeys.investments(),

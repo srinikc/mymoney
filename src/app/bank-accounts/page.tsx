@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo } from "react"
+import { useEffect, useState, useMemo, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -17,31 +17,18 @@ import {
   Landmark, Plus, Building2, PiggyBank, RefreshCw, Loader2, CheckCircle2, Wallet,
 } from "lucide-react"
 import Link from "next/link"
-
-interface FixedDeposit {
-  id: number; fdNumber?: string; principal: number; interestRate: number
-  startDate?: string; maturityDate?: string; maturityAmount?: number; status: string
-  bankName?: string
-}
-
-interface BankAccount {
-  id: number; name: string; bankName: string; accountNumber?: string; type: string
-  ifscCode?: string; balance: number; currency: string; source: string; isActive: boolean
-  fixedDeposits: FixedDeposit[]; lastSynced?: string | null
-}
-
-interface Goal {
-  id: number; name: string; targetAmount?: number; status?: string
-}
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
+import { useBankAccountsData, useGoals, type BankAccount, type FixedDeposit } from "@/hooks/use-finance"
+import type { Goal } from "@/types"
+import { useCashBalance } from "@/hooks/use-dashboard"
 
 type ViewMode = "accounts" | "fds"
 
 const FD_STATUSES = ["active", "matured", "closed"]
 
 export default function BankAccountsPage() {
-  const [accounts, setAccounts] = useState<BankAccount[]>([])
-  const [totals, setTotals] = useState({ balance: 0, fdValue: 0 })
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [syncing, setSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
   const [cashAmount, setCashAmount] = useState("")
@@ -53,40 +40,42 @@ export default function BankAccountsPage() {
   // FD dialog state
   const [fdDialogOpen, setFdDialogOpen] = useState(false)
   const [fdAccountId, setFdAccountId] = useState<number | null>(null)
-  const [goals, setGoals] = useState<Goal[]>([])
   const [fdSaving, setFdSaving] = useState(false)
   const [fdForm, setFdForm] = useState({
     fdNumber: "", principal: "", interestRate: "", startDate: "", maturityDate: "", maturityAmount: "", goalId: "", status: "active", notes: "",
   })
 
-  const fetchAccounts = useCallback(async () => {
-    const res = await fetch("/api/bank-accounts")
-    const data = await res.json()
-    setAccounts(data.accounts || [])
-    setTotals(data.totals || { balance: 0, fdValue: 0 })
-    setLoading(false)
-  }, [])
+  const accountsQuery = useBankAccountsData()
+  const accounts = accountsQuery.data?.accounts ?? []
+  const totals = accountsQuery.data?.totals ?? { balance: 0, fdValue: 0 }
+  const loading = accountsQuery.isLoading
 
-  const fetchCash = useCallback(async () => {
-    try {
-      const res = await fetch("/api/cash-balance")
-      const data = await res.json()
-      if (data?.cash) {
-        setCashAmount(data.cash.amount != null ? String(data.cash.amount) : "")
-        setCashNotes(data.cash.notes || "")
-      }
-    } catch { /* ignore */ }
-  }, [])
+  const goalsQuery = useGoals()
+  const goals = goalsQuery.data ?? []
 
-  const fetchGoals = useCallback(async () => {
-    try {
-      const res = await fetch("/api/goals")
-      const data = await res.json()
-      setGoals(Array.isArray(data) ? data : [])
-    } catch { setGoals([]) }
-  }, [])
+  const cashQuery = useCashBalance()
+  const cashData = cashQuery.data
 
-  useEffect(() => { fetchAccounts(); fetchCash(); fetchGoals() }, [fetchAccounts, fetchCash, fetchGoals])
+  // Populate the cash form once from the server value; never clobber edits.
+  const cashInitedRef = useRef(false)
+  useEffect(() => {
+    if (cashInitedRef.current || !cashData) return
+    cashInitedRef.current = true
+    setCashAmount(cashData.amount != null ? String(cashData.amount) : "")
+    setCashNotes(cashData.notes || "")
+  }, [cashData])
+
+  const reloadAccounts = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.bankAccounts() })
+  }
+
+  const reloadCash = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.cashBalance() })
+  }
+
+  const reloadGoals = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.goals() })
+  }
 
   const handleSaveCash = async () => {
     setSavingCash(true)
@@ -98,7 +87,7 @@ export default function BankAccountsPage() {
       })
       if (!res.ok) throw new Error("Failed to save cash")
       toast.success("Cash amount saved")
-      fetchCash()
+      reloadCash()
     } catch (err) {
       toast.error((err as Error).message || "Failed to save cash")
     } finally {
@@ -115,7 +104,7 @@ export default function BankAccountsPage() {
       if (!res.ok) throw new Error(data.error || "Sync failed")
       setSyncMessage(data.message || `Updated ${data.updated} account(s)`)
       toast.success("Balances synced successfully")
-      fetchAccounts()
+      reloadAccounts()
     } catch (err: unknown) {
       const msg = "Sync failed. Ensure Gmail is connected."
       setSyncMessage(msg)
@@ -171,7 +160,7 @@ export default function BankAccountsPage() {
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || "Failed to save FD") }
       toast.success("FD added")
       setFdDialogOpen(false)
-      fetchAccounts()
+      reloadAccounts()
     } catch (err) {
       toast.error((err as Error).message || "Failed to save FD")
     } finally {

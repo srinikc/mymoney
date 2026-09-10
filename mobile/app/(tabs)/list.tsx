@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Colors } from '../../constants/Colors';
 import {
   formatCurrency,
@@ -40,99 +41,68 @@ export default function ListScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filter, setFilter] = useState<'all' | 'expense' | 'income'>('all');
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [quickCaptureVisible, setQuickCaptureVisible] = useState(false);
-
-  const fetchTransactions = useCallback(
-    async (pageNum: number = 1, append: boolean = false) => {
-      if (pageNum === 1) setLoading(true);
-      setError(null);
-      try {
-        const params: Record<string, string | number | undefined> = {
-          page: pageNum,
-          limit: PAGE_SIZE,
-          search: search || undefined,
-          month: selectedMonth || undefined,
-        };
-        if (filter !== 'all') {
-          params.type = filter;
-        }
-
-        const [expRes, incRes] = await Promise.allSettled([
-          filter !== 'income' ? api.get('/api/expenses', { params }) : Promise.resolve({ data: { expenses: [] } }),
-          filter !== 'expense' ? api.get('/api/income/sources', { params }) : Promise.resolve({ data: { sources: [] } }),
-        ]);
-
-        let combined: Transaction[] = [];
-
-        if (expRes.status === 'fulfilled') {
-          const expData = expRes.value.data;
-          const exps = (Array.isArray(expData?.expenses) ? expData.expenses : Array.isArray(expData) ? expData : []).map((e: Record<string, unknown>) => ({ ...e, _type: 'expense' as const }));
-          combined = [...combined, ...exps as Transaction[]];
-        }
-
-        if (incRes.status === 'fulfilled') {
-          const incData = incRes.value.data;
-          const incs = (Array.isArray(incData?.sources) ? incData.sources : Array.isArray(incData?.income) ? incData.income : Array.isArray(incData) ? incData : []).map((i: Record<string, unknown>) => ({ ...i, _type: 'income' as const }));
-          combined = [...combined, ...incs as Transaction[]];
-        }
-
-        combined.sort((a, b) => new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime());
-
-        if (append) {
-          setTransactions((prev) => [...prev, ...combined]);
-        } else {
-          setTransactions(combined);
-        }
-        setHasMore(combined.length >= PAGE_SIZE);
-      } catch {
-        if (!append) setError('Failed to load transactions');
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-        setLoadingMore(false);
-      }
-    },
-    [filter, search, selectedMonth]
-  );
+  const queryClient = useQueryClient();
 
   useEffect(() => {
-    setPage(1);
-    setTransactions([]);
-    fetchTransactions(1);
-  }, [filter, selectedMonth, fetchTransactions]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPage(1);
-      setTransactions([]);
-      fetchTransactions(1);
-    }, 400);
+    const timer = setTimeout(() => setDebouncedSearch(search), 400);
     return () => clearTimeout(timer);
-  }, [search, fetchTransactions]);
+  }, [search]);
+
+  const listQuery = useInfiniteQuery<Transaction[], Error, { pages: Transaction[] }, readonly unknown[], number>({
+    queryKey: ['transactions', filter, debouncedSearch, selectedMonth],
+    queryFn: async ({ pageParam }) => {
+      const params: Record<string, string | number | undefined> = {
+        page: pageParam,
+        limit: PAGE_SIZE,
+        search: debouncedSearch || undefined,
+        month: selectedMonth || undefined,
+      };
+      if (filter !== 'all') params.type = filter;
+
+      const [expRes, incRes] = await Promise.allSettled([
+        filter !== 'income' ? api.get('/api/expenses', { params }) : Promise.resolve({ data: { expenses: [] } }),
+        filter !== 'expense' ? api.get('/api/income/sources', { params }) : Promise.resolve({ data: { sources: [] } }),
+      ]);
+
+      let combined: Transaction[] = [];
+      if (expRes.status === 'fulfilled') {
+        const expData = expRes.value.data;
+        const exps = (Array.isArray(expData?.expenses) ? expData.expenses : Array.isArray(expData) ? expData : []).map((e: Record<string, unknown>) => ({ ...e, _type: 'expense' as const }));
+        combined = [...combined, ...exps as Transaction[]];
+      }
+      if (incRes.status === 'fulfilled') {
+        const incData = incRes.value.data;
+        const incs = (Array.isArray(incData?.sources) ? incData.sources : Array.isArray(incData?.income) ? incData.income : Array.isArray(incData) ? incData : []).map((i: Record<string, unknown>) => ({ ...i, _type: 'income' as const }));
+        combined = [...combined, ...incs as Transaction[]];
+      }
+      combined.sort((a, b) => new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime());
+      return combined;
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => (lastPage.length >= PAGE_SIZE ? allPages.length + 1 : undefined),
+  });
+
+  const transactions: Transaction[] = listQuery.data?.pages.flat() ?? [];
+  const loading = listQuery.isLoading;
+  const loadingMore = listQuery.isFetchingNextPage;
+  const error = listQuery.isError ? 'Failed to load transactions' : null;
 
   const handleRefresh = () => {
     setRefreshing(true);
-    setPage(1);
-    fetchTransactions(1);
+    listQuery.refetch().finally(() => setRefreshing(false));
   };
 
   const handleLoadMore = () => {
-    if (loadingMore || !hasMore || loading) return;
-    setLoadingMore(true);
-    const nextPage = page + 1;
-    setPage(nextPage);
-    fetchTransactions(nextPage, true);
+    if (listQuery.hasNextPage && !listQuery.isFetchingNextPage) {
+      listQuery.fetchNextPage();
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -145,7 +115,9 @@ export default function ListScreen() {
           try {
             setDeleteId(id);
             await api.delete(`/api/expenses/${id}`);
-            setTransactions((prev) => prev.filter((t) => t.id !== id && t._id !== id));
+            queryClient.setQueryData(['transactions', filter, debouncedSearch, selectedMonth], (old: any) =>
+              old ? { ...old, pages: old.pages.map((pg: Transaction[]) => pg.filter((t) => t.id !== id && t._id !== id)) } : old,
+            );
           } catch {
             Alert.alert('Error', 'Failed to delete');
           } finally {
@@ -341,7 +313,7 @@ export default function ListScreen() {
       <QuickCaptureModal
         visible={quickCaptureVisible}
         onClose={() => setQuickCaptureVisible(false)}
-        onSaved={() => { setPage(1); fetchTransactions(1, true); }}
+        onSaved={() => { listQuery.refetch(); }}
       />
     </View>
   );

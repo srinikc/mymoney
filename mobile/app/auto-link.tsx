@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 interface Suggestion {
   expenseId: number;
@@ -33,12 +34,13 @@ export default function AutoLinkScreen() {
   const [accepted, setAccepted] = useState<Set<string>>(new Set());
   const [accepting, setAccepting] = useState<Set<string>>(new Set());
 
+  const suggestionsQuery = useApiQuery<any>(['auto-link-suggestions'], '/api/auto-link/suggestions');
   useEffect(() => {
-    api.get('/api/auto-link/suggestions')
-      .then((r) => setSuggestions(r.data?.suggestions || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    if (suggestionsQuery.data !== undefined) {
+      setSuggestions(suggestionsQuery.data?.suggestions || []);
+      setLoading(false);
+    }
+  }, [suggestionsQuery.data]);
 
   const handleAccept = async (s: Suggestion) => {
     const key = `${s.expenseId}-${s.matchType}-${s.targetId || s.targetName}`;

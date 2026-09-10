@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 const PARSER_CONFIGS = [
   { label: 'UPI Payments', key: 'upi', defaultKeywords: ['upi', 'paid', 'payment', 'debited', 'transaction'], description: 'UPI payment receipts' },
@@ -32,20 +33,23 @@ export default function GmailParserScreen() {
   const [saving, setSaving] = useState(false);
   const [newKeyword, setNewKeyword] = useState<Record<string, string>>({});
 
+  const gmailParserQuery = useApiQuery<any>(['gmail-parser'], '/api/settings/gmail-parser');
   useEffect(() => {
-    api.get('/api/settings/gmail-parser')
-      .then((r) => {
-        const kw: Record<string, string[]> = {};
-        for (const c of PARSER_CONFIGS) kw[c.key] = r.data?.keywords?.[c.key] || [...c.defaultKeywords];
-        setKeywords(kw);
-      })
-      .catch(() => {
-        const kw: Record<string, string[]> = {};
-        for (const c of PARSER_CONFIGS) kw[c.key] = [...c.defaultKeywords];
-        setKeywords(kw);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    if (gmailParserQuery.data !== undefined) {
+      const kw: Record<string, string[]> = {};
+      for (const c of PARSER_CONFIGS) kw[c.key] = gmailParserQuery.data?.keywords?.[c.key] || [...c.defaultKeywords];
+      setKeywords(kw);
+      setLoading(false);
+    }
+  }, [gmailParserQuery.data]);
+  useEffect(() => {
+    if (gmailParserQuery.isError) {
+      const kw: Record<string, string[]> = {};
+      for (const c of PARSER_CONFIGS) kw[c.key] = [...c.defaultKeywords];
+      setKeywords(kw);
+      setLoading(false);
+    }
+  }, [gmailParserQuery.isError]);
 
   const addKeyword = (key: string) => {
     const val = newKeyword[key]?.trim();

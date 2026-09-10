@@ -40,17 +40,6 @@ export interface Recommendation {
   id: string; category: string; priority: "high" | "medium" | "low"; title: string; description: string; action: string; impact: string; estimatedSavings?: number
 }
 
-export interface HealthScore {
-  overall: number; components: Record<string, HealthComponent>; recommendations: string[]
-}
-
-export function useHealthScoreFull() {
-  return useQuery({
-    queryKey: queryKeys.healthScore(),
-    queryFn: () => apiFetch<HealthScore>("/api/health-score"),
-  })
-}
-
 export function useGapAnalysis() {
   return useQuery({
     queryKey: queryKeys.gapAnalysis(),

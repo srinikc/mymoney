@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -13,45 +13,16 @@ import { AnimatedCounter } from "@/components/ui/animated-counter"
 import { AdContainer } from "@/components/ads/ad-container"
 import { HealthGauge } from "@/components/charts/health-gauge"
 import { TutorialOverlay } from "@/components/tutorial-overlay"
-import type { DashboardInsights } from "@/types"
+import {
+  useInsights, useNetWorth, useBankAccounts, useCashBalance, useHealthScore, useExpenseYears,
+} from "@/hooks/use-dashboard"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area,
 } from "recharts"
 import { ChartTooltip } from "@/components/charts/chart-tooltip"
 import { IndianRupee, TrendingUp, TrendingDown, Target, Wallet, Landmark, PiggyBank, Scale, Briefcase, ArrowUpRight, Shield, CreditCard } from "lucide-react"
 
-interface NetWorth {
-  totalAssets: number
-  totalLiabilities: number
-  netWorth: number
-  totalLoans: number
-  totalCash: number
-  breakdown: { userAssets: number; investments: number; bankBalance: number; fixedDeposits: number; cash: number }
-}
-
-interface BankAccountSummary {
-  id: number; name: string; bankName: string; balance: number; type: string; isEmergencyFund?: boolean
-}
-
-interface HealthData {
-  score: number
-  savingsRate: number
-  budgetAdherence: number | null
-  spendingControl: number
-  emergencyFund: number
-  monthsOfCoverage: number
-  totalLiquid: number
-  monthlyExpense: number
-}
-
 export default function DashboardPage() {
-  const [insights, setInsights] = useState<DashboardInsights | null>(null)
-  const [netWorth, setNetWorth] = useState<NetWorth | null>(null)
-  const [accounts, setAccounts] = useState<BankAccountSummary[]>([])
-  const [cashBalance, setCashBalance] = useState<{ amount: number; notes?: string | null } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [years, setYears] = useState<number[]>([])
-  const [healthScore, setHealthScore] = useState<HealthData | null>(null)
   const [activeTab, setActiveTab] = useState("overview")
   const [spendChartView, setSpendChartView] = useState<"pie" | "bar">("pie")
 
@@ -60,60 +31,76 @@ export default function DashboardPage() {
   const [selectedMonth, setSelectedMonth] = useState("")
   const [selectedQuarter, setSelectedQuarter] = useState("")
 
-  useEffect(() => {
-    fetch("/api/expenses/years")
-      .then((r) => {
-        if (!r.ok) throw new Error("years fetch failed")
-        return r.json()
-      })
-      .then((data) => {
-        setYears(Array.isArray(data?.years) ? data.years : [])
-      })
-      .catch(() => setYears([]))
-  }, [currentYear])
+  const yearsQuery = useExpenseYears()
+  const years = yearsQuery.data ?? []
 
-  useEffect(() => {
-    fetch("/api/health-score")
-      .then((r) => r.json())
-      .then(setHealthScore)
-      .catch(() => setHealthScore(null))
-  }, [])
+  const healthQuery = useHealthScore()
+  const healthScore = healthQuery.data ?? null
 
-  const fetchInsights = useCallback(async () => {
-    setLoading(true)
-    const params = new URLSearchParams()
-    if (selectedYear !== "all") params.set("year", selectedYear)
-    if (selectedMonth) params.set("month", selectedMonth)
-    if (selectedQuarter) params.set("quarter", selectedQuarter)
-    try {
-      const res = await fetch(`/api/insights?${params.toString()}`)
-      if (!res.ok) throw new Error(`insights ${res.status}`)
-      const data = await res.json()
-      if (!data || !Array.isArray(data.monthlyTrend)) throw new Error("bad insights payload")
-      setInsights(data)
-    } catch {
-      setInsights(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [selectedYear, selectedMonth, selectedQuarter])
+  const insightsQuery = useInsights(selectedYear, selectedMonth, selectedQuarter)
+  const insights = insightsQuery.data ?? null
+  const loading = insightsQuery.isLoading
+  const fetchInsights = insightsQuery.refetch
 
-  useEffect(() => { fetchInsights() }, [fetchInsights])
+  const netWorthQuery = useNetWorth()
+  const netWorth = netWorthQuery.data ?? null
 
-  useEffect(() => {
-    fetch("/api/net-worth").then((r) => r.json()).then(setNetWorth).catch(() => {})
-    fetch("/api/bank-accounts")
-      .then((r) => r.json())
-      .then((data) => setAccounts(data.accounts || []))
-      .catch(() => {})
-    fetch("/api/cash-balance")
-      .then((r) => r.json())
-      .then((data) => setCashBalance(data.cash || null))
-      .catch(() => {})
-  }, [])
+  const accountsQuery = useBankAccounts()
+  const accounts = accountsQuery.data ?? []
 
-  if (loading) return <DashboardSkeleton />
-  if (!insights) return <div className="p-8 text-center text-muted-foreground">Failed to load insights</div>
+  const cashQuery = useCashBalance()
+  const cashBalance = cashQuery.data ?? null
+
+  if (loading && !insights) {
+    return (
+      <div className="p-4 md:p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="h-8 w-48 animate-pulse rounded bg-muted" />
+          <div className="flex gap-2">
+            <div className="h-9 w-24 animate-pulse rounded bg-muted" />
+            <div className="h-9 w-24 animate-pulse rounded bg-muted" />
+          </div>
+        </div>
+        <Tabs defaultValue="overview">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="spending">Spending</TabsTrigger>
+            <TabsTrigger value="income">Income</TabsTrigger>
+            <TabsTrigger value="health">Health</TabsTrigger>
+            <TabsTrigger value="retirement">Retirement</TabsTrigger>
+          </TabsList>
+          <TabsContent value="overview">
+            <DashboardSkeleton />
+          </TabsContent>
+        </Tabs>
+      </div>
+    )
+  }
+  if (!insights) return (
+    <div className="p-4 md:p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground">Your financial overview at a glance</p>
+        </div>
+      </div>
+      <Tabs defaultValue="overview">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="spending">Spending</TabsTrigger>
+          <TabsTrigger value="income">Income</TabsTrigger>
+          <TabsTrigger value="health">Health</TabsTrigger>
+          <TabsTrigger value="retirement">Retirement</TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview">
+          <div className="p-8 text-center text-muted-foreground space-y-2">
+            <p>Failed to load dashboard data.</p>
+            <button onClick={() => fetchInsights()} className="underline text-primary">Retry</button>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
 
   // ── Helpers ──────────────────────────────────────────────────────────────
   const expenseYearLink = (y: number) => `/expenses?dateFrom=${y}-01-01&dateTo=${y}-12-31`

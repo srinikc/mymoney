@@ -95,7 +95,22 @@ export default function InsightsPage() {
       .finally(() => setYoyLoading(false))
   }, [yoyCategory, currentYear])
 
-  if (loading) return <InsightsSkeleton />
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Insights</h1>
+          <p className="text-muted-foreground">Deep analysis of your spending patterns</p>
+        </div>
+        <AdContainer slotIdPrefix="insights" />
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="h-9 w-36 animate-pulse rounded bg-muted" />
+          <div className="h-9 w-28 animate-pulse rounded bg-muted" />
+        </div>
+        <InsightsSkeleton />
+      </div>
+    )
+  }
   if (!data) return <div className="p-8 text-center text-muted-foreground">Failed to load insights</div>
 
   const selectedCat = selectedCategory

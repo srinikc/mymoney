@@ -3,6 +3,7 @@
 import { Sidebar } from "./sidebar"
 import { useUIStore } from "@/lib/store"
 import { useSession, signOut } from "next-auth/react"
+import { useQueryClient } from "@tanstack/react-query"
 import { clearClientState } from "@/lib/client-state"
 import { Button } from "@/components/ui/button"
 import { Menu, LogOut, User, Moon, Sun, HelpCircle, Settings as SettingsIcon } from "lucide-react"
@@ -33,6 +34,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { sidebarOpen, setMobileSidebarOpen } = useUIStore()
   const { data: session } = useSession()
   const { theme, setTheme } = useTheme()
+  const queryClient = useQueryClient()
   const [mounted, setMounted] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
 
@@ -90,6 +92,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               size="sm"
               onClick={() => {
                 clearClientState()
+                queryClient.clear()
                 signOut({ callbackUrl: "/login" })
               }}
               className="text-muted-foreground hover:text-foreground"

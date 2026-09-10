@@ -163,6 +163,10 @@ export function isRedisReady(): boolean {
   return redis !== null && redis.status === "ready";
 }
 
+export function getRedisClient(): Redis | null {
+  return redis;
+}
+
 export async function disconnectRedis(): Promise<void> {
   if (redis) {
     await redis.quit().catch(() => {});

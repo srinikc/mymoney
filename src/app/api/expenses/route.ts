@@ -3,7 +3,17 @@ import { prisma } from "@/lib/prisma"
 import { validateBody } from "@/shared/validate"
 import { ExpenseCreateSchema } from "@/shared/validation"
 import { getAuthContext, handleAuthError } from "@/lib/with-auth"
+import { cacheDel, cacheDelPattern, CacheKeys, invalidateProfile } from "@/lib/cache"
 import type { Prisma } from "@prisma/client"
+
+async function invalidateExpenseCaches(profileId: number) {
+  // Expense mutations affect insights, health score, net worth, and intelligence.
+  await invalidateProfile(profileId) // intel:*
+  await cacheDelPattern(`insights:${profileId}:*`)
+  await cacheDelPattern(`health:${profileId}:*`)
+  await cacheDelPattern(`networth:${profileId}*`)
+  await cacheDel(CacheKeys.expenseYears(profileId))
+}
 
 /**
  * Build a Prisma filter condition for a multi-select field.
@@ -421,6 +431,7 @@ export async function POST(req: Request) {
       createdIds.push(createdExpense.id)
     }
 
+    await invalidateExpenseCaches(profileId)
     return NextResponse.json({ created, skippedExisting, createdIds, recurring: true }, { status: 201 })
   }
 
@@ -450,6 +461,7 @@ export async function POST(req: Request) {
     }
   }
 
+  await invalidateExpenseCaches(profileId)
   return NextResponse.json(expense, { status: 201 })
 }
 
@@ -471,5 +483,6 @@ export async function DELETE(req: Request) {
     where: { id: Number.parseInt(id) },
     data: { deletedAt: new Date() },
   })
+  await invalidateExpenseCaches(profileId)
   return NextResponse.json({ success: true })
 }

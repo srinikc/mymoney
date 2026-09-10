@@ -36,6 +36,12 @@ export const CacheKeys = {
   marketStatus: () => `commodity:market:${new Date().toDateString()}`,
   intelligence: (profileId: number) =>
     `intel:${profileId}:${new Date().toDateString()}`,
+  healthScore: (profileId: number) =>
+    `health:${profileId}:${new Date().getFullYear()}:${new Date().getMonth() + 1}`,
+  netWorth: (profileId: number) => `networth:${profileId}`,
+  bankAccounts: (profileId: number) => `bankacct:${profileId}`,
+  cashBalance: (profileId: number) => `cashbal:${profileId}`,
+  expenseYears: (profileId: number) => `expyears:${profileId}`,
   insightsByType: (profileId: number, type: string) =>
     `intel:${profileId}:${type}`,
   educationTip: (ageGroup: string, category: string) =>

@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { withAuth } from "@/lib/with-auth"
+import { cached, CACHE_TTL, CacheKeys, cacheDel } from "@/lib/cache"
 
 export async function GET() {
   const auth = await withAuth()
   if (auth.error) return auth.error
   const { profileId } = auth
 
-  const cash = await prisma.cashBalance.findFirst({
-    where: profileId ? { profileId } : {},
-    orderBy: { updatedAt: "desc" },
+  const cash = await cached(CacheKeys.cashBalance(profileId), CACHE_TTL.SHORT, async () => {
+    return prisma.cashBalance.findFirst({
+      where: profileId ? { profileId } : {},
+      orderBy: { updatedAt: "desc" },
+    })
   })
 
   return NextResponse.json({ cash: cash ?? { amount: 0, notes: null } })
@@ -39,6 +42,12 @@ export async function PUT(req: Request) {
     cash = await prisma.cashBalance.create({
       data: { profileId: profileId || undefined, amount, notes },
     })
+  }
+
+  if (profileId) {
+    await cacheDel(CacheKeys.cashBalance(profileId))
+    await cacheDel(CacheKeys.netWorth(profileId))
+    await cacheDel(CacheKeys.healthScore(profileId))
   }
 
   return NextResponse.json(cash)

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { withAuth } from "@/lib/with-auth"
+import { cached, CACHE_TTL, CacheKeys } from "@/lib/cache"
 
 export const runtime = "nodejs"
 
@@ -17,6 +18,16 @@ export async function GET() {
   const auth = await withAuth()
   if (auth.error) return auth.error
   const { profileId } = auth
+
+  const result = await cached(
+    CacheKeys.healthScore(profileId),
+    CACHE_TTL.SHORT,
+    async () => computeHealthScore(profileId),
+  )
+  return NextResponse.json(result)
+}
+
+async function computeHealthScore(profileId: number) {
   const now = new Date()
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth() + 1
@@ -57,16 +68,17 @@ export async function GET() {
     : null
 
   // ── Spending Control (25% of score) ──────────────────────────────────────
-  // Measure month-over-month spending consistency (lower variance = better control)
-  const monthlyExpenses: number[] = []
-  for (let m = 1; m <= 12; m++) {
-    const mStart = new Date(currentYear, m - 1, 1)
-    const mEnd = new Date(currentYear, m, 1)
-    const agg = await prisma.expense.aggregate({
-      where: { profileId, date: { gte: mStart, lt: mEnd }, amount: { gt: 0 } },
-      _sum: { amount: true },
-    })
-    monthlyExpenses.push(agg._sum.amount || 0)
+  // Measure month-over-month spending consistency (lower variance = better control).
+  // Single groupBy query across the year instead of 12 sequential aggregates.
+  const monthlyRows = await prisma.expense.groupBy({
+    by: ["date"],
+    where: { profileId, date: { gte: yearStart, lt: yearEnd }, amount: { gt: 0 } },
+    _sum: { amount: true },
+  })
+  const monthlyExpenses: number[] = Array.from({ length: 12 }, (_, m) => 0)
+  for (const row of monthlyRows) {
+    const month = row.date.getMonth()
+    if (month >= 0 && month < 12) monthlyExpenses[month] += row._sum.amount || 0
   }
   const activeMonths = monthlyExpenses.filter((e) => e > 0)
   let spendingControl = 50 // default if no data
@@ -79,15 +91,21 @@ export async function GET() {
   }
 
   // ── Emergency Fund (20% of score) ────────────────────────────────────────
-  // Use liquid assets: bank accounts + cash balance (NOT investments)
+  // Use liquid assets: bank accounts + cash balance (NOT investments).
+  // If a bank account is tagged as the emergency fund (isEmergencyFund),
+  // prefer that balance; otherwise fall back to all liquid assets.
   const [bankAccounts, cashBalances] = await Promise.all([
-    prisma.bankAccount.findMany({ where: { profileId }, select: { balance: true } }),
+    prisma.bankAccount.findMany({ where: { profileId }, select: { balance: true, isEmergencyFund: true } }),
     prisma.cashBalance.findMany({ where: { profileId }, select: { amount: true } }),
   ])
+  const emergencyTaggedAccounts = bankAccounts.filter((b) => b.isEmergencyFund)
   const totalLiquid = bankAccounts.reduce((s, b) => s + b.balance, 0)
     + cashBalances.reduce((s, c) => s + c.amount, 0)
+  const emergencyFundBalance = emergencyTaggedAccounts.length > 0
+    ? emergencyTaggedAccounts.reduce((s, b) => s + b.balance, 0)
+    : totalLiquid
   const monthlyAvg = monthlyExpense || 1
-  const monthsOfCoverage = monthlyAvg > 0 ? totalLiquid / monthlyAvg : 0
+  const monthsOfCoverage = monthlyAvg > 0 ? emergencyFundBalance / monthlyAvg : 0
   // Target: 6 months of expenses covered
   const emergencyFund = Math.min(100, Math.round((monthsOfCoverage / 6) * 100))
 
@@ -101,7 +119,7 @@ export async function GET() {
     + emergencyFund * weights.emergencyFund
   )
 
-  return NextResponse.json({
+  return {
     score: Math.min(100, Math.max(0, score)),
     savingsRate: Math.min(100, Math.max(0, Math.round(savingsRate))),
     budgetAdherence: budgetAdherence !== null ? Math.min(100, Math.max(0, Math.round(budgetAdherence))) : null,
@@ -110,5 +128,5 @@ export async function GET() {
     monthsOfCoverage: Math.round(monthsOfCoverage * 10) / 10,
     totalLiquid,
     monthlyExpense: Math.round(monthlyExpense),
-  })
+  }
 }

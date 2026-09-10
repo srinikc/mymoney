@@ -13,9 +13,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
-import { Colors } from '../../constants/Colors';
-import { formatCurrency } from '../../utils/format';
-import api from '../../api/client';
+import { Colors } from '../constants/Colors';
+import { formatCurrency } from '../utils/format';
+import api from '../api/client';
 
 interface AllocationResult {
   ageBucket: { label: string; rationale: string } | null;

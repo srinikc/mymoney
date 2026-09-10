@@ -92,8 +92,7 @@ export default function BudgetsScreen() {
       setShowForm(false);
       fetch();
     } catch (err: unknown) {
-      setFormError((err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to 
-save');
+      setFormError((err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to save');
     } finally {
       setFormLoading(false);
     }
@@ -117,120 +116,6 @@ save');
     ]);
   };
 
-  const addCategory = async () => {
-    if (!newCatName.trim()) {
-      Alert.alert('Error', 'Category name is required');
-      return;
-    }
-    try {
-      const catRes = await api.post('/api/categories', { name: newCatName.trim(), type: 'expense' });
-      const cat = catRes.data;
-      const amount = parseFloat(newAmount || '');
-      if (amount > 0) {
-        await api.post('/api/budgets', { categoryId: cat.id, subCategory: newSubCat.trim() || null, month, year, 
-amount });
-      }
-      setShowAdd(false);
-      await fetchOverview();
-    } catch {
-      Alert.alert('Error', 'Failed to add category');
-    }
-  };
-
-  const remainingMonths = (() => {
-    const start = year === now.getFullYear() ? now.getMonth() + 1 : 1;
-    const arr: number[] = [];
-    for (let m = start; m <= 12; m++) arr.push(m);
-    return arr;
-  })();
-
-  const openRepeat = () => {
-    setRepeatMonths([]);
-    setShowRepeat(true);
-  };
-
-  const toggleRepeatMonth = (m: number) => {
-    setRepeatMonths((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]));
-  };
-
-  const handleRepeat = async () => {
-    const months = [...repeatMonths].sort((a, b) => a - b);
-    if (months.length === 0) {
-      Alert.alert('Error', 'Select at least one month');
-      return;
-    }
-    const entries = (overview?.commonCategories || [])
-      .map((row) => {
-        const amt = parseFloat(amounts[rowKey(row)] || '');
-        if (isNaN(amt) || amt <= 0) return null;
-        return { categoryId: row.categoryId, subCategory: row.subCategory, amount: amt, months };
-      })
-      .filter((e): e is NonNullable<typeof e> => e !== null);
-    if (entries.length === 0) {
-      Alert.alert('Error', 'Set budget amounts for at least one category first');
-      return;
-    }
-    setRepeating(true);
-    try {
-      const res = await api.post('/api/budgets/repeat', { year, entries });
-      Alert.alert('Success', `Created ${res.data.created} budgets, skipped ${res.data.skipped} existing`);
-      setShowRepeat(false);
-      await fetchOverview();
-    } catch {
-      Alert.alert('Error', 'Failed to repeat budgets');
-    } finally {
-      setRepeating(false);
-    }
-  };
-
-  const totalBudget = overview?.totals.current.budget ?? 0;
-  const totalSpent = overview?.totals.current.spent ?? 0;
-  const lastBudget = overview?.totals.lastMonth.budget ?? 0;
-  const lastSpent = overview?.totals.lastMonth.spent ?? 0;
-  const income = overview?.income ?? 0;
-
-  const totalStatus = statusInfo(totalSpent, totalBudget > 0 ? totalBudget : null);
-  const lastStatus = statusInfo(lastSpent, lastBudget > 0 ? lastBudget : null);
-
-  const totalPct = totalBudget > 0 ? Math.min(100, (totalSpent / totalBudget) * 100) : 0;
-  const lastPct = lastBudget > 0 ? Math.min(100, (lastSpent / lastBudget) * 100) : 0;
-
-  const renderTotalsCard = (title: string, budget: number, spent: number, pct: number, status: { label: string; color: 
-string }) => {
-    const util = budget > 0 ? (spent / budget) * 100 : 0;
-    const over = budget > 0 && spent > budget;
-    const deviation = budget > 0 ? Math.abs(util - 100) : 0;
-    const badgeColor = budget > 0 ? (over ? theme.expense : theme.income) : theme.textTertiary;
-    return (
-      <View style={[styles.totalsCard, { backgroundColor: theme.surface }]}>
-        <View style={styles.totalsTitleRow}>
-          <Text style={[styles.totalsTitle, { color: theme.textSecondary }]}>{title}</Text>
-          {budget > 0 && (
-            <View style={[styles.totalsBadge, { backgroundColor: badgeColor + '1A' }]}>
-              <Ionicons name={over ? 'trending-up' : 'trending-down'} size={11} color={badgeColor} />
-              <Text style={[styles.totalsBadgeText, { color: badgeColor }]}>
-                {over ? 'Over' : 'Under'} {Math.round(deviation)}%
-              </Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.totalsRow}>
-          <Text style={[styles.totalsLabel, { color: theme.textTertiary }]}>Budgeted</Text>
-          <Text style={[styles.totalsValue, { color: theme.text }]}>{formatCurrency(budget)}</Text>
-        </View>
-        <View style={styles.totalsRow}>
-          <Text style={[styles.totalsLabel, { color: theme.textTertiary }]}>Spent</Text>
-          <Text style={[styles.totalsValue, { color: theme.text }]}>{formatCurrency(spent)}</Text>
-        </View>
-        <View style={[styles.progressBg, { backgroundColor: theme.borderLight }]}>
-          <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: over ? theme.expense : theme.primary 
-}]} />
-        </View>
-        <Text style={[styles.statusChip, { color: status.color, backgroundColor: status.color + '1A' 
-}]}>{status.label}</Text>
-      </View>
-    );
-  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -272,7 +157,7 @@ string }) => {
             return (
               <TouchableOpacity
                 style={[styles.card, { backgroundColor: theme.surface }]}
-                onLongPress={() => handleDelete(item.id || item._id)}
+                onLongPress={() => handleDelete(item.id || item._id || '')}
               >
                 <View style={styles.cardRow}>
                   <View style={[styles.cardIcon, { backgroundColor: theme.primaryLight }]}>
@@ -354,7 +239,6 @@ borderBottomRightRadius: 20, flexDirection: 'row', alignItems: 'center' },
   errorText: { fontSize: 14, fontWeight: '500' },
   retryBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
   retryBtnText: { color: '#FFFFFF', fontWeight: '600' },
-  listContent: { padding: 20 },
   listContent: { padding: 20, paddingBottom: 40 },
   monthPicker: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, marginBottom: 12, 
 justifyContent: 'center' },
@@ -375,8 +259,6 @@ borderRadius: 10 },
   totalsValue: { fontSize: 14, fontWeight: '600' },
   statusChip: { alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, 
 fontSize: 11, fontWeight: '600', overflow: 'hidden' },
-  progressBg: { height: 6, borderRadius: 3, overflow: 'hidden', marginTop: 6 },
-  progressFill: { height: '100%', borderRadius: 3 },
   repeatBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, 
 borderRadius: 12, marginBottom: 16 },
   repeatBtnText: { fontSize: 14, fontWeight: '600' },

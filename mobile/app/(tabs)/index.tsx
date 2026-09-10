@@ -170,12 +170,14 @@ null; balance: number }[]>([]);
     }).start();
   }, [balance, balanceScaleAnim]);
 
+  const refetchAll = () => Promise.all([
+    insightsQuery.refetch(), healthQuery.refetch(), recentQuery.refetch(),
+    netWorthQuery.refetch(), accountsQuery.refetch(), cashQuery.refetch(), yearsQuery.refetch(),
+  ]);
+
   const onRefresh = () => {
     setRefreshing(true);
-    Promise.all([
-      insightsQuery.refetch(), healthQuery.refetch(), recentQuery.refetch(),
-      netWorthQuery.refetch(), accountsQuery.refetch(), cashQuery.refetch(), yearsQuery.refetch(),
-    ]).finally(() => setRefreshing(false));
+    refetchAll().finally(() => setRefreshing(false));
   };
 
   const [quickCaptureVisible, setQuickCaptureVisible] = useState(false);
@@ -287,7 +289,7 @@ theme.textSecondary }]}>Q{q}</Text>
           <View style={[styles.errorCard, { backgroundColor: theme.expenseLight }]}>
             <Ionicons name="alert-circle" size={22} color={theme.expense} />
             <Text style={[styles.errorText, { color: theme.expense }]}>{error}</Text>
-            <TouchableOpacity onPress={fetchData} style={styles.retryBtn}>
+            <TouchableOpacity onPress={() => { void refetchAll(); }} style={styles.retryBtn}>
               <Text style={[styles.retryText, { color: theme.expense }]}>Retry</Text>
             </TouchableOpacity>
           </View>
@@ -687,7 +689,7 @@ router.push('/expenses')}>
       <QuickCaptureModal
         visible={quickCaptureVisible}
         onClose={() => setQuickCaptureVisible(false)}
-        onSaved={() => fetchData()}
+        onSaved={() => { void refetchAll(); }}
       />
 
       <Modal
@@ -1132,6 +1134,100 @@ const styles = StyleSheet.create({
   qlText: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  budgetCard: {
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  budgetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  budgetTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  budgetStatus: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  budgetBarBg: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    overflow: 'hidden',
+  },
+  budgetBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  budgetSub: {
+    fontSize: 11,
+    marginTop: 6,
+  },
+  wealthRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  wealthCard: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  wealthValue: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  bankBalance: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  bankCard: {
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  bankHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  bankRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  bankName: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  bankTotalRow: {
+    borderTopWidth: 1,
+    marginTop: 4,
+    paddingTop: 12,
   },
   fab: {
     position: 'absolute',

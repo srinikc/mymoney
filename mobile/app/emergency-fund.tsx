@@ -12,9 +12,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
-import { Colors } from '../../constants/Colors';
-import { formatCurrency } from '../../utils/format';
-import api from '../../api/client';
+import { Colors } from '../constants/Colors';
+import { formatCurrency } from '../utils/format';
+import api from '../api/client';
 
 interface Breakdown {
   monthlyEssentials: number;

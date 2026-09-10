@@ -1,5 +1,4 @@
-﻿
-import { useEffect, useState, useMemo } from 'react';
+﻿import { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,8 +17,7 @@ import api from '../api/client';
 
 interface IntelligenceItem {
   id: string;
-  kind: 'anomaly' | 'velocity' | 'subscription' | 'tax-optimization' | 'lifestyle-creep' | 'seasonal' | 
-'weekend-effect';
+  kind: 'anomaly' | 'velocity' | 'subscription' | 'tax-optimization' | 'lifestyle-creep' | 'seasonal' | 'weekend-effect';
   title: string;
   description: string;
   metric: string;
@@ -118,8 +116,7 @@ export default function InsightsScreen() {
       />
       <ScrollView
         contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} 
-tintColor={theme.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={theme.primary} />}
       >
         {highCount > 0 && tab === 'alerts' && (
           <View style={[styles.banner, { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' }]}>
@@ -131,41 +128,14 @@ tintColor={theme.primary} />}
         )}
 
         <View style={styles.tabBar}>
-          <TabButton active={tab === 'alerts'} label={`Alerts${highCount > 0 ? ` (${highCount})` : ''}`} onPress={() 
-=> setTab('alerts')} color={theme.primary} />
-          <TabButton active={tab === 'all'} label={`All (${intelligence?.total ?? 0})`} onPress={() => setTab('all')} 
-color={theme.primary} />
-          <TabButton active={tab === 'recs'} label={`Tips (${recs.length})`} onPress={() => setTab('recs')} 
-color={theme.primary} />
+          <TabButton active={tab === 'alerts'} label={`Alerts${highCount > 0 ? ` (${highCount})` : ''}`} onPress={() => setTab('alerts')} color={theme.primary} />
+          <TabButton active={tab === 'all'} label={`All (${intelligence?.total ?? 0})`} onPress={() => setTab('all')} color={theme.primary} />
+          <TabButton active={tab === 'recs'} label={`Tips (${recs.length})`} onPress={() => setTab('recs')} color={theme.primary} />
         </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.content}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); 
-}} tintColor={theme.primary} />}
-        >
-          {data.monthlyTrend && data.monthlyTrend.length > 0 && (
-            <View style={[styles.card, { backgroundColor: theme.surface }]}>
-              <Text style={[styles.cardTitle, { color: theme.text }]}>Monthly Trend</Text>
-              <View style={styles.barChart}>
-                {data.monthlyTrend.map((m: MonthlyTrend, i: number) => {
-                  const max = Math.max(...data.monthlyTrend.map((x: MonthlyTrend) => x.amount));
-                  const pct = max > 0 ? (m.amount / max) * 100 : 0;
-                  return (
-                    <View key={i} style={styles.barCol}>
-                      <Text style={[styles.barValue, { color: theme.textTertiary }]}>{Math.round(m.amount / 
-1000)}k</Text>
-                      <View style={[styles.bar, { height: `${pct}%`, backgroundColor: COLORS[i % COLORS.length], 
-minHeight: 3 }]} />
-                      <Text style={[styles.barLabel, { color: theme.textTertiary }]}>{m.month.slice(0, 3)}</Text>
-                    </View>
-                  );
-                })}
 
         {tab === 'alerts' && (
           <>
-            {(intelligence?.items ?? []).filter((i) => i.severity !== 'info').map((i) => <IntelCard key={i.id} 
-item={i} theme={theme} />)}
+            {(intelligence?.items ?? []).filter((i) => i.severity !== 'info').map((i) => <IntelCard key={i.id} item={i} theme={theme} />)}
             {recs.filter((r) => r.priority !== 'low').map((r) => <RecCard key={r.id} item={r} theme={theme} />)}
             {highCount === 0 && (
               <View style={[styles.empty, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -182,10 +152,9 @@ item={i} theme={theme} />)}
             {(!intelligence || intelligence.items.length === 0) && (
               <View style={[styles.empty, { backgroundColor: theme.card, borderColor: theme.border }]}>
                 <Ionicons name="bulb" size={48} color={theme.textTertiary} />
-                <Text style={{ color: theme.text, fontSize: 14, marginTop: 8 }}>Add more expenses to unlock 
-insights</Text>
+                <Text style={{ color: theme.text, fontSize: 14, marginTop: 8 }}>Add more expenses to unlock insights</Text>
                 <TouchableOpacity onPress={() => router.push('/expenses' as never)} style={{ marginTop: 8 }}>
-                  <Text style={{ color: theme.primary, fontSize: 14, fontWeight: '600' }}>Add expenses ΓåÆ</Text>
+                  <Text style={{ color: theme.primary, fontSize: 14, fontWeight: '600' }}>Add expenses →</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -204,41 +173,6 @@ insights</Text>
           </>
         )}
 
-          {data.topMerchants && data.topMerchants.length > 0 && (
-            <View style={[styles.card, { backgroundColor: theme.surface }]}>
-              <Text style={[styles.cardTitle, { color: theme.text }]}>Top Merchants</Text>
-              {data.topMerchants.map((m: TopMerchant) => (
-                <View key={m.name} style={styles.merchantRow}>
-                  <Ionicons name="storefront-outline" size={16} color={theme.textTertiary} />
-                  <Text style={[styles.merchantName, { color: theme.text }]}>{m.name}</Text>
-                  <Text style={[styles.merchantAmount, { color: theme.text }]}>{formatCurrency(m.amount)}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {data.optimization && data.optimization.length > 0 && (
-            <View style={[styles.card, { backgroundColor: theme.surface }]}>
-              <Text style={[styles.cardTitle, { color: theme.text }]}>Optimization Suggestions</Text>
-              {data.optimization.map((o: Optimization) => (
-                <View key={o.category} style={styles.optRow}>
-                  <View style={styles.optHeader}>
-                    <Text style={[styles.optCategory, { color: theme.text }]}>{o.category}</Text>
-                    <Text style={[styles.optPct, { color: o.percentage > 20 ? theme.expense : theme.income 
-}]}>{o.percentage}%</Text>
-                  </View>
-                  <View style={[styles.optBar, { backgroundColor: theme.border }]}>
-                    <View style={[styles.optFill, { width: `${Math.min(100, o.percentage)}%`, backgroundColor: 
-o.percentage > 20 ? theme.expense : theme.income }]} />
-                  </View>
-                  <Text style={[styles.optSavings, { color: theme.income }]}>Potential savings: 
-{formatCurrency(o.potentialSavings)}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </ScrollView>
-      )}
         <View style={{ marginTop: 20, gap: 8 }}>
           <QuickLink label="Unusual Expenses" href="/expenses/unusual" icon="alert-circle-outline" theme={theme} />
           <QuickLink label="Emergency Fund Planner" href="/emergency-fund" icon="medkit-outline" theme={theme} />
@@ -250,8 +184,7 @@ o.percentage > 20 ? theme.expense : theme.income }]} />
   );
 }
 
-function TabButton({ active, label, onPress, color }: { active: boolean; label: string; onPress: () => void; color: 
-string }) {
+function TabButton({ active, label, onPress, color }: { active: boolean; label: string; onPress: () => void; color: string }) {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -280,14 +213,13 @@ function IntelCard({ item, theme }: { item: IntelligenceItem; theme: any }) {
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <Text style={{ color: sev.text, fontSize: 14, fontWeight: '700', flex: 1 }}>{item.title}</Text>
-            <Text style={{ color: sev.text, fontSize: 9, fontWeight: '700', textTransform: 'uppercase' 
-}}>{item.severity}</Text>
+            <Text style={{ color: sev.text, fontSize: 9, fontWeight: '700', textTransform: 'uppercase' }}>{item.severity}</Text>
           </View>
           <Text style={{ color: sev.text, fontSize: 12, marginTop: 4, lineHeight: 17 }}>{item.description}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
             <Text style={{ color: sev.text, fontSize: 12, fontFamily: 'monospace' }}>{item.metric}</Text>
           </View>
-          <Text style={{ color: sev.text, fontSize: 11, marginTop: 6, fontWeight: '600' }}>ΓåÆ {item.actionable}</Text>
+          <Text style={{ color: sev.text, fontSize: 11, marginTop: 6, fontWeight: '600' }}>→ {item.actionable}</Text>
         </View>
       </View>
     </View>
@@ -295,8 +227,7 @@ function IntelCard({ item, theme }: { item: IntelligenceItem; theme: any }) {
 }
 
 function RecCard({ item, theme }: { item: Recommendation; theme: any }) {
-  const priorityColor = item.priority === 'high' ? '#EF4444' : item.priority === 'medium' ? '#F59E0B' : 
-theme.textTertiary;
+  const priorityColor = item.priority === 'high' ? '#EF4444' : item.priority === 'medium' ? '#F59E0B' : theme.textTertiary;
   return (
     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
@@ -306,8 +237,7 @@ theme.textTertiary;
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={{ color: theme.text, fontSize: 14, fontWeight: '600', flex: 1 }}>{item.title}</Text>
-            <Text style={{ color: priorityColor, fontSize: 9, fontWeight: '700', textTransform: 'uppercase' 
-}}>{item.priority}</Text>
+            <Text style={{ color: priorityColor, fontSize: 9, fontWeight: '700', textTransform: 'uppercase' }}>{item.priority}</Text>
           </View>
           <Text style={{ color: theme.textSecondary, fontSize: 12, marginTop: 4 }}>{item.description}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 4, marginTop: 6 }}>
@@ -339,15 +269,10 @@ function QuickLink({ label, href, icon, theme }: { label: string; href: string; 
 }
 
 const styles = StyleSheet.create({
-  banner: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 
-12 },
-  tabBar: { flexDirection: 'row', gap: 4, marginBottom: 12, backgroundColor: 'rgba(0,0,0,0.04)', borderRadius: 10, 
-padding: 4 },
+  banner: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 12 },
+  tabBar: { flexDirection: 'row', gap: 4, marginBottom: 12, backgroundColor: 'rgba(0,0,0,0.04)', borderRadius: 10, padding: 4 },
   card: { padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 10 },
   iconBox: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   empty: { padding: 32, borderRadius: 12, borderWidth: 1, alignItems: 'center', marginTop: 8 },
-  quickLink: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 10, borderWidth: 
-StyleSheet.hairlineWidth },
+  quickLink: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
 });
-
-

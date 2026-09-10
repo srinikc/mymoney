@@ -3,16 +3,18 @@ import { prisma } from "@/lib/prisma"
 import { withAuth } from "@/lib/with-auth"
 import { validateBody } from "@/shared/validate"
 import { GoalCreateSchema } from "@/shared/validation"
+import { cached, CACHE_TTL, CacheKeys, cacheDel } from "@/lib/cache"
 
 export async function GET() {
   const auth = await withAuth()
   if (auth.error) return auth.error
   const { profileId } = auth
-  // userId auto-checked by getAuthContext
 
-  const goals = await prisma.goal.findMany({
-    where: { profileId: profileId },
-    orderBy: { createdAt: "desc" },
+  const goals = await cached(CacheKeys.goals(profileId), CACHE_TTL.SHORT, async () => {
+    return prisma.goal.findMany({
+      where: { profileId: profileId },
+      orderBy: { createdAt: "desc" },
+    })
   })
   return NextResponse.json(goals)
 }
@@ -45,4 +47,5 @@ export async function POST(req: Request) {
     },
   })
   return NextResponse.json(goal, { status: 201 })
+  if (profileId) await cacheDel(CacheKeys.goals(profileId))
 }

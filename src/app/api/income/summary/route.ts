@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getAuthContext } from "@/lib/with-auth"
+import { cached, CACHE_TTL, CacheKeys } from "@/lib/cache"
 
 export async function GET(req: Request) {
     const { profileId, role } = await getAuthContext()
@@ -14,96 +15,64 @@ export async function GET(req: Request) {
     const now = new Date()
     const month = reqMonth >= 1 && reqMonth <= 12 ? reqMonth - 1 : now.getMonth()
     const year = reqYear >= 1970 ? reqYear : now.getFullYear()
-    const monthStart = new Date(year, month, 1)
-    const monthEnd = new Date(year, month + 1, 1)
 
-    const where = profileId ? { profileId } : {}
+    const result = await cached(CacheKeys.incomeSummary(profileId, month + 1, year), CACHE_TTL.SHORT, async () => {
+      const monthStart = new Date(year, month, 1)
+      const monthEnd = new Date(year, month + 1, 1)
+      const where = profileId ? { profileId } : {}
+      const sources = await prisma.incomeSource.findMany({ where })
 
-    const sources = await prisma.incomeSource.findMany({ where })
+      let totalMonthly = 0
+      let totalYearly = 0
+      const bySourceMap: Record<string, { type: string; total: number; count: number }> = {}
+      let monthIncome = 0
 
-    let totalMonthly = 0
-    let totalYearly = 0
-    const bySourceMap: Record<string, { type: string; total: number; count: number }> = {}
-    let monthIncome = 0
-
-    for (const source of sources) {
-      const amount = source.amount
-      const type = source.type
-
-      // Monthly aggregation
-      if (type === "monthly") {
-        totalMonthly += amount
-      }
-
-      // Yearly aggregation
-      switch (type) {
-        case "monthly": {
-          totalYearly += amount * 12
-          break
-        }
-        case "yearly":
-        case "onetime": {
-          totalYearly += amount
-          break
-        }
-        case "variable": {
-          if (source.startDate) {
-            const monthsActive = Math.max(1, Math.ceil(
-              ((source.endDate || monthEnd).getTime() - source.startDate.getTime()) / (30 * 24 * 60 * 60 * 1000)
-            ))
-            totalYearly += (amount / monthsActive) * 12
-          } else {
-            totalYearly += amount * 12
+      for (const source of sources) {
+        const amount = source.amount
+        const type = source.type
+        if (type === "monthly") totalMonthly += amount
+        switch (type) {
+          case "monthly": totalYearly += amount * 12; break
+          case "yearly": case "onetime": totalYearly += amount; break
+          case "variable": {
+            if (source.startDate) {
+              const monthsActive = Math.max(1, Math.ceil(
+                ((source.endDate || monthEnd).getTime() - source.startDate.getTime()) / (30 * 24 * 60 * 60 * 1000)
+              ))
+              totalYearly += (amount / monthsActive) * 12
+            } else { totalYearly += amount * 12 }
+            break
           }
-          break
         }
-      }
-
-      // By source aggregation
-      if (!bySourceMap[type]) {
-        bySourceMap[type] = { type, total: 0, count: 0 }
-      }
-      bySourceMap[type].total += amount
-      bySourceMap[type].count += 1
-
-      // Selected month contribution
-      switch (type) {
-        case "monthly": {
-          monthIncome += amount
-          break
-        }
-        case "yearly": {
-          if (source.startDate) {
-            const startMonth = source.startDate.getMonth()
-            const startYear = source.startDate.getFullYear()
-            if (startMonth === month && startYear === year) {
+        if (!bySourceMap[type]) bySourceMap[type] = { type, total: 0, count: 0 }
+        bySourceMap[type].total += amount
+        bySourceMap[type].count += 1
+        switch (type) {
+          case "monthly": monthIncome += amount; break
+          case "yearly": {
+            if (source.startDate && source.startDate.getMonth() === month && source.startDate.getFullYear() === year)
               monthIncome += amount
-            }
+            break
           }
-          break
-        }
-        case "onetime": {
-          if (source.startDate && source.startDate >= monthStart && source.startDate < monthEnd) {
-            monthIncome += amount
+          case "onetime": {
+            if (source.startDate && source.startDate >= monthStart && source.startDate < monthEnd)
+              monthIncome += amount
+            break
           }
-          break
-        }
-        case "variable": {
-          monthIncome += amount
-          break
+          case "variable": monthIncome += amount; break
         }
       }
-    }
 
-    const bySource = Object.values(bySourceMap)
-
-    return NextResponse.json({
-      totalMonthly,
-      totalYearly,
-      bySource,
-      currentMonth: monthIncome,
-      monthIncome,
-      month: month + 1,
-      year,
+      return {
+        totalMonthly,
+        totalYearly,
+        bySource: Object.values(bySourceMap),
+        currentMonth: monthIncome,
+        monthIncome,
+        month: month + 1,
+        year,
+      }
     })
+
+    return NextResponse.json(result)
 }

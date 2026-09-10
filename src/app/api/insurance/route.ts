@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getAuthContext } from "@/lib/with-auth"
+import { cached, CACHE_TTL, CacheKeys, cacheDel } from "@/lib/cache"
 
 export async function GET(_req: Request) {
   try {
@@ -8,9 +9,11 @@ export async function GET(_req: Request) {
     if (!profileId) {
       return NextResponse.json([], { status: 200 })
     }
-    const insurance = await prisma.insurance.findMany({
-      where: { profileId: profileId },
-      orderBy: { createdAt: "desc" },
+    const insurance = await cached(CacheKeys.insurance(profileId), CACHE_TTL.SHORT, async () => {
+      return prisma.insurance.findMany({
+        where: { profileId: profileId },
+        orderBy: { createdAt: "desc" },
+      })
     })
     return NextResponse.json(insurance)
   } catch {
@@ -42,6 +45,7 @@ export async function POST(req: Request) {
       },
     })
     return NextResponse.json(insurance, { status: 201 })
+    if (profileId) await cacheDel(CacheKeys.insurance(profileId))
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }

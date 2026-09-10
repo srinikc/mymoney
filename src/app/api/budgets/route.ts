@@ -4,6 +4,7 @@ import { withAuth } from "@/lib/with-auth"
 import { sendPushToUser } from "@/lib/expo-push"
 import { validateBody } from "@/shared/validate"
 import { BudgetCreateSchema } from "@/shared/validation"
+import { cached, CACHE_TTL, CacheKeys, cacheDel } from "@/lib/cache"
 
 export async function GET(req: Request) {
   const auth = await withAuth()
@@ -17,35 +18,30 @@ export async function GET(req: Request) {
   if (month) where.month = month
   if (year) where.year = year
 
-  const budgets = await prisma.budget.findMany({
-    where: Object.keys(where).length > 0 ? where : undefined,
-    include: { category: true },
-    orderBy: { category: { name: "asc" } },
-  })
-
-  const budgetsWithSpent = await Promise.all(
-    budgets.map(async (budget) => {
-      const startDate = new Date(budget.year, budget.month - 1, 1)
-      const endDate = new Date(budget.year, budget.month, 1)
-
-      const expenseWhere: Record<string, unknown> = {
-        categoryId: budget.categoryId,
-        date: { gte: startDate, lt: endDate },
-        profileId,
-      }
-      if (budget.subCategory) {
-        expenseWhere.subCategory = budget.subCategory
-      }
-
-      const agg = await prisma.expense.aggregate({
-        where: expenseWhere,
-        _sum: { amount: true },
-      })
-
-      const spent = agg._sum.amount || 0
-      return { ...budget, spent, remaining: budget.amount - spent }
+  const cacheKey = CacheKeys.budgets(profileId, month || new Date().getMonth() + 1, year || new Date().getFullYear())
+  const budgetsWithSpent = await cached(cacheKey, CACHE_TTL.SHORT, async () => {
+    const budgets = await prisma.budget.findMany({
+      where: Object.keys(where).length > 0 ? where : undefined,
+      include: { category: true },
+      orderBy: { category: { name: "asc" } },
     })
-  )
+
+    return Promise.all(
+      budgets.map(async (budget) => {
+        const startDate = new Date(budget.year, budget.month - 1, 1)
+        const endDate = new Date(budget.year, budget.month, 1)
+        const expenseWhere: Record<string, unknown> = {
+          categoryId: budget.categoryId,
+          date: { gte: startDate, lt: endDate },
+          profileId,
+        }
+        if (budget.subCategory) expenseWhere.subCategory = budget.subCategory
+        const agg = await prisma.expense.aggregate({ where: expenseWhere, _sum: { amount: true } })
+        const spent = agg._sum.amount || 0
+        return { ...budget, spent, remaining: budget.amount - spent }
+      })
+    )
+  })
 
   return NextResponse.json(budgetsWithSpent)
 }
@@ -116,6 +112,10 @@ export async function POST(req: Request) {
     checkBudgetThreshold(budget.id, userId, profileId).catch(() => {})
   }
 
+  if (profileId) {
+    await cacheDel(CacheKeys.budgets(profileId, body.month, body.year))
+    await cacheDel(CacheKeys.budgetsOverview(profileId, body.month, body.year))
+  }
   return NextResponse.json(budget, { status: 201 })
 }
 
@@ -135,6 +135,10 @@ export async function PUT(req: Request) {
     checkBudgetThreshold(budget.id, userId, profileId).catch(() => {})
   }
 
+  if (profileId) {
+    await cacheDel(CacheKeys.budgets(profileId, budget.month, budget.year))
+    await cacheDel(CacheKeys.budgetsOverview(profileId, budget.month, budget.year))
+  }
   return NextResponse.json(budget)
 }
 

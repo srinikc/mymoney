@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getAuthContext } from "@/lib/with-auth"
+import { cached, CACHE_TTL, CacheKeys, cacheDel } from "@/lib/cache"
 
 function calculateRemainingAmount(
   principal: number,
@@ -27,9 +28,11 @@ export async function GET(_req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const loans = await prisma.loan.findMany({
-      where: { profileId: profileId },
-      orderBy: { createdAt: "desc" },
+    const loans = await cached(CacheKeys.loans(profileId), CACHE_TTL.SHORT, async () => {
+      return prisma.loan.findMany({
+        where: { profileId: profileId },
+        orderBy: { createdAt: "desc" },
+      })
     })
 
     // Auto-update remaining amounts and status for EMI-active loans
@@ -140,6 +143,10 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(loan, { status: 201 })
+    if (profileId) {
+      await cacheDel(CacheKeys.loans(profileId))
+      await cacheDel(CacheKeys.goals(profileId))
+    }
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }

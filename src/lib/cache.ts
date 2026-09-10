@@ -46,6 +46,22 @@ export const CacheKeys = {
     `intel:${profileId}:${type}`,
   educationTip: (ageGroup: string, category: string) =>
     `edu:tip:${ageGroup}:${category}`,
+  investments: (profileId: number) => `invest:${profileId}`,
+  goals: (profileId: number) => `goals:${profileId}`,
+  categories: () => `categories:all`,
+  budgets: (profileId: number, month: number, year: number) =>
+    `budgets:${profileId}:${month}:${year}`,
+  budgetsOverview: (profileId: number, month: number, year: number) =>
+    `budgets:overview:${profileId}:${month}:${year}`,
+  loans: (profileId: number) => `loans:${profileId}`,
+  subscriptions: (profileId: number) => `subs:${profileId}`,
+  insurance: (profileId: number) => `insurance:${profileId}`,
+  reminders: (profileId: number, type: string) =>
+    `reminders:${profileId}:${type}`,
+  incomeSources: (profileId: number) => `income:src:${profileId}`,
+  incomeSummary: (profileId: number, month: number, year: number) =>
+    `income:sum:${profileId}:${month}:${year}`,
+  emergencyFund: (profileId: number) => `emfund:${profileId}`,
 } as const;
 
 export async function cached<T>(

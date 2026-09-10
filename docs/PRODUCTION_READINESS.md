@@ -4,6 +4,114 @@ How MyMoney is built to be enterprise-ready, like widely-used customer
 products (Stripe, Linear, Notion, Vercel, etc.). This document covers
 the patterns and practices in place, and what to add as you grow.
 
+---
+
+## Current Release Deployment Checklist (PR #80)
+
+> **Branch**: `feature/restore-reports-intelligence-flags` → merged to `develop`
+> **PR**: https://github.com/srinikc/mymoney/pull/80
+> **Status**: Merged. CI passed (lint, typecheck, tests, build).
+
+### Pre-deployment (before merging develop → main)
+
+| # | Step | Type | Command / Action | Why |
+|---|---|---|---|---|
+| 1 | **Merge develop → main** | Manual | `git checkout main && git merge develop && git push origin main` | Main is the production branch |
+| 2 | **Deploy to Vercel** | Manual | Trigger deploy.yml with `environment=production`, or Vercel auto-deploys from main | Pushes code to production |
+| 3 | **Run Prisma migration** | Manual | `npx prisma migrate deploy` on production DB (via Vercel CLI or Supabase dashboard) | Adds `isEmergencyFund` column to `BankAccount` table |
+| 4 | **Seed feature flags** | Manual | `npx tsx scripts/seed-feature-flags.ts` against production DB | Populates 91 feature flags for admin UI |
+| 5 | **Verify Redis in production** | Manual | Check `/api/health` returns `redis: ok PONG` | Caching requires Redis. If no Redis, app works but without cache perf gains |
+| 6 | **Smoke test** | Manual | Login → Dashboard loads → Expenses tab → Bank Accounts → Reports → Health | Confirm nothing is broken |
+| 7 | **Check Vercel function logs** | Manual | Vercel dashboard → Logs → filter for errors | Catch any runtime issues |
+
+### Post-deployment verification
+
+| # | Check | Expected Result |
+|---|---|---|
+| 1 | `GET /api/health` | `{"status":"healthy","checks":[{"name":"database","status":"ok"},{"name":"redis","status":"ok"}]}` |
+| 2 | `GET /api/version` | Shows current version + build number |
+| 3 | Dashboard loads (web) | 5 tabs render, no console errors |
+| 4 | Dashboard loads (mobile) | 5 tabs render, data populates |
+| 5 | Bank Accounts page | Shows accounts, "+ FD" button works |
+| 6 | Reports page | 8 tabs render, Intelligence tab works |
+| 7 | Health page | Score displays, metrics expand on click |
+| 8 | Emergency Fund page | Loads, save overrides works |
+| 9 | Admin Features page | Shows 91 flags in grouped/table view |
+
+### Environment variables required in Vercel production
+
+These must already be set (from prior deployments). Verify they exist:
+
+| Variable | Required | Notes |
+|---|---|---|
+| `DATABASE_URL` | Yes | Supabase PostgreSQL connection string |
+| `NEXTAUTH_SECRET` | Yes | NextAuth session secret |
+| `NEXTAUTH_URL` | Yes | `https://mymoney.com` (or your production domain) |
+| `AUTH_SECRET` | Yes | Auth encryption secret |
+| `GOOGLE_CLIENT_ID` | Yes | Google OAuth |
+| `GOOGLE_CLIENT_SECRET` | Yes | Google OAuth |
+| `REDIS_URL` | Recommended | Redis connection for caching (Upstash free tier works) |
+| `REDIS_ENABLED` | Recommended | Set to `"true"` to enable Redis caching |
+| `NEXT_PUBLIC_BASE_URL` | Yes | `https://mymoney.com` |
+| `VERCEL_OIDC_TOKEN` | Auto | Set by Vercel automatically |
+
+### New in this release — what changed
+
+**Database schema change:**
+```sql
+ALTER TABLE "BankAccount" ADD COLUMN "isEmergencyFund" BOOLEAN NOT NULL DEFAULT false;
+```
+This migration MUST run before the new code is deployed, or the health-score
+and bank-account APIs will fail with a column-not-found error.
+
+**New files added:**
+- `prisma/migrations/20260909175437_add_is_emergency_fund/migration.sql`
+- `scripts/seed-feature-flags.ts` (run once to populate feature flags)
+- `src/shared/fd-utils.ts` (FD maturity calculator, no DB dependency)
+
+**Caching changes:**
+- 30+ API routes now use Redis/in-memory caching with SHORT TTL
+- All write endpoints (POST/PUT/DELETE) invalidate affected caches
+- If Redis is not configured, falls back to in-memory cache (works but per-instance)
+
+### Rollback procedure
+
+If something breaks after deployment:
+
+1. **Immediate code rollback** (< 1 min):
+   - Vercel dashboard → Deployments → find previous working deployment → "Promote to Production"
+   - Or: `vercel rollback` from CLI
+
+2. **Database rollback** (if migration caused issues):
+   - The `isEmergencyFund` column has a `DEFAULT false`, so older code won't break
+   - To remove: `ALTER TABLE "BankAccount" DROP COLUMN "isEmergencyFund";`
+   - Only do this if the column itself is causing issues
+
+3. **Feature flags rollback**:
+   - Feature flags are read from DB; just disable flags in admin UI
+   - No code rollback needed for flag changes
+
+### Redis setup (if not already configured)
+
+Production needs Redis for the caching layer to work. Options:
+
+1. **Upstash Redis** (recommended, free tier):
+   - Sign up at https://upstash.com
+   - Create a Redis database
+   - Copy the `REDIS_URL` (format: `rediss://default:xxx@xxx.upstash.io:6379`)
+   - Add to Vercel env vars: `REDIS_URL` and `REDIS_ENABLED=true`
+
+2. **Railway Redis** ($5/mo):
+   - One-click deploy from Railway dashboard
+   - Copy connection string
+
+3. **Without Redis**:
+   - App works fine, uses in-memory cache only
+   - Cache is per-serverless-function instance, so not shared across requests
+   - Performance still better than no caching at all
+
+---
+
 ## Industry patterns at a glance
 
 | Concern | How Stripe does it | How Linear does it | How Vercel does it | How MyMoney does it |
@@ -16,7 +124,7 @@ the patterns and practices in place, and what to add as you grow.
 | **Incidents** | Public status page, IR runbook | Public status page | Status page | None yet |
 | **Security** | SOC 2, PCI DSS, HSM keys | SOC 2, bug bounty | SOC 2, FedRAMP | TLS, JWT, audit log |
 | **CI/CD** | 200+ tests per PR, gradual rollout | Visual + e2e, canary | E2E + manual gates | Unit + E2E + build gate |
-| **Feature flags** | In-house system | Statsig | Built-in | None yet |
+| **Feature flags** | In-house system | Statsig | Built-in | ✅ DB-backed (FeatureFlag model, 91 flags seeded) |
 | **Secrets** | Vault, rotated quarterly | 1Password, rotated monthly | Built-in | Vercel env, manual |
 | **Data isolation** | Per-tenant encryption | Per-workspace | Per-team | Per-user (profileId) |
 
@@ -187,12 +295,13 @@ export async function GET() {
 Scrape with Prometheus, visualize in Grafana. Or use Vercel Analytics
 (built-in) for simpler setup.
 
-### 1.4 Health checks (already partially in place)
+### 1.4 Health checks (in place)
 
-- `/api/version` — version, build, SHA
-- `/api/health/redis` — Redis status
-- `/api/health/rate-limit` — rate limit stats
-- Need: `/api/health` (composite) and `/api/health/db`
+- ✅ `/api/health` — composite (database + Redis ping), returns 200/503
+- ✅ `/api/version` — version, build, SHA
+- ✅ `/api/health/redis` — Redis status
+- ✅ `/api/health/rate-limit` — rate limit stats
+- ✅ `/api/health/ready` — readiness probe
 
 ---
 
@@ -200,13 +309,14 @@ Scrape with Prometheus, visualize in Grafana. Or use Vercel Analytics
 
 ### 2.1 Current state (good baseline)
 
-- ✅ Lint (`npm run lint`)
-- ✅ TypeScript check
-- ✅ Unit tests (107 passing)
-- ✅ Build check
-- ✅ E2E tests (Playwright)
-- ✅ Manual merge to main (no auto-deploy)
-- ✅ Manual deploy via GitHub Actions
+- ✅ Lint (`npx next lint --max-warnings 0`) — has pre-existing warnings, continues on error
+- ✅ TypeScript check (`npx tsc --noEmit`)
+- ✅ Unit tests (118 passing, 9 test files)
+- ✅ Build check (`npx next build`)
+- ✅ E2E tests (Playwright, runs on PRs only)
+- ✅ CI runs on push to develop/main + all PRs
+- ✅ Deploy workflow (manual trigger, Vercel production)
+- ⏳ Staging environment (not yet set up)
 
 ### 2.2 What to add for production
 
@@ -355,17 +465,21 @@ Set up:
 - ⏳ Read replicas (at 1000+ users)
 - ⏳ Connection pooling (PgBouncer or Supabase pooler — already in use)
 
-### 6.2 Caching strategy
+### 6.2 Caching strategy (implemented)
 
-- **HTTP cache headers** on read-only API routes
+- ✅ **Redis caching** on 30+ API routes with `cached()` wrapper and short TTL
+- ✅ **In-memory fallback** when Redis is unavailable (per-instance, not shared)
+- ✅ **Write-invalidation** on all POST/PUT/DELETE endpoints
+- ✅ **Pattern-based invalidation** for related caches (e.g., expense changes → health-score, net-worth, insights)
+- ✅ **Cache keys** namespaced by profileId and query params
+- Routes cached: expenses, insights, health-score, net-worth, bank-accounts, cash-balance, investments, goals, categories, budgets, budgets/overview, loans, subscriptions, insurance, reminders, income/sources, income/summary, emergency-fund, expenses/years, auto-categorize, admin routes
+- **HTTP cache headers** on read-only API routes:
   ```typescript
   return NextResponse.json(data, {
     headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" }
   })
   ```
 - **React cache()** for duplicate fetches in same render
-- **Redis** for hot data (categories, user preferences)
-- **Vercel Edge Cache** (default for GET /api/*)
 
 ### 6.3 Rate limiting (already in place)
 

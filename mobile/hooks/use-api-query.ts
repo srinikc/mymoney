@@ -1,4 +1,4 @@
-import { useQuery, keepPreviousData, type UseQueryOptions } from '@tanstack/react-query'
+import { useQuery, useInfiniteQuery, keepPreviousData, type UseQueryOptions } from '@tanstack/react-query'
 import api from '../api/client'
 
 type QueryOptions<T> = Partial<Pick<UseQueryOptions<T, Error>, 'enabled' | 'staleTime' | 'placeholderData'>>
@@ -20,5 +20,29 @@ export function useApiQuery<T>(
     },
     ...(queryOptions.placeholderData ? { placeholderData: keepPreviousData as never } : {}),
     ...queryOptions,
+  })
+}
+
+// Paginated variant for infinite-scroll lists. The caller supplies
+// `getNextPageParam(lastPage, allPages, lastPageParam)`.
+export function useInfiniteApiQuery<T>(
+  queryKey: readonly unknown[],
+  url: string,
+  options: {
+    params?: Record<string, unknown>
+    getNextPageParam?: (lastPage: T, allPages: T[]) => number | undefined
+    enabled?: boolean
+  } = {},
+) {
+  const { params, getNextPageParam, enabled } = options
+  return useInfiniteQuery<T, Error, { pages: T[] }, readonly unknown[], number>({
+    queryKey,
+    queryFn: async ({ pageParam }) => {
+      const res = await api.get(url, { params: { ...params, page: pageParam } })
+      return res.data as T
+    },
+    initialPageParam: 1,
+    getNextPageParam: getNextPageParam as never,
+    enabled,
   })
 }

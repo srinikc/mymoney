@@ -31,16 +31,12 @@ export default function IntegrationsPage() {
 
     if (z === "success") {
       setMessage("Zerodha connected successfully! You can now import your holdings.")
-      const token = searchParams.get("access_token")
-      if (token) localStorage.setItem("zerodha_access_token", token)
     } else if (z === "error") {
       setMessage(`Zerodha connection failed: ${errMsg || "Unknown error"}`)
     }
 
     if (s === "success") {
       setMessage("Sharekhan connected successfully! You can now import your holdings.")
-      const token = searchParams.get("access_token")
-      if (token) localStorage.setItem("sharekhan_access_token", token)
     } else if (s === "error") {
       setMessage(`Sharekhan connection failed: ${errMsg || "Unknown error"}`)
     }
@@ -78,10 +74,9 @@ export default function IntegrationsPage() {
   const importZerodha = async () => {
     setImportingZerodha(true)
     try {
-      const token = localStorage.getItem("zerodha_access_token")
       const res = await fetch("/api/integrations/zerodha", {
         method: "POST",
-        body: JSON.stringify({ action: "import-holdings", accessToken: token }),
+        body: JSON.stringify({ action: "import-holdings" }),
       })
       const data = await res.json()
       setMessage(data.message || `Imported ${data.imported} holdings`)
@@ -93,15 +88,29 @@ export default function IntegrationsPage() {
   const importSharekhan = async () => {
     setImportingSharekhan(true)
     try {
-      const token = localStorage.getItem("sharekhan_access_token")
       const res = await fetch("/api/integrations/sharekhan", {
         method: "POST",
-        body: JSON.stringify({ action: "import-holdings", accessToken: token }),
+        body: JSON.stringify({ action: "import-holdings" }),
       })
       const data = await res.json()
       setMessage(data.message || `Imported ${data.imported} holdings`)
     } catch { /* ignore */ } finally {
       setImportingSharekhan(false)
+    }
+  }
+
+  const disconnectBroker = async (name: "Zerodha" | "Sharekhan") => {
+    try {
+      const res = await fetch(`/api/integrations/${name.toLowerCase()}`, {
+        method: "POST",
+        body: JSON.stringify({ action: "disconnect" }),
+      })
+      if (res.ok) setMessage(`${name} disconnected`)
+      else setMessage(`${name} disconnect failed`)
+    } catch {
+      setMessage(`${name} disconnect failed`)
+    } finally {
+      loadStatus()
     }
   }
 
@@ -136,6 +145,7 @@ export default function IntegrationsPage() {
           loading={loading}
           onLogin={loginZerodha}
           onImport={importZerodha}
+          onDisconnect={() => disconnectBroker("Zerodha")}
           importing={importingZerodha}
         />
         <BrokerCard
@@ -146,6 +156,7 @@ export default function IntegrationsPage() {
           loading={loading}
           onLogin={loginSharekhan}
           onImport={importSharekhan}
+          onDisconnect={() => disconnectBroker("Sharekhan")}
           importing={importingSharekhan}
         />
       </div>
@@ -261,10 +272,10 @@ function FileUploadCard({
 }
 
 function BrokerCard({
-  name, icon, color, status, loading, onLogin, onImport, importing,
+  name, icon, color, status, loading, onLogin, onImport, onDisconnect, importing,
 }: {
   name: string; icon: React.ReactNode; color: string; status: BrokerStatus | null
-  loading: boolean; onLogin: () => void; onImport: () => void; importing: boolean
+  loading: boolean; onLogin: () => void; onImport: () => void; onDisconnect: () => void; importing: boolean
 }) {
   return (
     <Card>
@@ -307,10 +318,7 @@ function BrokerCard({
                 <RefreshCw className={`mr-1.5 h-4 w-4 ${importing ? "animate-spin" : ""}`} />
                 {importing ? "Importing..." : "Import Holdings"}
               </Button>
-              <Button size="sm" variant="outline" onClick={() => {
-                localStorage.removeItem(`${name.toLowerCase()}_access_token`)
-                window.location.reload()
-              }}>
+              <Button size="sm" variant="outline" onClick={onDisconnect}>
                 <LogOut className="mr-1.5 h-4 w-4" /> Disconnect
               </Button>
             </>

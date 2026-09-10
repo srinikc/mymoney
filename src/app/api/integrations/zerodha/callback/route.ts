@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { ZerodhaClient } from "@/lib/zerodha"
+import { getSession } from "@/lib/auth-helper"
+import { setConfig } from "@/lib/get-config"
 
 export async function GET(req: NextRequest) {
   try {
@@ -19,6 +21,13 @@ export async function GET(req: NextRequest) {
       )
     }
 
+    const session = await getSession()
+    if (!session?.user?.id) {
+      return NextResponse.redirect(
+        new URL("/settings/integrations?zerodha=error&message=Please+log+in+to+connect+your+brokerage", url.origin)
+      )
+    }
+
     const apiKey = process.env.ZERODHA_API_KEY
     const secret = process.env.ZERODHA_API_SECRET
 
@@ -28,17 +37,14 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    const session = await ZerodhaClient.generateSession(apiKey, requestToken, secret)
+    const sessionData = await ZerodhaClient.generateSession(apiKey, requestToken, secret)
 
-    // In production, store the access token securely (encrypted DB, session, etc.)
-    // For now, we'll redirect back to the settings page with the token in the URL
-    // The frontend can then store it in localStorage or send to backend for secure storage
+    // Store the access token server-side, scoped to the authenticated user.
+    // Never echo the token back to the browser via URL/localStorage.
+    await setConfig(Number(session.user.id), "ZERODHA_ACCESS_TOKEN", sessionData.accessToken)
 
     return NextResponse.redirect(
-      new URL(
-        `/settings/integrations?zerodha=success&access_token=${session.accessToken}&user_id=${session.userId}`,
-        url.origin
-      )
+      new URL("/settings/integrations?zerodha=success", url.origin)
     )
   } catch (error) {
     console.error("Zerodha callback error:", error)

@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from "next/server"
 import { SharekhanClient } from "@/lib/sharekhan"
 import { prisma } from "@/lib/prisma"
+import { getSession } from "@/lib/auth-helper"
+import { getConfig, deleteConfig } from "@/lib/get-config"
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getSession()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    const userId = Number(session.user.id)
+
     const url = req.nextUrl
     const action = url.searchParams.get("action") || "status"
 
-    const apiKey = process.env.SHAREKHAN_API_KEY
-    const accessToken = process.env.SHAREKHAN_ACCESS_TOKEN
+    const apiKey = await getConfig("SHAREKHAN_API_KEY", userId)
+    const accessToken = await getConfig("SHAREKHAN_ACCESS_TOKEN", userId)
 
     if (!apiKey) {
       return NextResponse.json({
@@ -79,11 +87,23 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: Request) {
   try {
+    const session = await getSession()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    const userId = Number(session.user.id)
+
     const body = await req.json().catch(() => ({}))
     const action = body.action || "import-holdings"
 
-    const apiKey = process.env.SHAREKHAN_API_KEY
-    const accessToken = process.env.SHAREKHAN_ACCESS_TOKEN || body.accessToken
+    const apiKey = await getConfig("SHAREKHAN_API_KEY", userId)
+    const accessToken = await getConfig("SHAREKHAN_ACCESS_TOKEN", userId)
+
+    // Disconnect: remove the per-user token server-side
+    if (action === "disconnect") {
+      await deleteConfig(userId, "SHAREKHAN_ACCESS_TOKEN")
+      return NextResponse.json({ success: true, message: "Sharekhan disconnected" })
+    }
 
     if (!apiKey || !accessToken) {
       return NextResponse.json({ error: "Sharekhan not configured or authenticated" }, { status: 400 })

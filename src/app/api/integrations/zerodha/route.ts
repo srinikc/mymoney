@@ -1,16 +1,24 @@
 import { NextRequest, NextResponse } from "next/server"
 import { ZerodhaClient } from "@/lib/zerodha"
 import { prisma } from "@/lib/prisma"
+import { getSession } from "@/lib/auth-helper"
+import { getConfig, deleteConfig } from "@/lib/get-config"
 
 // GET endpoints
 export async function GET(req: NextRequest) {
   try {
+    const session = await getSession()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    const userId = Number(session.user.id)
+
     const url = req.nextUrl
     const action = url.searchParams.get("action") || "status"
 
-    // Check if Zerodha is configured
-    const apiKey = process.env.ZERODHA_API_KEY
-    const accessToken = process.env.ZERODHA_ACCESS_TOKEN
+    // Per-user access token (DB) falls back to env var — never read from the client.
+    const apiKey = await getConfig("ZERODHA_API_KEY", userId)
+    const accessToken = await getConfig("ZERODHA_ACCESS_TOKEN", userId)
 
     if (!apiKey) {
       return NextResponse.json({
@@ -107,14 +115,26 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST: Import holdings as investments
+// POST: Import holdings as investments (or disconnect)
 export async function POST(req: Request) {
   try {
+    const session = await getSession()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    const userId = Number(session.user.id)
+
     const body = await req.json().catch(() => ({}))
     const action = body.action || "import-holdings"
 
-    const apiKey = process.env.ZERODHA_API_KEY
-    const accessToken = process.env.ZERODHA_ACCESS_TOKEN || body.accessToken
+    const apiKey = await getConfig("ZERODHA_API_KEY", userId)
+    const accessToken = await getConfig("ZERODHA_ACCESS_TOKEN", userId)
+
+    // Disconnect: remove the per-user token server-side
+    if (action === "disconnect") {
+      await deleteConfig(userId, "ZERODHA_ACCESS_TOKEN")
+      return NextResponse.json({ success: true, message: "Zerodha disconnected" })
+    }
 
     if (!apiKey || !accessToken) {
       return NextResponse.json({ error: "Zerodha not configured or authenticated" }, { status: 400 })

@@ -87,7 +87,7 @@ export default function IntegrationsScreen() {
   const importZerodha = async () => {
     setImportingZ(true);
     try {
-      const res = await api.post('/api/integrations/zerodha/import');
+      const res = await api.post('/api/integrations/zerodha', { action: 'import-holdings' });
       showMessage(res.data?.message || 'Holdings imported successfully', 'success');
     } catch { showMessage('Failed to import holdings', 'error'); }
     finally { setImportingZ(false); }
@@ -96,7 +96,7 @@ export default function IntegrationsScreen() {
   const importSharekhan = async () => {
     setImportingS(true);
     try {
-      const res = await api.post('/api/integrations/sharekhan/import');
+      const res = await api.post('/api/integrations/sharekhan', { action: 'import-holdings' });
       showMessage(res.data?.message || 'Holdings imported successfully', 'success');
     } catch { showMessage('Failed to import holdings', 'error'); }
     finally { setImportingS(false); }
@@ -104,7 +104,7 @@ export default function IntegrationsScreen() {
 
   const logoutSharekhan = async () => {
     try {
-      await api.post('/api/integrations/sharekhan/logout');
+      await api.post('/api/integrations/sharekhan', { action: 'disconnect' });
       showMessage('Sharekhan disconnected', 'success');
       loadStatus();
     } catch { showMessage('Failed to disconnect', 'error'); }

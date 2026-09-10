@@ -3,6 +3,7 @@
 import { Sidebar } from "./sidebar"
 import { useUIStore } from "@/lib/store"
 import { useSession, signOut } from "next-auth/react"
+import { clearClientState } from "@/lib/client-state"
 import { Button } from "@/components/ui/button"
 import { Menu, LogOut, User, Moon, Sun, HelpCircle, Settings as SettingsIcon } from "lucide-react"
 import { useTheme } from "next-themes"
@@ -87,7 +88,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={() => {
+                clearClientState()
+                signOut({ callbackUrl: "/login" })
+              }}
               className="text-muted-foreground hover:text-foreground"
             >
               <LogOut className="h-4 w-4 mr-1" />

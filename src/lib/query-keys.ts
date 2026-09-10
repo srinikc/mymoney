@@ -17,4 +17,7 @@ export const queryKeys = {
   incomeSources: () => ["income-sources"] as const,
   incomeSummary: (params: string) => ["income-summary", params] as const,
   emergencyFund: () => ["emergency-fund"] as const,
+  recurrence: (params: string) => ["recurrence", params] as const,
+  intelligence: () => ["intelligence"] as const,
+  deepInsights: (params: string) => ["deep-insights", params] as const,
 } as const

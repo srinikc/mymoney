@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme,
   ActivityIndicator, Linking,
@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import api from '../../api/client';
+import { useApiQuery } from '../../hooks/use-api-query';
 
 interface BrokerStatus {
   configured: boolean;
@@ -36,18 +37,15 @@ export default function IntegrationsScreen() {
     timerRef.current = setTimeout(() => setMessage(null), 5000);
   };
 
-  const loadStatus = useCallback(async () => {
-    try {
-      const [zRes, sRes] = await Promise.all([
-        api.get('/api/integrations/zerodha?action=status'),
-        api.get('/api/integrations/sharekhan?action=status'),
-      ]);
-      if (zRes.data) setZerodha(zRes.data);
-      if (sRes.data) setSharekhan(sRes.data);
-    } catch { /* ignore */ } finally {
-      setLoading(false);
-    }
-  }, []);
+  const zerodhaQuery = useApiQuery<any>(['broker-zerodha'], '/api/integrations/zerodha', { params: { action: 'status' } });
+  const sharekhanQuery = useApiQuery<any>(['broker-sharekhan'], '/api/integrations/sharekhan', { params: { action: 'status' } });
+  useEffect(() => {
+    if (zerodhaQuery.data !== undefined) { setZerodha(zerodhaQuery.data); setLoading(false); }
+  }, [zerodhaQuery.data]);
+  useEffect(() => {
+    if (sharekhanQuery.data !== undefined) { setSharekhan(sharekhanQuery.data); setLoading(false); }
+  }, [sharekhanQuery.data]);
+  const loadStatus = () => { zerodhaQuery.refetch(); sharekhanQuery.refetch(); };
 
   useEffect(() => {
     loadStatus();

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -37,15 +37,9 @@ import {
   IndianRupee,
 } from "lucide-react"
 
-import { IncomeSourceResponseSchema, type IncomeSourceResponse } from "@/shared/income-validation"
-
-type IncomeSource = IncomeSourceResponse & { sourceCategory: string }
-
-interface IncomeSummary {
-  totalMonthly: number
-  totalYearly: number
-  thisMonth: number
-}
+import { useIncomeSources, computeIncomeSummary, type IncomeSource, type IncomeSummary } from "@/hooks/use-finance"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 const incomeFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -296,82 +290,16 @@ function IncomeFormDialog({
 }
 
 export default function IncomePage() {
-  const [sources, setSources] = useState<IncomeSource[]>([])
-  const [summary, setSummary] = useState<IncomeSummary>({ totalMonthly: 0, totalYearly: 0, thisMonth: 0 })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingSource, setEditingSource] = useState<IncomeSource | null>(null)
 
-  const fetchData = useCallback(async () => {
-    try {
-      setError(null)
-      const res = await fetch("/api/income/sources")
-      if (!res.ok) throw new Error("Failed to fetch income sources")
-      const data = await res.json()
-
-      const raw = data.sources || data.data || data || []
-      const rawList = Array.isArray(raw) ? raw : Array.isArray(data) ? data : []
-      const src: IncomeSource[] = rawList.map((s: unknown) => {
-        const parsed = IncomeSourceResponseSchema.safeParse(s)
-        if (!parsed.success) {
-          console.warn("IncomeSource response validation failed:", parsed.error.issues)
-          return null
-        }
-        return {
-          ...parsed.data,
-          sourceCategory: parsed.data.category?.name || "Other",
-        }
-      }).filter(Boolean) as IncomeSource[]
-
-      setSources(src)
-
-      const totalMonthly = src
-        .filter((s) => s.type === "monthly")
-        .reduce((sum, s) => sum + s.amount, 0)
-
-      const totalYearly =
-        src
-          .filter((s) => s.type === "yearly")
-          .reduce((sum, s) => sum + s.amount, 0) +
-        totalMonthly * 12 +
-        src
-          .filter((s) => s.type === "variable")
-          .reduce((sum, s) => sum + s.amount, 0) * 12
-
-      const now = new Date()
-      const currentMonth = now.getMonth()
-      const currentYear = now.getFullYear()
-
-      const thisMonth = src
-        .filter((s) => {
-          if (!s.startDate) return false
-          const start = new Date(s.startDate)
-          if (start > now) return false
-          if (s.type === "monthly") return true
-          if (s.type === "yearly") {
-            return start.getMonth() === currentMonth && start.getFullYear() === currentYear
-          }
-          if (s.type === "onetime") {
-            return start.getMonth() === currentMonth && start.getFullYear() === currentYear
-          }
-          if (s.type === "variable") return true
-          return false
-        })
-        .reduce((sum, s) => {
-          if (s.type === "monthly" || s.type === "variable") return sum + s.amount
-          return sum + s.amount
-        }, 0)
-
-      setSummary({ totalMonthly, totalYearly, thisMonth })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong")
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => { fetchData() }, [fetchData])
+  const sourcesQuery = useIncomeSources()
+  const sources = sourcesQuery.data ?? []
+  const loading = sourcesQuery.isLoading
+  const error = sourcesQuery.isError ? (sourcesQuery.error instanceof Error ? sourcesQuery.error.message : "Failed to fetch income sources") : null
+  const summary = useMemo(() => computeIncomeSummary(sources), [sources])
+  const fetchData = () => sourcesQuery.refetch()
 
   const handleSave = async (formData: IncomeFormValues) => {
     try {
@@ -411,7 +339,6 @@ export default function IncomePage() {
 
       setDialogOpen(false)
       setEditingSource(null)
-      setLoading(true)
       fetchData()
     } catch (err) {
       setDialogOpen(false)
@@ -423,7 +350,7 @@ export default function IncomePage() {
     try {
       const res = await fetch(`/api/income/sources/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete income source")
-      setSources((prev) => prev.filter((s) => s.id !== id))
+      queryClient.setQueryData(queryKeys.incomeSources(), (old: IncomeSource[] | undefined) => (old || []).filter((s) => s.id !== id))
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to delete")
     }
@@ -466,7 +393,7 @@ export default function IncomePage() {
         <Card className="border-red-500/30 bg-red-500/5">
           <CardContent className="flex items-center gap-3 py-4 text-sm text-red-600">
             <span>Failed to load income sources: {error}</span>
-            <Button variant="outline" size="sm" onClick={() => { setLoading(true); setError(null); fetchData() }}>
+            <Button variant="outline" size="sm" onClick={fetchData}>
               Retry
             </Button>
           </CardContent>

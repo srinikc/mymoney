@@ -24,4 +24,6 @@ export const queryKeys = {
   liabilities: () => ["liabilities"] as const,
   gapAnalysis: () => ["gap-analysis"] as const,
   recommendations: () => ["recommendations"] as const,
+  budgetsOverview: (m: number, y: number) => ["budgets-overview", m, y] as const,
+  budgetCategoryTree: () => ["categories", "tree"] as const,
 } as const

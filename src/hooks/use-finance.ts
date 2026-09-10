@@ -3,6 +3,33 @@
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { apiFetch } from "@/hooks/use-dashboard"
+import type { Investment, Goal } from "@/types"
+
+export function useInvestments() {
+  return useQuery({
+    queryKey: queryKeys.investments(),
+    queryFn: () => apiFetch<Investment[]>("/api/investments"),
+    select: (data) =>
+      (Array.isArray(data) ? data : [])
+        .filter((i) => i.type !== "fixed_deposit")
+        .map((i) => ({
+          ...i,
+          returnPercent: i.amount > 0 ? Math.round(((i.currentValue - i.amount) / i.amount) * 100) : 0,
+        })),
+  })
+}
+
+export function useGoals() {
+  return useQuery({
+    queryKey: queryKeys.goals(),
+    queryFn: () => apiFetch<Goal[]>("/api/goals"),
+    select: (data) =>
+      (Array.isArray(data) ? data : []).map((g) => ({
+        ...g,
+        progress: g.targetAmount > 0 ? Math.round((g.currentAmount / g.targetAmount) * 100) : 0,
+      })),
+  })
+}
 
 export interface Asset {
   id: number; name: string; type: string; amount: number; notes: string | null

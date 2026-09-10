@@ -20,4 +20,8 @@ export const queryKeys = {
   recurrence: (params: string) => ["recurrence", params] as const,
   intelligence: () => ["intelligence"] as const,
   deepInsights: (params: string) => ["deep-insights", params] as const,
+  assets: () => ["assets"] as const,
+  liabilities: () => ["liabilities"] as const,
+  gapAnalysis: () => ["gap-analysis"] as const,
+  recommendations: () => ["recommendations"] as const,
 } as const

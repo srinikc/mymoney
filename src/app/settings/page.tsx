@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Bell, Shield, Plug, Mail, Key, Server, Smartphone, FileText, Building2, Database, Download, Trash2, Loader2, LogIn, Users, HandCoins } from "lucide-react"
+import { Bell, Shield, Plug, Mail, Key, Server, Smartphone, FileText, Building2, Database, Download, Trash2, Loader2, LogIn, Users, HandCoins, Mic } from "lucide-react"
 import Link from "next/link"
 
 export default function SettingsPage() {
@@ -93,6 +93,23 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">Configure LLM (OpenAI/Claude) and Resend API keys</p>
+                <Badge variant="outline" className="mt-2 text-xs border-amber-200 text-amber-700">Admin only</Badge>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
+
+        {isAdmin && (
+          <Link href="/settings/wake-word">
+            <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <Mic className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-base">Wake Word</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">Configure the voice wake word phrase (e.g. &quot;Hey MyMoney&quot;) for all users</p>
                 <Badge variant="outline" className="mt-2 text-xs border-amber-200 text-amber-700">Admin only</Badge>
               </CardContent>
             </Card>

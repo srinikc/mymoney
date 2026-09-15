@@ -120,8 +120,21 @@ export default function EmergencyFundPage() {
 
   if (loading || !data) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="space-y-6 max-w-5xl mx-auto pb-12">
+        <div className="space-y-2">
+          <div className="h-8 w-48 animate-pulse rounded bg-muted" />
+          <div className="h-4 w-80 animate-pulse rounded bg-muted" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-40 w-full animate-pulse rounded bg-muted" />
+          ))}
+        </div>
+        <div className="h-[300px] w-full animate-pulse rounded bg-muted" />
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="h-48 w-full animate-pulse rounded bg-muted" />
+          <div className="h-48 w-full animate-pulse rounded bg-muted" />
+        </div>
       </div>
     )
   }
@@ -317,7 +330,7 @@ export default function EmergencyFundPage() {
           <CardContent className="pt-6 space-y-2">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-              <h3 className="font-semibold">You're fully funded</h3>
+              <h3 className="font-semibold">You&apos;re fully funded</h3>
             </div>
             <p className="text-sm text-muted-foreground">
               Keep this money in a high-yield savings or liquid fund. Re-evaluate every January to keep up with inflation.

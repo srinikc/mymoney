@@ -5,6 +5,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useAuthStore } from '../store/auth';
 import { Colors } from '../constants/Colors';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 interface SettingsItem {
   title: string;
@@ -29,15 +30,14 @@ export default function SettingsScreen() {
   const [compactMode, setCompactMode] = useState(false);
 
   // Load preferences from API on mount
+  const prefsQuery = useApiQuery<any>(['user-preferences'], '/api/users/preferences');
   useEffect(() => {
-    api.get('/api/users/preferences').then((r) => {
-      if (r.data) {
-        setNotifications(r.data.notifications ?? true);
-        setWeeklyReport(r.data.weeklyReport ?? true);
-        setCompactMode(r.data.compactMode ?? false);
-      }
-    }).catch(() => {});
-  }, []);
+    if (prefsQuery.data) {
+      setNotifications(prefsQuery.data.notifications ?? true);
+      setWeeklyReport(prefsQuery.data.weeklyReport ?? true);
+      setCompactMode(prefsQuery.data.compactMode ?? false);
+    }
+  }, [prefsQuery.data]);
 
   const savePreference = async (key: string, value: boolean) => {
     try { await api.put('/api/users/preferences', { [key]: value }); } catch { /* best effort */ }

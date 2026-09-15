@@ -17,6 +17,7 @@ import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { formatCurrency } from '../../utils/format';
 import api from '../../api/client';
+import { useApiQuery } from '../../hooks/use-api-query';
 
 interface UnusualExpense {
   id: number;
@@ -67,25 +68,24 @@ export default function UnusualScreen() {
   const [busy, setBusy] = useState(false);
   const [purposeFilter, setPurposeFilter] = useState<string | null>(null);
 
+  const unusualQuery = useApiQuery<UnusualResponse>(['expenses-unusual', purposeFilter, search], '/api/expenses/unusual', {
+    params: { ...(search ? { search } : {}), ...(purposeFilter ? { purpose: purposeFilter } : {}) },
+  });
   useEffect(() => {
-    void load();
-  }, [purposeFilter]);
-
-  async function load() {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (search) params.set('search', search);
-      if (purposeFilter) params.set('purpose', purposeFilter);
-      const res = await api.get<UnusualResponse>(`/api/expenses/unusual?${params}`);
-      setData(res.data);
+    if (unusualQuery.data !== undefined) {
+      setData(unusualQuery.data);
       setSelected(new Set());
-    } catch (e) {
-      Alert.alert('Error', 'Failed to load');
-    } finally {
       setLoading(false);
       setRefreshing(false);
     }
+  }, [unusualQuery.data]);
+  useEffect(() => {
+    if (unusualQuery.isError) { Alert.alert('Error', 'Failed to load'); setLoading(false); setRefreshing(false); }
+  }, [unusualQuery.isError]);
+
+  function load() {
+    setLoading(true);
+    unusualQuery.refetch();
   }
 
   async function doBulkAction(action: 'dismiss' | 'categorize') {

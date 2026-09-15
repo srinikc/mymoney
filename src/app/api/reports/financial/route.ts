@@ -138,7 +138,7 @@ export async function GET(_req: NextRequest) {
       `Active Goals: ${goals.filter((g) => g.status === "active").length}`,
       `Active Loans: ${loans.length}`,
     ]
-    snapshotLines.forEach((line, i) => doc.text(line, margin, 120 + i * 8))
+    for (const [i, line] of snapshotLines.entries()) doc.text(line, margin, 120 + i * 8)
 
     doc.setFontSize(9)
     doc.setTextColor(120)
@@ -173,7 +173,7 @@ export async function GET(_req: NextRequest) {
     ]
     doc.setFontSize(12)
     let y = 45
-    tocItems.forEach((item) => {
+    for (const item of tocItems) {
       doc.setFont("helvetica", "normal")
       doc.text(item.title, margin, y)
       doc.setTextColor(120)
@@ -182,7 +182,7 @@ export async function GET(_req: NextRequest) {
       const pageLabel = sections.find((s) => s.id === item.id)?.page ?? "—"
       doc.text(String(pageLabel), pageW - margin, y, { align: "right" })
       y += 10
-    })
+    }
 
     // ── 1. Executive Summary ─────────────────────────────────────────
     doc.addPage()
@@ -218,7 +218,7 @@ export async function GET(_req: NextRequest) {
       "Spending Intelligence — anomalies, velocity, tax gaps",
       "Emergency Fund — current and target runway",
     ]
-    tocDescs.forEach((line, i) => doc.text(`• ${line}`, margin + 2, 90 + i * 7))
+    for (const [i, line] of tocDescs.entries()) doc.text(`• ${line}`, margin + 2, 90 + i * 7)
 
     // ── 2. Income & Expenses ─────────────────────────────────────────
     doc.addPage()
@@ -245,7 +245,7 @@ export async function GET(_req: NextRequest) {
           const cat = catMap.get(e.categoryId)
           return [cat?.name || "Other", rupees(e._sum.amount || 0), `${((e._sum.amount || 0) / monthlyExpense * 100).toFixed(0)}%`]
         })
-        .sort((a, b) => Number(b[1].replace(/\D/g, "")) - Number(a[1].replace(/\D/g, "")))
+        .sort((a, b) => Number(b[1].replaceAll(/\D/g, "")) - Number(a[1].replaceAll(/\D/g, "")))
         .slice(0, 12)
       autoTable(doc, {
         startY: 78,
@@ -486,14 +486,14 @@ export async function GET(_req: NextRequest) {
     doc.setFontSize(10)
     doc.setTextColor(120)
     doc.text("Tips:", margin, 85)
-    ef.tips.forEach((t, i) => doc.text(`• ${t}`, margin + 4, 92 + i * 6, { maxWidth: pageW - 2 * margin - 4 }))
+    for (const [i, t] of ef.tips.entries()) doc.text(`• ${t}`, margin + 4, 92 + i * 6, { maxWidth: pageW - 2 * margin - 4 })
     doc.setTextColor(0)
 
     // ── Final pass: write actual page numbers to TOC ─────────────────
     const toc = doc.getNumberOfPages()
     doc.setPage(2) // TOC page
     let ty = 45
-    tocItems.forEach((item) => {
+    for (const item of tocItems) {
       const sec = sections.find((s) => s.id === item.id)
       const label = sec ? String(sec.page) : "—"
       doc.setFont("helvetica", "normal")
@@ -504,7 +504,7 @@ export async function GET(_req: NextRequest) {
       doc.setTextColor(0)
       doc.text(label, pageW - margin, ty, { align: "right" })
       ty += 10
-    })
+    }
 
     // Update total page count
     for (let i = 1; i <= toc; i++) {

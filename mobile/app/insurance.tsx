@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme, RefreshControl, ActivityIndicator, Modal, TextInput, Alert, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { formatCurrency, formatDate } from '../utils/format';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 interface InsuranceItem {
   id: number;
@@ -40,17 +41,17 @@ export default function InsuranceScreen() {
   const [formFrequency, setFormFrequency] = useState('yearly');
   const [formStartDate, setFormStartDate] = useState('');
 
-  const fetch = useCallback(async () => {
-    setError(null);
-    try {
-      const res = await api.get('/api/insurance');
-      const d = res.data;
+  const insuranceQuery = useApiQuery<any>(['insurance'], '/api/insurance');
+  useEffect(() => {
+    if (insuranceQuery.data !== undefined) {
+      const d = insuranceQuery.data;
       setData(Array.isArray(d?.policies || d?.insurance) ? (d.policies || d.insurance) : Array.isArray(d) ? d : []);
-    } catch { setError('Failed to load insurance'); }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { fetch(); }, [fetch]);
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [insuranceQuery.data]);
+  useEffect(() => { if (insuranceQuery.isError) { setError('Failed to load insurance'); setLoading(false); setRefreshing(false); } }, [insuranceQuery.isError]);
+  const fetch = () => { void insuranceQuery.refetch(); };
 
   const openAdd = () => {
     setFormName(''); setFormType('health'); setFormProvider(''); setFormPremium(''); setFormFrequency('yearly');

@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme, RefreshControl, ActivityIndicator, Modal, TextInput, Alert, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 interface LoanItem {
   id: number;
@@ -44,17 +45,17 @@ export default function LoansScreen() {
   const [formLender, setFormLender] = useState('');
   const [formStartDate, setFormStartDate] = useState('');
 
-  const fetch = useCallback(async () => {
-    setError(null);
-    try {
-      const res = await api.get('/api/loans');
-      const d = res.data;
+  const loansQuery = useApiQuery<any>(['loans'], '/api/loans');
+  useEffect(() => {
+    if (loansQuery.data !== undefined) {
+      const d = loansQuery.data;
       setData(Array.isArray(d?.loans) ? d.loans : Array.isArray(d) ? d : []);
-    } catch { setError('Failed to load loans'); }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { fetch(); }, [fetch]);
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [loansQuery.data]);
+  useEffect(() => { if (loansQuery.isError) { setError('Failed to load loans'); setLoading(false); setRefreshing(false); } }, [loansQuery.isError]);
+  const fetch = () => { void loansQuery.refetch(); };
 
   const openAdd = () => {
     setFormName(''); setFormType('Other'); setFormPrincipal(''); setFormInterest(''); setFormTenure(''); setFormLender(''); setFormStartDate(new Date().toISOString().split('T')[0]);

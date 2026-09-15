@@ -2,26 +2,32 @@
 
 import { SessionProvider as NextAuthSessionProvider, useSession } from "next-auth/react"
 import { usePathname } from "next/navigation"
-import { useEffect, useRef } from "react"
+import { useEffect } from "react"
 import type { ReactNode } from "react"
 
 function SessionExpiryWatcher() {
   const { status } = useSession()
   const pathname = usePathname()
-  const wasAuthenticated = useRef(false)
 
   useEffect(() => {
-    if (status === "authenticated") {
-      wasAuthenticated.current = true
-      return
-    }
-    // Only redirect when a previously-valid session has expired.
-    // A fresh page load with no session (status "loading" -> "unauthenticated")
-    // is handled by middleware and must NOT trigger a redirect loop.
-    if (status === "unauthenticated" && wasAuthenticated.current) {
-      const callbackUrl = pathname + (window.location.search || "")
-      window.location.href = `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
-    }
+    if (status !== "unauthenticated") return
+
+    // Public pages must never redirect (login/setup and auth/API routes).
+    // Middleware already guarantees a session cookie exists for any protected
+    // page that renders, so reaching "unauthenticated" here means the cookie
+    // is invalid/expired (server restart, idle timeout, or maxAge reached).
+    // Redirecting on fresh loads with a stale cookie fixes the dead-end
+    // "Failed to load dashboard data" state where data APIs return 401 but
+    // the page never sent the user back to login.
+    const isPublic =
+      pathname === "/login" ||
+      pathname === "/setup" ||
+      pathname.startsWith("/api/")
+
+    if (isPublic) return
+
+    const callbackUrl = pathname + (window.location.search || "")
+    window.location.href = `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
   }, [status, pathname])
 
   return null

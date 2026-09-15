@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo } from "react"
+import { useEffect, useState, useMemo, useRef } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,29 +13,12 @@ import { CardGridSkeleton } from "@/components/ui/page-skeleton"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { Plus, Download, AlertTriangle, CheckCircle2, Repeat, Trash2, Save, TrendingUp, ChevronLeft, ChevronRight, X } from "lucide-react"
-import type { Category } from "@/types"
-
-interface CommonCategoryRow {
-  categoryId: number
-  category: { id: number; name: string; icon: string; color: string }
-  subCategory: string | null
-  lastMonthSpend: number
-  currentBudget: number | null
-  currentSpent: number
-  budgetId: number | null
-}
-
-interface OverviewResponse {
-  overview: boolean
-  month: number
-  year: number
-  income: number
-  commonCategories: CommonCategoryRow[]
-  totals: {
-    current: { budget: number; spent: number }
-    lastMonth: { budget: number; spent: number }
-  }
-}
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
+import {
+  useBudgetOverview, useBudgetCategoryTree,
+  type CommonCategoryRow, type OverviewResponse,
+} from "@/hooks/use-finance"
 
 type Status = "over" | "warning" | "ok" | "none"
 
@@ -61,14 +44,9 @@ function monthName(m: number): string {
 }
 
 export default function BudgetsPage() {
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [month, setMonth] = useState(getCurrentMonth())
   const [year, setYear] = useState(getCurrentYear())
-  const [overview, setOverview] = useState<OverviewResponse | null>(null)
-  const [categories, setCategories] = useState<Category[]>([])
-  const [subCategories, setSubCategories] = useState<string[]>([])
-
-  // Row amount inputs keyed by "categoryId::subCategory"
   const [amounts, setAmounts] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
 
@@ -84,42 +62,37 @@ export default function BudgetsPage() {
   const [repeatMonths, setRepeatMonths] = useState<Set<number>>(new Set())
   const [repeating, setRepeating] = useState(false)
 
-  const loadOverview = useCallback(async (m: number, y: number) => {
-    setLoading(true)
-    try {
-      const res = await fetch(`/api/budgets/overview?month=${m}&year=${y}`)
-      if (!res.ok) throw new Error("Failed to load overview")
-      const data = (await res.json()) as OverviewResponse
-      setOverview(data)
-      const init: Record<string, string> = {}
-      for (const row of data.commonCategories) {
-        init[`${row.categoryId}::${row.subCategory || ""}`] = row.currentBudget != null ? String(row.currentBudget) : ""
-      }
-      setAmounts(init)
-    } catch {
-      toast.error("Failed to load budget overview")
-    } finally {
-      setLoading(false)
+  const overviewQuery = useBudgetOverview(month, year)
+  const overview = overviewQuery.data ?? null
+  const loading = overviewQuery.isLoading
+
+  const categoriesQuery = useBudgetCategoryTree()
+  const categories = categoriesQuery.data?.categories ?? []
+  const subCategories = categoriesQuery.data?.subCategories ?? []
+
+  // Initialize row amounts once per month/year selection (never clobber the
+  // user's in-progress edits on a background refetch).
+  const initedKeyRef = useRef<string>("")
+  useEffect(() => {
+    const key = `${month}:${year}`
+    if (!overview || initedKeyRef.current === key) return
+    initedKeyRef.current = key
+    const init: Record<string, string> = {}
+    for (const row of overview.commonCategories) {
+      init[`${row.categoryId}::${row.subCategory || ""}`] = row.currentBudget != null ? String(row.currentBudget) : ""
     }
-  }, [])
+    setAmounts(init)
+  }, [overview, month, year])
 
-  const loadCategories = useCallback(async () => {
-    try {
-      const res = await fetch("/api/categories?include=subCategories")
-      const data = await res.json()
-      if (data.subCategories) {
-        setCategories(data.categories || data)
-        setSubCategories(data.subCategories)
-      } else {
-        setCategories(data)
-      }
-    } catch { /* ignore */ }
-  }, [])
+  const loadOverview = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.budgetsOverview(month, year) })
+  }
 
-  useEffect(() => { loadOverview(month, year) }, [loadOverview, month, year])
-  useEffect(() => { loadCategories() }, [loadCategories])
+  const loadCategories = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.budgetCategoryTree() })
+  }
 
-  const rowKey = useCallback((c: { categoryId: number; subCategory: string | null }) => `${c.categoryId}::${c.subCategory || ""}`, [])
+  const rowKey = (c: { categoryId: number; subCategory: string | null }) => `${c.categoryId}::${c.subCategory || ""}`
 
   const remainingMonths = useMemo(() => {
     const start = month + 1
@@ -171,7 +144,7 @@ export default function BudgetsPage() {
         }
       }
       toast.success(`Saved ${valid.length} budget${valid.length === 1 ? "" : "s"}`)
-      await loadOverview(month, year)
+      await loadOverview()
     } catch (e) {
       toast.error((e as Error).message || "Failed to save budgets")
     } finally {
@@ -186,7 +159,7 @@ export default function BudgetsPage() {
       const res = await fetch(`/api/budgets?id=${row.budgetId}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete budget")
       toast.success(`Deleted budget for ${row.category.name}`)
-      await loadOverview(month, year)
+      await loadOverview()
     } catch (e) {
       toast.error((e as Error).message || "Failed to delete budget")
     }
@@ -231,7 +204,7 @@ export default function BudgetsPage() {
       setNewCatId("")
       setNewSubCat("")
       setNewAmount("")
-      await loadOverview(month, year)
+      await loadOverview()
       await loadCategories()
     } catch (e) {
       toast.error((e as Error).message || "Failed to add category")
@@ -265,7 +238,7 @@ export default function BudgetsPage() {
       if (!res.ok) throw new Error("Failed to repeat budgets")
       const data = await res.json()
       toast.success(`Created ${data.created} budgets, skipped ${data.skipped} existing`)
-      await loadOverview(month, year)
+      await loadOverview()
     } catch (e) {
       toast.error((e as Error).message || "Failed to repeat budgets")
     } finally {

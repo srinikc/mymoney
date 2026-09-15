@@ -1,6 +1,6 @@
-import { readFileSync, readdirSync, statSync, existsSync } from "fs"
-import { join } from "path"
-import { createHash } from "crypto"
+import { readFileSync, readdirSync, statSync, existsSync } from "node:fs"
+import { join } from "node:path"
+import { createHash } from "node:crypto"
 import AdmZip from "adm-zip"
 import { prisma } from "@/lib/prisma"
 import { encryptEnvFile } from "./env-encrypt"
@@ -41,7 +41,7 @@ function exportSchema(): BackupArtifact {
   const zip = new AdmZip()
   zip.addFile("schema.prisma", schemaContent)
   if (existsSync(migrationsDir)) {
-    function addMigrations(dir: string) {
+    const addMigrations = (dir: string): void => {
       const entries = readdirSync(dir)
       for (const entry of entries) {
         const fullPath = join(dir, entry)
@@ -174,7 +174,7 @@ export async function runBackup(options: RunBackupOptions = {}): Promise<RunBack
     const archive = finalZip.toBuffer()
     const checksum = createHash("sha256").update(archive).digest("hex")
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
+    const timestamp = new Date().toISOString().replaceAll(/[.:]/g, "-")
     const baseKey = `backups/${timestamp}-${record.includeDb && record.includeFiles ? "full" : "partial"}.zip`
     const baseFilename = baseKey.split("/").pop() || `${timestamp}.zip`
 
@@ -257,8 +257,12 @@ export async function getLatestBackup(type = "backup") {
 export async function getAllStorageUsage() {
   const [local, r2, supabase, gdrive] = await Promise.all([
     isLocalConfigured() ? getLocalUsage().catch(() => ({ usedBytes: 0, objectCount: 0 })) : Promise.resolve({ usedBytes: 0, objectCount: 0 }),
-    isR2Configured() ? require("./r2-upload").getR2StorageUsage().catch(() => ({ usedBytes: 0, objectCount: 0 })) : Promise.resolve({ usedBytes: 0, objectCount: 0 }),
-    isSupabaseStorageConfigured() ? require("./supabase-storage").getSupabaseStorageUsage().catch(() => ({ usedBytes: 0, objectCount: 0 })) : Promise.resolve({ usedBytes: 0, objectCount: 0 }),
+    isR2Configured()
+      ? import("./r2-upload").then((m) => m.getR2StorageUsage()).catch(() => ({ usedBytes: 0, objectCount: 0 }))
+      : Promise.resolve({ usedBytes: 0, objectCount: 0 }),
+    isSupabaseStorageConfigured()
+      ? import("./supabase-storage").then((m) => m.getSupabaseStorageUsage()).catch(() => ({ usedBytes: 0, objectCount: 0 }))
+      : Promise.resolve({ usedBytes: 0, objectCount: 0 }),
     isGoogleDriveConfigured() ? getGDriveUsage().catch(() => ({ usedBytes: 0, objectCount: 0 })) : Promise.resolve({ usedBytes: 0, objectCount: 0 }),
   ])
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme,
   RefreshControl, ActivityIndicator, TextInput,
@@ -8,6 +8,7 @@ import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { formatFullDate } from '../utils/format';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 interface AuditEntry {
   id: number;
@@ -84,37 +85,42 @@ export default function AuditLogScreen() {
   const [showActionPicker, setShowActionPicker] = useState(false);
   const [showEntityPicker, setShowEntityPicker] = useState(false);
 
-  const fetch = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      params.set('page', page.toString());
-      params.set('pageSize', '50');
-      if (actionFilter) params.set('action', actionFilter);
-      if (entityFilter) params.set('entity', entityFilter);
-      if (search) params.set('search', search);
-      if (fromDate) params.set('dateFrom', fromDate);
-      if (toDate) params.set('dateTo', toDate);
-
-      const res = await api.get(`/api/admin/audit-log?${params.toString()}`);
-      const data = res.data;
-      setLogs(data.entries || data.logs || []);
-      setTotalPages(data.pagination?.totalPages || data.totalPages || 1);
-      setTotal(data.pagination?.total || data.total || 0);
-    } catch (err) {
-      const error = err as { response?: { status?: number }; message?: string };
-      if (error.response?.status === 403) setError('Access denied. Admin or manager role required.');
-      else if (error.response?.status === 429) setError('Rate limit exceeded. Please wait a moment.');
-      else setError('Failed to load audit log');
-      setLogs([]);
-    } finally {
+  const logsQuery = useApiQuery<any>(
+    ['audit-log', page, actionFilter, entityFilter, search, fromDate, toDate],
+    '/api/admin/audit-log',
+    {
+      params: {
+        page: String(page),
+        pageSize: '50',
+        ...(actionFilter ? { action: actionFilter } : {}),
+        ...(entityFilter ? { entity: entityFilter } : {}),
+        ...(search ? { search } : {}),
+        ...(fromDate ? { dateFrom: fromDate } : {}),
+        ...(toDate ? { dateTo: toDate } : {}),
+      },
+    },
+  );
+  useEffect(() => {
+    if (logsQuery.data !== undefined) {
+      setLogs(logsQuery.data.entries || logsQuery.data.logs || []);
+      setTotalPages(logsQuery.data.pagination?.totalPages || logsQuery.data.totalPages || 1);
+      setTotal(logsQuery.data.pagination?.total || logsQuery.data.total || 0);
       setLoading(false);
       setRefreshing(false);
     }
-  }, [page, actionFilter, entityFilter, search, fromDate, toDate]);
-
-  useEffect(() => { fetch(); }, [fetch]);
+  }, [logsQuery.data]);
+  useEffect(() => {
+    if (logsQuery.isError) {
+      const status = (logsQuery.error as any)?.response?.status;
+      if (status === 403) setError('Access denied. Admin or manager role required.');
+      else if (status === 429) setError('Rate limit exceeded. Please wait a moment.');
+      else setError('Failed to load audit log');
+      setLogs([]);
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [logsQuery.isError]);
+  const fetch = () => { void logsQuery.refetch(); };
 
   const resetFilters = () => {
     setActionFilter('');

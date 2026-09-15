@@ -84,7 +84,7 @@ export default function UnusualExpensesPage() {
       const json: UnusualResponse = await res.json()
       setData(json)
       setSelected(new Set())
-    } catch (e) {
+    } catch {
       toast.error("Failed to load unusual expenses")
     } finally {
       setLoading(false)
@@ -107,7 +107,7 @@ export default function UnusualExpensesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action,
-          ids: Array.from(selected),
+          ids: [...selected],
           ...(action === "categorize" ? { purpose: bulkPurpose } : {}),
         }),
       })
@@ -149,8 +149,17 @@ export default function UnusualExpensesPage() {
 
   if (loading && !data) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="space-y-4 max-w-6xl mx-auto p-4 md:p-6">
+        <div className="space-y-2">
+          <div className="h-8 w-56 animate-pulse rounded bg-muted" />
+          <div className="h-4 w-96 animate-pulse rounded bg-muted" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-24 w-full animate-pulse rounded bg-muted" />
+          ))}
+        </div>
+        <div className="h-64 w-full animate-pulse rounded bg-muted" />
       </div>
     )
   }
@@ -199,7 +208,7 @@ export default function UnusualExpensesPage() {
                     purposeFilter === p.purpose ? "border-primary bg-primary/5" : "hover:bg-muted/50"
                   }`}
                 >
-                  <span className="text-sm capitalize">{p.purpose.replace(/-/g, " ")}</span>
+                  <span className="text-sm capitalize">{p.purpose.replaceAll('-', " ")}</span>
                   <span className="text-sm font-semibold">{formatCurrency(p.total)}</span>
                 </button>
               ))}
@@ -279,11 +288,11 @@ export default function UnusualExpensesPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-sm capitalize">
-                      {e.category.name.replace(/-/g, " ")}
+                      {e.category.name.replaceAll('-', " ")}
                     </TableCell>
                     <TableCell>
                       {e.purpose ? (
-                        <Badge variant="secondary" className="capitalize">{e.purpose.replace(/-/g, " ")}</Badge>
+                        <Badge variant="secondary" className="capitalize">{e.purpose.replaceAll('-', " ")}</Badge>
                       ) : (
                         <Badge variant="outline" className="text-amber-600 border-amber-300">Untagged</Badge>
                       )}
@@ -341,7 +350,7 @@ export default function UnusualExpensesPage() {
                   <SelectContent>
                     {EXPENSE_PURPOSES.map((p) => (
                       <SelectItem key={p} value={p} className="capitalize">
-                        {p.replace(/-/g, " ")}
+                        {p.replaceAll('-', " ")}
                       </SelectItem>
                     ))}
                   </SelectContent>

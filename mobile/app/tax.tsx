@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme, ActivityIndicator,
 } from 'react-native';
@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
-import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 interface TaxData {
   incomeSources?: Record<string, number>;
@@ -24,16 +24,11 @@ export default function TaxScreen() {
   const [error, setError] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
 
-  const fetch = useCallback(async () => {
-    setError(null);
-    try {
-      const res = await api.get('/api/tax', { params: { year: selectedYear } });
-      setData(res.data);
-    } catch { setError('Failed to load tax summary'); }
-    finally { setLoading(false); }
-  }, [selectedYear]);
-
-  useEffect(() => { fetch(); }, [fetch]);
+  const taxQuery = useApiQuery<TaxData>(['tax', selectedYear], '/api/tax', { params: { year: selectedYear } });
+  useEffect(() => {
+    if (taxQuery.data !== undefined) { setData(taxQuery.data); setLoading(false); }
+  }, [taxQuery.data]);
+  useEffect(() => { if (taxQuery.isError) { setError('Failed to load tax summary'); setLoading(false); } }, [taxQuery.isError]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>

@@ -41,7 +41,7 @@ export interface SemVer {
 }
 
 export function parseSemVer(v: string): SemVer | null {
-  const match = v.match(/^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z-.]+))?(?:\+([0-9A-Za-z-.]+))?$/)
+  const match = v.match(/^(\d+)\.(\d+)\.(\d+)(?:-([\d.A-Za-z-]+))?(?:\+([\d.A-Za-z-]+))?$/)
   if (!match) return null
   return {
     major: Number(match[1]),

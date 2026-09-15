@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import * as SecureStore from 'expo-secure-store'
 import api, { TOKEN_KEY } from '../api/client'
+import { queryClient } from '../lib/query-client'
 
 interface User {
   id: string
@@ -47,6 +48,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   logout: async () => {
     await SecureStore.deleteItemAsync(TOKEN_KEY)
+    queryClient.clear()
     set({ isLoggedIn: false, user: null, error: null })
   },
 

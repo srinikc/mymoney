@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,13 +10,10 @@ import { Plus, Trash2, WalletCards, TrendingUp, TrendingDown, ArrowUpRight } fro
 import { CardGridSkeleton } from "@/components/ui/page-skeleton"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useQueryClient } from "@tanstack/react-query"
+import { useAssets, useLiabilities, type Asset, type Liability } from "@/hooks/use-finance"
+import { useNetWorth, apiFetch } from "@/hooks/use-dashboard"
 
-interface Asset {
-  id: number; name: string; type: string; amount: number; notes: string | null
-}
-interface Liability {
-  id: number; name: string; type: string; amount: number; interestRate: number | null; dueDate: string | null; notes: string | null
-}
 interface NetWorthData {
   totalAssets: number
   totalLiabilities: number
@@ -31,44 +28,38 @@ interface NetWorthData {
 }
 
 export default function NetWorthPage() {
-  const [assets, setAssets] = useState<Asset[]>([])
-  const [liabilities, setLiabilities] = useState<Liability[]>([])
-  const [summary, setSummary] = useState<NetWorthData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [assetOpen, setAssetOpen] = useState(false)
   const [liabOpen, setLiabOpen] = useState(false)
   const [assetForm, setAssetForm] = useState({ name: "", type: "other", amount: "", notes: "" })
   const [liabForm, setLiabForm] = useState({ name: "", type: "other", amount: "", interestRate: "", dueDate: "", notes: "" })
 
-  const load = useCallback(async () => {
-    try {
-      const [a, l, s] = await Promise.all([
-        fetch("/api/assets").then(r => r.json()),
-        fetch("/api/liabilities").then(r => r.json()),
-        fetch("/api/net-worth").then(r => r.json()),
-      ])
-      setAssets(a); setLiabilities(l); setSummary(s)
-    } catch {
-      setAssets([]); setLiabilities([])
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const assetsQuery = useAssets()
+  const liabilitiesQuery = useLiabilities()
+  const summaryQuery = useNetWorth()
+  const assets = assetsQuery.data ?? []
+  const liabilities = liabilitiesQuery.data ?? []
+  const summary = summaryQuery.data as NetWorthData | null | undefined
+  const loading = assetsQuery.isLoading || liabilitiesQuery.isLoading
 
-  useEffect(() => { load() }, [load])
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["assets"] })
+    queryClient.invalidateQueries({ queryKey: ["liabilities"] })
+    queryClient.invalidateQueries({ queryKey: ["net-worth"] })
+  }
 
   const addAsset = async () => {
-    await fetch("/api/assets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(assetForm) })
-    setAssetOpen(false); setAssetForm({ name: "", type: "other", amount: "", notes: "" }); load()
+    await apiFetch("/api/assets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(assetForm) })
+    setAssetOpen(false); setAssetForm({ name: "", type: "other", amount: "", notes: "" }); invalidateAll()
   }
 
   const addLiability = async () => {
-    await fetch("/api/liabilities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(liabForm) })
-    setLiabOpen(false); setLiabForm({ name: "", type: "other", amount: "", interestRate: "", dueDate: "", notes: "" }); load()
+    await apiFetch("/api/liabilities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(liabForm) })
+    setLiabOpen(false); setLiabForm({ name: "", type: "other", amount: "", interestRate: "", dueDate: "", notes: "" }); invalidateAll()
   }
 
-  const deleteAsset = async (id: number) => { await fetch(`/api/assets/${id}`, { method: "DELETE" }); load() }
-  const deleteLiability = async (id: number) => { await fetch(`/api/liabilities/${id}`, { method: "DELETE" }); load() }
+  const deleteAsset = async (id: number) => { await apiFetch(`/api/assets/${id}`, { method: "DELETE" }); invalidateAll() }
+  const deleteLiability = async (id: number) => { await apiFetch(`/api/liabilities/${id}`, { method: "DELETE" }); invalidateAll() }
 
   if (loading) return <CardGridSkeleton />
 

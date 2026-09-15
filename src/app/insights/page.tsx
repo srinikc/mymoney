@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -15,24 +15,11 @@ import { Lightbulb, Users, Store, Sparkles, TrendingUp, TrendingDown, ArrowUpRig
 import { InsightsSkeleton } from "@/components/ui/page-skeleton"
 import { AdContainer } from "@/components/ads/ad-container"
 import { motion } from "motion/react"
+import { useDeepInsights, useYoy, type PeriodType } from "@/hooks/use-reports"
 
 const COLORS = ["#6366f1", "#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#ec4899", "#8b5cf6", "#06b6d4", "#84cc16"]
 
-type PeriodType = "all" | "year" | "quarter" | "month" | "custom"
-
-interface DeepInsights {
-  monthlyTrend: { month: string; amount: number; count: number }[]
-  categoryBreakdown: { name: string; amount: number; count: number; color: string; subCategories: { name: string; amount: number; count: number }[] }[]
-  personWise: { name: string; amount: number; count: number }[]
-  topMerchants: { name: string; amount: number; count: number }[]
-  yearlyComparison: { year: number; amount: number; count: number }[]
-  optimization: { category: string; percentage: number; total: number; monthlyAvg: number; potentialSavings: number; subCategories: { name: string; amount: number; count: number }[] }[]
-  deals: { merchant: string; title: string; discount: string; validUntil: string; description: string }[]
-}
-
 export default function InsightsPage() {
-  const [data, setData] = useState<DeepInsights | null>(null)
-  const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
   // P4.4: Time period filter
@@ -41,61 +28,34 @@ export default function InsightsPage() {
   const [periodYear, setPeriodYear] = useState(currentYear)
 
   // P4.5: YoY data
-  const [yoyData, setYoyData] = useState<{ year: number; amount: number; count: number; monthBreakdown: { month: string; amount: number; count: number }[] }[] | null>(null)
   const [yoyCategory, setYoyCategory] = useState<string>("")
-  const [yoyLoading, setYoyLoading] = useState(false)
+
+  const deepQuery = useDeepInsights(period, periodYear)
+  const data = deepQuery.data ?? null
+  const loading = deepQuery.isLoading
+
+  const yoyQuery = useYoy(yoyCategory)
+  const yoyData = yoyQuery.data ?? null
+  const yoyLoading = yoyQuery.isFetching
 
   const topCategoriesForDropdown = data?.categoryBreakdown.slice(0, 10).map((c) => c.name) ?? []
 
-  const fetchDeepInsights = useCallback(async () => {
-    setLoading(true)
-    const params = new URLSearchParams()
-    switch (period) {
-    case "year": {
-    params.set("year", String(periodYear))
-    break;
-    }
-    case "quarter": {
-      const q = Math.floor((new Date().getMonth()) / 3) + 1
-      params.set("year", String(periodYear))
-      params.set("quarter", String(q))
-    
-    break;
-    }
-    case "month": {
-      params.set("year", String(periodYear))
-      params.set("month", String(new Date().getMonth() + 1))
-    
-    break;
-    }
-    // No default
-    }
-    const res = await fetch(`/api/insights/deep${params.toString() ? `?${params.toString()}` : ""}`)
-    const result = await res.json()
-    setData(result)
-    setLoading(false)
-  }, [period, periodYear])
-
-  useEffect(() => {
-    fetchDeepInsights()
-  }, [fetchDeepInsights])
-
-  // Fetch YoY data when category changes (P4.5)
-  useEffect(() => {
-    if (!yoyCategory) {
-      setYoyData(null)
-      return
-    }
-    setYoyLoading(true)
-    const years = [currentYear - 2, currentYear - 1, currentYear].filter((y) => y >= 2020)
-    fetch(`/api/insights/yoy?category=${encodeURIComponent(yoyCategory)}&years=${years.join(",")}`)
-      .then((r) => r.json())
-      .then((result) => setYoyData(result.data))
-      .catch(() => setYoyData(null))
-      .finally(() => setYoyLoading(false))
-  }, [yoyCategory, currentYear])
-
-  if (loading) return <InsightsSkeleton />
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Insights</h1>
+          <p className="text-muted-foreground">Deep analysis of your spending patterns</p>
+        </div>
+        <AdContainer slotIdPrefix="insights" />
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="h-9 w-36 animate-pulse rounded bg-muted" />
+          <div className="h-9 w-28 animate-pulse rounded bg-muted" />
+        </div>
+        <InsightsSkeleton />
+      </div>
+    )
+  }
   if (!data) return <div className="p-8 text-center text-muted-foreground">Failed to load insights</div>
 
   const selectedCat = selectedCategory

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme,
   RefreshControl, ActivityIndicator, Modal, TextInput, Alert, Switch,
@@ -8,6 +8,7 @@ import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { formatDate } from '../../utils/format';
 import api from '../../api/client';
+import { useApiQuery } from '../../hooks/use-api-query';
 
 interface AdminUser {
   id: number;
@@ -51,23 +52,23 @@ export default function AdminUsersScreen() {
   // Detail modal
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
-  const fetch = useCallback(async () => {
-    setError(null);
-    try {
-      const res = await api.get('/api/admin/users');
-      const data = res.data;
-      setUsers(Array.isArray(data) ? data : []);
-    } catch (err) {
-      const error = err as { response?: { status?: number }; message?: string };
-      if (error.response?.status === 403) setError('Admin access required');
-      else setError('Failed to load users');
-    } finally {
+  const usersQuery = useApiQuery<any>(['admin-users'], '/api/admin/users');
+  useEffect(() => {
+    if (usersQuery.data !== undefined) {
+      setUsers(Array.isArray(usersQuery.data) ? usersQuery.data : []);
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
-
-  useEffect(() => { fetch(); }, [fetch]);
+  }, [usersQuery.data]);
+  useEffect(() => {
+    if (usersQuery.isError) {
+      const status = (usersQuery.error as any)?.response?.status;
+      setError(status === 403 ? 'Admin access required' : 'Failed to load users');
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [usersQuery.isError]);
+  const fetch = () => { void usersQuery.refetch(); };
 
   const updateRole = async (userId: number, role: string) => {
     try {

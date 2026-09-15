@@ -14,6 +14,7 @@ import type { Investment } from "@/types"
 import { toast } from "sonner"
 import { Plus, TrendingUp, TrendingDown, Download, Building2, Pencil, Trash2 } from "lucide-react"
 import { FundCard } from "@/components/funds/fund-card"
+import { useInvestments } from "@/hooks/use-finance"
 
 const defaultForm = {
   type: "mutual_funds", name: "", symbol: "", quantity: "", buyPrice: "", amount: "", currentValue: "", purchaseDate: new Date().toISOString().split("T")[0], returnRate: "", notes: "",
@@ -98,27 +99,15 @@ function InvestmentForm({
 }
 
 export default function InvestmentsPage() {
-  const [investments, setInvestments] = useState<Investment[]>([])
-  const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editInv, setEditInv] = useState<Investment | null>(null)
   const [form, setForm] = useState(defaultForm)
 
-  const loadData = async () => {
-    const res = await fetch("/api/investments")
-    const data = await res.json()
-    // Exclude legacy fixed_deposit rows — FDs are managed via the bank account page
-    setInvestments(data
-      .filter((i: Investment) => i.type !== "fixed_deposit")
-      .map((i: Investment) => ({
-        ...i,
-        returnPercent: i.amount > 0 ? Math.round(((i.currentValue - i.amount) / i.amount) * 100) : 0,
-      })))
-    setLoading(false)
-  }
-
-  useEffect(() => { loadData() }, [])
+  const investmentsQuery = useInvestments()
+  const investments = investmentsQuery.data ?? []
+  const loading = investmentsQuery.isLoading
+  const reloadInvestments = investmentsQuery.refetch
 
   const handleSubmit = async () => {
     const body = { ...form }
@@ -135,7 +124,7 @@ export default function InvestmentsPage() {
       setShowAddForm(false)
       setEditInv(null)
       setForm(defaultForm)
-      loadData()
+      reloadInvestments()
     } catch (err: unknown) {
       toast.error((err as Error).message || "Failed to save investment")
     }
@@ -159,7 +148,7 @@ export default function InvestmentsPage() {
       const res = await fetch(`/api/investments?id=${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete investment")
       toast.success("Investment deleted")
-      loadData()
+      reloadInvestments()
     } catch {
       toast.error("Failed to delete investment")
     }

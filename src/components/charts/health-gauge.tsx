@@ -231,7 +231,6 @@ export function HealthGauge({ score, metrics = [], variant = "compact", onDetail
                   <div className="grid gap-2 sm:grid-cols-2">
                     {metrics
                       .filter((m) => m.value !== null)
-                      .slice()
                       .sort((a, b) => (a.value ?? 0) - (b.value ?? 0))
                       .slice(0, 2)
                       .map((m) => (

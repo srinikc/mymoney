@@ -8,6 +8,7 @@ import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { useAuthStore } from '../store/auth';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 interface EnvVarDef {
   key: string;
@@ -36,26 +37,27 @@ export default function EnvironmentScreen() {
   const [visible, setVisible] = useState<Record<string, boolean>>({});
   const [forbidden, setForbidden] = useState(false);
 
+  const envQuery = useApiQuery<any>(['environment'], '/api/settings/environment', { enabled: user?.role === 'admin' });
   useEffect(() => {
     if (user?.role !== 'admin') {
       setForbidden(true);
       setLoading(false);
-      return;
     }
-    api.get('/api/settings/environment')
-      .then((r) => {
-        setVars(r.data?.vars || {});
-        const defs = r.data?.definitions || [];
-        setDefinitions(defs);
-        const ov: Record<string, string> = {};
-        for (const d of defs) if (d.editable) ov[d.key] = r.data?.vars[d.key]?.value || '';
-        setOverrides(ov);
-      })
-      .catch((err) => {
-        if (err?.response?.status === 403) setForbidden(true);
-      })
-      .finally(() => setLoading(false));
   }, [user]);
+  useEffect(() => {
+    if (envQuery.data !== undefined) {
+      setVars(envQuery.data?.vars || {});
+      const defs = envQuery.data?.definitions || [];
+      setDefinitions(defs);
+      const ov: Record<string, string> = {};
+      for (const d of defs) if (d.editable) ov[d.key] = envQuery.data?.vars[d.key]?.value || '';
+      setOverrides(ov);
+      setLoading(false);
+    }
+  }, [envQuery.data]);
+  useEffect(() => {
+    if (envQuery.isError) { setForbidden(true); setLoading(false); }
+  }, [envQuery.isError]);
 
   const handleSave = async () => {
     setSaving(true);

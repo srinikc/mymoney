@@ -125,7 +125,7 @@ export async function computeSpendingIntelligence(profileId: number): Promise<In
     v.total += e.amount
   }
 
-  const subscriptionLike = Array.from(byVendor.entries())
+  const subscriptionLike = [...byVendor.entries()]
     .filter(([_, v]) => v.count >= 3 && v.sample.amount < 2000)
     .sort((a, b) => b[1].total - a[1].total)
     .slice(0, 5)
@@ -201,7 +201,7 @@ export async function computeSpendingIntelligence(profileId: number): Promise<In
     const sec80CCD1BGap = Math.max(0, 50000 - totalNPS)
     const totalGap = sec80CGap + sec80CCD1BGap
     if (totalGap > 0) {
-      const oldRegimeSaving = totalGap * 0.30
+      const oldRegimeSaving = totalGap * 0.3
       items.push({
         id: nextId(),
         kind: "tax-optimization",

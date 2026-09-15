@@ -158,5 +158,5 @@ export const GOAL_TYPES: GoalTypeOption[] = [
 export const GOAL_UNITS = ["₹", "gm", "kg", "sqft", "acres", "units"] as const
 
 export function getGoalTypeConfig(type: string): GoalTypeOption {
-  return GOAL_TYPES.find((t) => t.value === type) || GOAL_TYPES[GOAL_TYPES.length - 1] // Default to Custom
+  return GOAL_TYPES.find((t) => t.value === type) ?? GOAL_TYPES.at(-1)! // Default to Custom
 }

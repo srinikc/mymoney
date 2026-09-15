@@ -17,7 +17,8 @@
       "infoPlist": {
         "NSFaceIDUsageDescription": "MyMoney uses Face ID to securely lock the app.",
         "NSCameraUsageDescription": "Used to scan QR codes for session sharing and receipt OCR.",
-        "NSPhotoLibraryUsageDescription": "Used to upload receipt images for expense tracking."
+        "NSPhotoLibraryUsageDescription": "Used to upload receipt images for expense tracking.",
+        "NSMicrophoneUsageDescription": "MyMoney uses the microphone for voice commands to log expenses, income, and ask financial questions."
       }
     },
     "android": {
@@ -28,9 +29,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "blockedPermissions": [
-        "android.permission.RECORD_AUDIO"
-      ]
+      "blockedPermissions": []
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,7 +40,9 @@
       "expo-status-bar",
       "expo-font",
       "expo-local-authentication",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-speech-recognition",
+      "expo-audio"
     ],
     "extra": {
       "eas": {
@@ -49,6 +50,9 @@
       }
     },
     "scheme": "mymoney",
-    "platforms": ["ios", "android"]
+    "platforms": [
+      "ios",
+      "android"
+    ]
   }
 }

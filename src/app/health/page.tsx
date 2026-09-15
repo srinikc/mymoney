@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useState, useMemo } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -11,6 +11,8 @@ import { motion } from "motion/react"
 import { Download, RefreshCw, ArrowRight, TrendingUp, Shield, AlertTriangle, CheckCircle2, Target, Lightbulb, PieChart, FileText, ChevronRight } from "lucide-react"
 import { formatCurrencyFull } from "@/lib/utils"
 import { PageHeaderSkeleton } from "@/components/ui/page-skeleton"
+import { useHealthScore, type HealthData } from "@/hooks/use-dashboard"
+import { useGapAnalysis, useRecommendations } from "@/hooks/use-finance"
 
 interface HC { score: number; value: number; target: number; status: "good" | "warning" | "critical" }
 interface GapR { category: string; status: "good" | "warning" | "critical"; title: string; currentValue: string; targetValue: string; gap: string; gapAmount: number; actionItems: string[] }
@@ -63,28 +65,49 @@ function pd(p: string): string {
   return p === "medium" ? "bg-amber-500" : "bg-blue-500"
 }
 
-const LABELS: Record<string, string> = { savingsRate: "Savings Rate", budgetAdherence: "Budget Adherence", diversification: "Diversification", emergencyFund: "Emergency Fund", debtToIncome: "Debt-to-Income", investmentRatio: "Investment Ratio" }
+const LABELS: Record<string, string> = { savingsRate: "Savings Rate", budgetAdherence: "Budget Adherence", spendingControl: "Spending Control", emergencyFund: "Emergency Fund", diversification: "Diversification", debtToIncome: "Debt-to-Income", investmentRatio: "Investment Ratio" }
+
+function componentStatus(score: number): "good" | "warning" | "critical" {
+  if (score >= 70) return "good"
+  if (score >= 40) return "warning"
+  return "critical"
+}
+
+// Map the /api/health-score response into the { overall, components } shape the
+// page renders. The API returns per-metric scores (0-100) plus human-readable
+// values; here we surface the raw value + target for each component.
+function toHealthComponents(h: HealthData): Record<string, HC> {
+  return {
+    savingsRate: { score: h.savingsRate, value: h.savingsRate, target: 20, status: componentStatus(h.savingsRate) },
+    budgetAdherence: { score: h.budgetAdherence ?? 50, value: h.budgetAdherence ?? 0, target: 100, status: componentStatus(h.budgetAdherence ?? 50) },
+    spendingControl: { score: h.spendingControl, value: h.spendingControl, target: 100, status: componentStatus(h.spendingControl) },
+    emergencyFund: { score: h.emergencyFund, value: h.monthsOfCoverage, target: 6, status: componentStatus(h.emergencyFund) },
+  }
+}
 
 export default function HealthDashboardPage() {
-  const [hs, setHs] = useState<{ overall: number; components: Record<string, HC>; recommendations: string[] } | null>(null)
-  const [ga, setGa] = useState<{ gaps: GapR[] } | null>(null)
-  const [recs, setRecs] = useState<Rec[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
   const [pdfL, setPdfL] = useState(false)
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true); setError("")
-    try {
-      const [hr, gr, rr] = await Promise.all([fetch("/api/health-score"), fetch("/api/gap-analysis"), fetch("/api/recommendations")])
-      if (!hr.ok) throw new Error("Failed to load health score")
-      const [h, g, r] = await Promise.all([hr.json(), gr.ok ? gr.json() : { gaps: [] }, rr.ok ? rr.json() : { recommendations: [] }])
-      setHs(h); setGa(g); setRecs(r.recommendations || [])
-    } catch (error_) { setError(error_ instanceof Error ? error_.message : "Failed to load data") }
-    finally { setLoading(false) }
-  }, [])
+  const hsQuery = useHealthScore()
+  const gaQuery = useGapAnalysis()
+  const recsQuery = useRecommendations()
+  const loading = hsQuery.isLoading
+  const error = hsQuery.isError ? "Failed to load health score" : ""
 
-  useEffect(() => { fetchAll() }, [fetchAll])
+  const fetchAll = () => {
+    hsQuery.refetch()
+    gaQuery.refetch()
+    recsQuery.refetch()
+  }
+
+  const hsRaw = hsQuery.data ?? null
+  const hs = useMemo<{ overall: number; components: Record<string, HC> } | null>(() => {
+    if (!hsRaw) return null
+    return { overall: hsRaw.score, components: toHealthComponents(hsRaw) }
+  }, [hsRaw])
+
+  const ga = gaQuery.data ?? null
+  const recs = recsQuery.data ?? []
 
   const dlPdf = async () => {
     setPdfL(true)

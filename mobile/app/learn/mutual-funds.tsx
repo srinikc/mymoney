@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import api from '../../api/client';
+import { useApiQuery } from '../../hooks/use-api-query';
 
 interface SeedFund {
   code: string;
@@ -99,24 +100,16 @@ export default function MutualFundsScreen() {
   const [projection, setProjection] = useState<ProjectResponse | null>(null);
   const [calculating, setCalculating] = useState(false);
 
+  const mfQuery = useApiQuery<SearchResponse>(['mf-search', query, category], '/api/mf/search', {
+    params: { ...(query ? { q: query } : {}), ...(category !== 'all' ? { category } : {}) },
+  });
   useEffect(() => {
-    void load();
-  }, [category]);
+    if (mfQuery.data !== undefined) { setData(mfQuery.data); setLoading(false); setRefreshing(false); }
+  }, [mfQuery.data]);
 
-  async function load() {
+  function load() {
     setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (query) params.set('q', query);
-      if (category !== 'all') params.set('category', category);
-      const res = await api.get<SearchResponse>(`/api/mf/search?${params}`);
-      setData(res.data);
-    } catch (e) {
-      // noop
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    mfQuery.refetch();
   }
 
   async function calculate() {

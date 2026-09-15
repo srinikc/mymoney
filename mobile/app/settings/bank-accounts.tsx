@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme,
   RefreshControl, ActivityIndicator, Modal, TextInput, Alert, ScrollView,
@@ -8,6 +8,7 @@ import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { formatCurrency } from '../../utils/format';
 import api from '../../api/client';
+import { useApiQuery } from '../../hooks/use-api-query';
 
 const BANK_TYPES = ['savings', 'current', 'salary', 'credit_card', 'loan'];
 
@@ -47,16 +48,18 @@ export default function BankAccountsSettingsScreen() {
   const [formBalance, setFormBalance] = useState('');
   const [formEmergency, setFormEmergency] = useState(false);
 
-  const fetchAccounts = useCallback(async () => {
-    setError(null);
-    try {
-      const res = await api.get('/api/bank-accounts');
-      setAccounts(res.data?.accounts || []);
-    } catch { setError('Failed to load bank accounts'); }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
+  const baQuery = useApiQuery<any>(['bank-accounts'], '/api/bank-accounts');
+  useEffect(() => {
+    if (baQuery.data !== undefined) {
+      setAccounts(baQuery.data?.accounts || []);
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [baQuery.data]);
+  useEffect(() => {
+    if (baQuery.isError) { setError('Failed to load bank accounts'); setLoading(false); setRefreshing(false); }
+  }, [baQuery.isError]);
+  const fetchAccounts = () => { void baQuery.refetch(); };
 
   const handleSave = async () => {
     if (!formBank.trim()) { Alert.alert('Validation', 'Bank name is required'); return; }

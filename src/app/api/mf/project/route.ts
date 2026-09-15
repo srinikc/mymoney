@@ -30,15 +30,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid input", issues: parsed.error.issues }, { status: 400 })
     }
 
-    const { type, expectedReturnPct, years, inflationPct } = parsed.data
-    const annualStepUpPct = parsed.data.annualStepUpPct ?? 0
+    const {
+      type,
+      expectedReturnPct,
+      years,
+      inflationPct,
+      annualStepUpPct = 0,
+      monthlyAmount,
+      lumpsumAmount,
+      targetCorpus,
+    } = parsed.data
 
     if (type === "sip") {
-      if (!parsed.data.monthlyAmount) {
+      if (!monthlyAmount) {
         return NextResponse.json({ error: "monthlyAmount required for sip" }, { status: 400 })
       }
       const result = calculateSIP({
-        monthlyAmount: parsed.data.monthlyAmount,
+        monthlyAmount,
         expectedReturnPct,
         years,
         annualStepUpPct,
@@ -49,16 +57,16 @@ export async function POST(req: Request) {
         type,
         nominal: result,
         inflation: { pct: inflationPct, realValue, realReturn: rr },
-        message: `Rs. ${parsed.data.monthlyAmount}/month for ${years} years at ${expectedReturnPct}% → Rs. ${result.totalCorpus.toLocaleString("en-IN")} (real value in today's money: Rs. ${realValue.toLocaleString("en-IN")}).`,
+        message: `Rs. ${monthlyAmount}/month for ${years} years at ${expectedReturnPct}% → Rs. ${result.totalCorpus.toLocaleString("en-IN")} (real value in today's money: Rs. ${realValue.toLocaleString("en-IN")}).`,
       })
     }
 
     if (type === "lumpsum") {
-      if (!parsed.data.lumpsumAmount) {
+      if (!lumpsumAmount) {
         return NextResponse.json({ error: "lumpsumAmount required for lumpsum" }, { status: 400 })
       }
       const result = calculateLumpsum({
-        amount: parsed.data.lumpsumAmount,
+        amount: lumpsumAmount,
         expectedReturnPct,
         years,
       })
@@ -67,17 +75,17 @@ export async function POST(req: Request) {
         type,
         nominal: result,
         inflation: { pct: inflationPct, realValue, realReturn: realReturn(expectedReturnPct, inflationPct) },
-        message: `Rs. ${parsed.data.lumpsumAmount.toLocaleString("en-IN")} for ${years} years at ${expectedReturnPct}% → Rs. ${result.corpus.toLocaleString("en-IN")} (real value: Rs. ${realValue.toLocaleString("en-IN")}).`,
+        message: `Rs. ${lumpsumAmount.toLocaleString("en-IN")} for ${years} years at ${expectedReturnPct}% → Rs. ${result.corpus.toLocaleString("en-IN")} (real value: Rs. ${realValue.toLocaleString("en-IN")}).`,
       })
     }
 
     if (type === "reverse-sip") {
-      if (!parsed.data.targetCorpus) {
+      if (!targetCorpus) {
         return NextResponse.json({ error: "targetCorpus required for reverse-sip" }, { status: 400 })
       }
-      const realTarget = inflationAdjustedTarget(parsed.data.targetCorpus, inflationPct, years)
+      const realTarget = inflationAdjustedTarget(targetCorpus, inflationPct, years)
       const requiredNominal = calculateRequiredSIP({
-        targetCorpus: parsed.data.targetCorpus,
+        targetCorpus,
         expectedReturnPct,
         years,
       })
@@ -88,9 +96,9 @@ export async function POST(req: Request) {
       })
       return NextResponse.json({
         type,
-        target: { nominal: parsed.data.targetCorpus, realToday: realTarget, years },
+        target: { nominal: targetCorpus, realToday: realTarget, years },
         required: { monthly: requiredNominal, realPower: requiredReal },
-        message: `To reach Rs. ${parsed.data.targetCorpus.toLocaleString("en-IN")} in ${years} years, SIP Rs. ${requiredNominal.toLocaleString("en-IN")}/month at ${expectedReturnPct}%. Inflation-adjusted target (today's money): Rs. ${realTarget.toLocaleString("en-IN")}, requiring Rs. ${requiredReal.toLocaleString("en-IN")}/month.`,
+        message: `To reach Rs. ${targetCorpus.toLocaleString("en-IN")} in ${years} years, SIP Rs. ${requiredNominal.toLocaleString("en-IN")}/month at ${expectedReturnPct}%. Inflation-adjusted target (today's money): Rs. ${realTarget.toLocaleString("en-IN")}, requiring Rs. ${requiredReal.toLocaleString("en-IN")}/month.`,
       })
     }
 

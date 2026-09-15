@@ -36,15 +36,15 @@ export async function fetchScheme(schemeCode: number, signal?: AbortSignal): Pro
 export function computeRollingReturn(navs: MfApiNav[], years: number): number | null {
   if (navs.length < 2) return null
   const sorted = [...navs].sort((a, b) => parseNavDate(a.date).getTime() - parseNavDate(b.date).getTime())
-  const latest = Number(sorted[sorted.length - 1]?.nav)
-  const target = new Date(parseNavDate(sorted[sorted.length - 1]?.date ?? ""))
+  const latest = Number(sorted.at(-1)?.nav)
+  const target = new Date(parseNavDate(sorted.at(-1)?.date ?? ""))
   target.setFullYear(target.getFullYear() - years)
   const targetStr = formatNavDate(target)
   let startIdx = sorted.findIndex((n) => parseNavDate(n.date) >= parseNavDate(targetStr))
   if (startIdx < 0) startIdx = 0
   const start = Number(sorted[startIdx]?.nav)
   if (!start || !latest) return null
-  const yearsActual = (parseNavDate(sorted[sorted.length - 1]?.date ?? "").getTime() - parseNavDate(sorted[startIdx]?.date ?? "").getTime()) / (365.25 * 24 * 3600 * 1000)
+  const yearsActual = (parseNavDate(sorted.at(-1)?.date ?? "").getTime() - parseNavDate(sorted[startIdx]?.date ?? "").getTime()) / (365.25 * 24 * 3600 * 1000)
   if (yearsActual <= 0) return null
   return (Math.pow(latest / start, 1 / yearsActual) - 1) * 100
 }

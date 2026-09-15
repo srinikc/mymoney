@@ -77,7 +77,7 @@ export default function CommoditiesPage() {
       if (!res.ok) throw new Error("Failed to load")
       const json: CommoditiesResponse = await res.json()
       setData(json)
-    } catch (e) {
+    } catch {
       toast.error("Failed to load commodities")
     } finally {
       setLoading(false)
@@ -272,7 +272,7 @@ function CalculatorResults({ commodities, quantity, unit }: { commodities: Commo
   return (
     <div className="space-y-2">
       {matching.map((c) => {
-        let qty = quantity
+        const qty = quantity
         let totalValue = 0
         if (unit === "grams" && c.pricePerGram) {
           totalValue = qty * c.pricePerGram

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme, RefreshControl, ActivityIndicator, Modal, TextInput, Alert,
 } from 'react-native';
@@ -7,6 +7,7 @@ import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { formatCurrency } from '../utils/format';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 import PurposePicker from '../components/PurposePicker';
 
 interface Asset {
@@ -55,17 +56,16 @@ export default function AssetsScreen() {
   const showLocation = isProperty;
   const activeTypeDesc = ASSET_TYPES.find((t) => t.value === formType)?.desc || '';
 
-  const fetch = useCallback(async () => {
-    setError(null);
-    try {
-      const { data: res } = await api.get('/api/assets');
-      setData(res.assets || res);
-    } catch { setError('Failed to load'); }
-    setLoading(false);
-    setRefreshing(false);
-  }, []);
-
-  useEffect(() => { fetch(); }, [fetch]);
+  const assetsQuery = useApiQuery<any>(['assets'], '/api/assets');
+  useEffect(() => {
+    if (assetsQuery.data !== undefined) {
+      setData(assetsQuery.data.assets || assetsQuery.data);
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [assetsQuery.data]);
+  useEffect(() => { if (assetsQuery.isError) { setError('Failed to load'); setLoading(false); setRefreshing(false); } }, [assetsQuery.isError]);
+  const fetch = () => { void assetsQuery.refetch(); };
 
   const total = data.reduce((s, a) => s + (a.value || a.amount || 0), 0);
 
@@ -155,7 +155,7 @@ export default function AssetsScreen() {
       : <FlatList data={data} keyExtractor={(i, idx) => i.id || i._id || String(idx)}
           ListHeaderComponent={total > 0 ? <View style={[styles.summary, { backgroundColor: theme.primary }]}><Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 }}>Total Assets</Text><Text style={{ color: '#fff', fontSize: 28, fontWeight: '800', marginTop: 4 }}>{formatCurrency(total)}</Text></View> : null}
           renderItem={({ item }) => (
-            <TouchableOpacity style={[styles.card, { backgroundColor: theme.surface }]} onLongPress={() => handleDelete(item.id || item._id)}>
+            <TouchableOpacity style={[styles.card, { backgroundColor: theme.surface }]} onLongPress={() => handleDelete(item.id || item._id || '')}>
               <View style={styles.cardRow}>
                 <View style={[styles.cardIcon, { backgroundColor: theme.incomeLight }]}><Ionicons name="diamond" size={18} color={theme.income} /></View>
                 <Text style={[styles.cardTitle, { color: theme.text, flex: 1 }]}>{item.name || item.title || 'Asset'}</Text>

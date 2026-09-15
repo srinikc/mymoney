@@ -4,7 +4,8 @@ import { Suspense } from "react"
 import "./globals.css"
 import { AppShell } from "@/components/layout/app-shell"
 import { SessionProvider } from "@/components/auth/session-provider"
-import { FloatingChat } from "@/components/chat/floating-chat"
+import { QueryProvider } from "@/components/providers/query-provider"
+import { MyMoneyAssistant } from "@/components/assistant/MyMoneyAssistant"
 import { ToastProvider } from "@/components/ui/toast-provider"
 import { CookieConsent } from "@/components/ads/cookie-consent"
 import { ThemeProvider } from "next-themes"
@@ -51,12 +52,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SkipToContent />
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <SessionProvider>
-            <Suspense fallback={<div className="min-h-screen animate-pulse bg-muted" />}>
-              <AppShell>{children}</AppShell>
-              <FloatingChat />
-            </Suspense>
-            <ToastProvider />
-            <CookieConsent />
+            <QueryProvider>
+              <Suspense fallback={<div className="min-h-screen animate-pulse bg-muted" />}>
+                <AppShell>{children}</AppShell>
+                <MyMoneyAssistant />
+              </Suspense>
+              <ToastProvider />
+              <CookieConsent />
+            </QueryProvider>
           </SessionProvider>
         </ThemeProvider>
       </body>

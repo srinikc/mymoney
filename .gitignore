@@ -31,3 +31,9 @@ test*.log
 *.png
 *.pdf
 public/uploads/
+
+# OpenCode account key file (secret)
+.opencode/opencode.key
+
+# e2e session cookie state (never commit)
+e2e/.auth.json

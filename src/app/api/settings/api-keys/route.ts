@@ -22,7 +22,7 @@ export async function GET() {
     for (const k of EDITABLE_API_KEYS) keys[k] = config[k]
 
     return NextResponse.json({ keys, catalog: { providers: LLM_PROVIDERS } })
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "internal error" }, { status: 500 })
   }
 }
@@ -43,7 +43,7 @@ export async function PUT(req: Request) {
     }
 
     return NextResponse.json({ ok: true })
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "internal error" }, { status: 500 })
   }
 }

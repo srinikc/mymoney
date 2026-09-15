@@ -71,7 +71,7 @@ export default function ProfileSettingsPage() {
       const my = monthYearFromDate(profile.dateOfBirth ? new Date(profile.dateOfBirth) : null)
       setDobMonth(my ? String(my.month) : "")
       setDobYear(my ? String(my.year) : "")
-    } catch (e) {
+    } catch {
       toast.error("Failed to load profile")
     } finally {
       setLoading(false)

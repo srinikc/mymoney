@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme,
   ActivityIndicator, Linking,
@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import api from '../../api/client';
+import { useApiQuery } from '../../hooks/use-api-query';
 
 interface BrokerStatus {
   configured: boolean;
@@ -36,18 +37,15 @@ export default function IntegrationsScreen() {
     timerRef.current = setTimeout(() => setMessage(null), 5000);
   };
 
-  const loadStatus = useCallback(async () => {
-    try {
-      const [zRes, sRes] = await Promise.all([
-        api.get('/api/integrations/zerodha?action=status'),
-        api.get('/api/integrations/sharekhan?action=status'),
-      ]);
-      if (zRes.data) setZerodha(zRes.data);
-      if (sRes.data) setSharekhan(sRes.data);
-    } catch { /* ignore */ } finally {
-      setLoading(false);
-    }
-  }, []);
+  const zerodhaQuery = useApiQuery<any>(['broker-zerodha'], '/api/integrations/zerodha', { params: { action: 'status' } });
+  const sharekhanQuery = useApiQuery<any>(['broker-sharekhan'], '/api/integrations/sharekhan', { params: { action: 'status' } });
+  useEffect(() => {
+    if (zerodhaQuery.data !== undefined) { setZerodha(zerodhaQuery.data); setLoading(false); }
+  }, [zerodhaQuery.data]);
+  useEffect(() => {
+    if (sharekhanQuery.data !== undefined) { setSharekhan(sharekhanQuery.data); setLoading(false); }
+  }, [sharekhanQuery.data]);
+  const loadStatus = () => { zerodhaQuery.refetch(); sharekhanQuery.refetch(); };
 
   useEffect(() => {
     loadStatus();
@@ -87,7 +85,7 @@ export default function IntegrationsScreen() {
   const importZerodha = async () => {
     setImportingZ(true);
     try {
-      const res = await api.post('/api/integrations/zerodha/import');
+      const res = await api.post('/api/integrations/zerodha', { action: 'import-holdings' });
       showMessage(res.data?.message || 'Holdings imported successfully', 'success');
     } catch { showMessage('Failed to import holdings', 'error'); }
     finally { setImportingZ(false); }
@@ -96,7 +94,7 @@ export default function IntegrationsScreen() {
   const importSharekhan = async () => {
     setImportingS(true);
     try {
-      const res = await api.post('/api/integrations/sharekhan/import');
+      const res = await api.post('/api/integrations/sharekhan', { action: 'import-holdings' });
       showMessage(res.data?.message || 'Holdings imported successfully', 'success');
     } catch { showMessage('Failed to import holdings', 'error'); }
     finally { setImportingS(false); }
@@ -104,7 +102,7 @@ export default function IntegrationsScreen() {
 
   const logoutSharekhan = async () => {
     try {
-      await api.post('/api/integrations/sharekhan/logout');
+      await api.post('/api/integrations/sharekhan', { action: 'disconnect' });
       showMessage('Sharekhan disconnected', 'success');
       loadStatus();
     } catch { showMessage('Failed to disconnect', 'error'); }

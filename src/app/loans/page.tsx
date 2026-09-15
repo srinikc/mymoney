@@ -705,7 +705,7 @@ function CuratedLoansSection() {
   if (loading) return null
   if (loans.length === 0) return null
 
-  const types = Array.from(new Set(loans.map((l) => l.loanType)))
+  const types = [...new Set(loans.map((l) => l.loanType))]
   const filtered = filter === "all" ? loans : loans.filter((l) => l.loanType === filter)
 
   // Sponsored first

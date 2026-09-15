@@ -11,13 +11,16 @@ export type ConfigKey =
   | "AUTH_RESEND_KEY"
   | "ZERODHA_API_KEY"
   | "ZERODHA_API_SECRET"
+  | "ZERODHA_ACCESS_TOKEN"
   | "SHAREKHAN_API_KEY"
   | "SHAREKHAN_API_SECRET"
+  | "SHAREKHAN_ACCESS_TOKEN"
   | "NEXT_PUBLIC_BASE_URL"
   | "AUTH_GOOGLE_ID"
   | "AUTH_GOOGLE_SECRET"
   | "DATABASE_URL"
   | "AUTH_SECRET"
+  | "WAKE_WORD_PHRASE"
 
 const ENV_FALLBACK: Record<string, string | undefined> = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
@@ -30,8 +33,10 @@ const ENV_FALLBACK: Record<string, string | undefined> = {
   AUTH_RESEND_KEY: process.env.AUTH_RESEND_KEY,
   ZERODHA_API_KEY: process.env.ZERODHA_API_KEY,
   ZERODHA_API_SECRET: process.env.ZERODHA_API_SECRET,
+  ZERODHA_ACCESS_TOKEN: process.env.ZERODHA_ACCESS_TOKEN,
   SHAREKHAN_API_KEY: process.env.SHAREKHAN_API_KEY,
   SHAREKHAN_API_SECRET: process.env.SHAREKHAN_API_SECRET,
+  SHAREKHAN_ACCESS_TOKEN: process.env.SHAREKHAN_ACCESS_TOKEN,
   NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL,
   AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID,
   AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET,
@@ -90,6 +95,12 @@ export async function setConfig(userId: number, key: ConfigKey, value: string): 
     where: { userId_key: { userId, key: `config_${key}` } },
     create: { userId, key: `config_${key}`, value },
     update: { value },
+  })
+}
+
+export async function deleteConfig(userId: number, key: ConfigKey): Promise<void> {
+  await prisma.userSetting.deleteMany({
+    where: { userId, key: `config_${key}` },
   })
 }
 

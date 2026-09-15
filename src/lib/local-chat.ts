@@ -116,8 +116,7 @@ function responseSpendTotal(ctx: ResolvedContext): string {
     const share = ctx.monthlyExpense > 0 ? (ctx.topCategory.amount / ctx.monthlyExpense) * 100 : 0
     lines.push(`Top category: **${ctx.topCategory.name}** at ${inr(ctx.topCategory.amount)} (${pct(share)} of this month).`)
   }
-  lines.push("")
-  lines.push("For a per-day breakdown or category filter, go to **Expenses** and use the date/category filters.")
+  lines.push("", "For a per-day breakdown or category filter, go to **Expenses** and use the date/category filters.")
   return lines.join("\n")
 }
 
@@ -127,11 +126,10 @@ function responseSpendCategory(ctx: ResolvedContext): string {
   }
 
   const lines: string[] = ["**Your top spending categories (all tracked time):**", ""]
-  ctx.topCategories.slice(0, 5).forEach((c, i) => {
+  for (const [i, c] of ctx.topCategories.slice(0, 5).entries()) {
     lines.push(`${i + 1}. **${c.name}** — ${inr(c.amount)}`)
-  })
-  lines.push("")
-  lines.push("To drill into a specific category, open **Expenses** and use the category filter.")
+  }
+  lines.push("", "To drill into a specific category, open **Expenses** and use the category filter.")
   return lines.join("\n")
 }
 
@@ -184,11 +182,11 @@ function responseBudgetStatus(ctx: ResolvedContext): string {
     "",
     "**Per-category:**",
   ]
-  ctx.budgetStatus.forEach((b) => {
+  for (const b of ctx.budgetStatus) {
     const used = b.limit > 0 ? (b.spent / b.limit) * 100 : 0
     const status = used > 100 ? "🚨 over" : used > 80 ? "⚠️ near limit" : "✅ ok"
     lines.push(`- ${status} **${b.name}**: ${inr(b.spent)} / ${inr(b.limit)} (${pct(used)})`)
-  })
+  }
   return lines.join("\n")
 }
 
@@ -198,19 +196,20 @@ function responseGoals(ctx: ResolvedContext): string {
   }
 
   const lines: string[] = ["**Your active goals:**", ""]
-  ctx.goals.forEach((g) => {
+  for (const g of ctx.goals) {
     const pctComplete = g.target > 0 ? (g.saved / g.target) * 100 : 0
     const remaining = Math.max(0, g.target - g.saved)
     const status = pctComplete >= 100 ? "✅ Complete" : pctComplete >= 75 ? "🟢 on track" : pctComplete >= 50 ? "🟡 progress" : "🔴 behind"
     lines.push(`${status} **${g.name}** — saved ${inr(g.saved)} / ${inr(g.target)} (${pct(pctComplete)})${remaining > 0 ? `, **${inr(remaining)}** to go` : ""}`)
-  })
+  }
 
   if (ctx.monthlyIncome > 0 && ctx.savingsRate !== undefined) {
-    lines.push("")
-    lines.push(`You're saving **${pct(ctx.savingsRate)}** of your income. A healthy target is 20%+.`)
+    lines.push(
+      "",
+      `You're saving **${pct(ctx.savingsRate)}** of your income. A healthy target is 20%+.`,
+    )
   }
-  lines.push("")
-  lines.push("Open **Goals** to adjust targets, change monthly contributions, or add new goals.")
+  lines.push("", "Open **Goals** to adjust targets, change monthly contributions, or add new goals.")
   return lines.join("\n")
 }
 
@@ -321,12 +320,7 @@ function responseHealth(ctx: ResolvedContext): string {
     ? "⚠️ high debt-to-asset ratio"
     : "✅ debt manageable"
 
-  lines.push(`- Savings: ${savingsHealth}`)
-  lines.push(`- Budgets: ${budgetHealth}`)
-  lines.push(`- Emergency fund: ${emergencyHealth}`)
-  lines.push(`- Debt: ${debtHealth}`)
-  lines.push("")
-  lines.push("Visit **Health** page for detailed metrics and recommendations.")
+  lines.push(`- Savings: ${savingsHealth}`, `- Budgets: ${budgetHealth}`, `- Emergency fund: ${emergencyHealth}`, `- Debt: ${debtHealth}`, "", "Visit **Health** page for detailed metrics and recommendations.")
   return lines.join("\n")
 }
 
@@ -338,25 +332,23 @@ function responseInvest(ctx: ResolvedContext): string {
     const invested = ctx.investments.reduce((s, i) => s + i.amount, 0)
     const gain = total - invested
     const gainPct = invested > 0 ? (gain / invested) * 100 : 0
-    lines.push(`**Your investment portfolio:**`)
-    lines.push(`- Total current value: **${inr(total)}**`)
-    lines.push(`- Amount invested: **${inr(invested)}**`)
-    lines.push(`- Gain: **${inr(gain)}** (${pct(gainPct)})`)
-    lines.push("")
-    lines.push("**Holdings:**")
-    ctx.investments.slice(0, 5).forEach((i) => {
+    lines.push(
+      `**Your investment portfolio:**`,
+      `- Total current value: **${inr(total)}**`,
+      `- Amount invested: **${inr(invested)}**`,
+      `- Gain: **${inr(gain)}** (${pct(gainPct)})`,
+      "",
+      "**Holdings:**",
+    )
+    for (const i of ctx.investments.slice(0, 5)) {
       const ret = i.amount > 0 ? ((i.currentValue - i.amount) / i.amount) * 100 : 0
       lines.push(`- **${i.name}**: ${inr(i.currentValue)} (${ret >= 0 ? "+" : ""}${pct(ret)})`)
-    })
+    }
   } else {
     lines.push("You don't have any investments tracked yet. Open **Investments** to add mutual funds, stocks, FDs, or other assets.")
   }
 
-  lines.push("")
-  lines.push("**Quick principles:**")
-  lines.push("- Diversify across equity (NIFTY 50 index funds), debt, and gold")
-  lines.push("- Use monthly SIPs — even ₹1,000/month compounds significantly over 10+ years")
-  lines.push("- Keep 3-6 months expenses in cash before investing aggressively")
+  lines.push("", "**Quick principles:**", "- Diversify across equity (NIFTY 50 index funds), debt, and gold", "- Use monthly SIPs — even ₹1,000/month compounds significantly over 10+ years", "- Keep 3-6 months expenses in cash before investing aggressively")
   return lines.join("\n")
 }
 
@@ -397,8 +389,7 @@ function responseDebt(ctx: ResolvedContext): string {
     lines.push(`✅ Debt is manageable. Stay on top of EMIs and avoid new high-interest debt.`)
   }
 
-  lines.push("")
-  lines.push("Open **Loans** to view EMI schedule and prepayment impact.")
+  lines.push("", "Open **Loans** to view EMI schedule and prepayment impact.")
   return lines.join("\n")
 }
 

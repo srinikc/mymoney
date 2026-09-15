@@ -18,6 +18,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/auth';
 import { Colors } from '../../constants/Colors';
 import api from '../../api/client';
+import { useApiQuery } from '../../hooks/use-api-query';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -74,17 +75,10 @@ export default function ProfileSettingsScreen() {
 
   const sessionProfileId = (user as unknown as { profileId?: number } | undefined)?.profileId;
 
+  const profileQuery = useApiQuery<ProfileData>(['profile', sessionProfileId], `/api/profiles/${sessionProfileId}`, { enabled: !!sessionProfileId });
   useEffect(() => {
-    if (!sessionProfileId) return;
-    void load();
-  }, [sessionProfileId]);
-
-  async function load() {
-    if (!sessionProfileId) return;
-    setLoading(true);
-    try {
-      const res = await api.get<ProfileData>(`/api/profiles/${sessionProfileId}`);
-      const p = res.data;
+    if (profileQuery.data !== undefined) {
+      const p = profileQuery.data;
       setData(p);
       setIncomeValue(p.annualIncome != null ? String(p.annualIncome) : '');
       if (p.dateOfBirth) {
@@ -94,11 +88,17 @@ export default function ProfileSettingsScreen() {
           setDobYear(String(d.getUTCFullYear()));
         }
       }
-    } catch (e) {
-      Alert.alert('Error', 'Failed to load profile');
-    } finally {
       setLoading(false);
     }
+  }, [profileQuery.data]);
+  useEffect(() => {
+    if (profileQuery.isError) { Alert.alert('Error', 'Failed to load profile'); setLoading(false); }
+  }, [profileQuery.isError]);
+
+  function load() {
+    if (!sessionProfileId) return;
+    setLoading(true);
+    profileQuery.refetch();
   }
 
   function toggleIncomeMode() {

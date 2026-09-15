@@ -254,6 +254,7 @@ export default function MoreScreen() {
         text: 'Logout',
         style: 'destructive',
         onPress: async () => {
+          knownGpayFileIds.clear();
           await logout();
           router.replace('/login');
         },

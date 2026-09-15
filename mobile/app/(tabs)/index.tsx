@@ -1,5 +1,5 @@
 ﻿
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/auth';
 import { Colors } from '../../constants/Colors';
 import { formatCurrency, formatDate, EXPENSE_CATEGORIES } from '../../utils/format';
-import api from '../../api/client';
+import { useApiQuery } from '../../hooks/use-api-query';
 import QuickCaptureModal from '../../components/QuickCaptureModal';
 
 interface RecentExpense {
@@ -52,8 +52,6 @@ export default function HomeScreen() {
   const { user } = useAuthStore();
 
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [balance, setBalance] = useState(0);
   const [totalIncome, setTotalIncome] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
@@ -79,93 +77,89 @@ null; balance: number }[]>([]);
   const [dashboardTab, setDashboardTab] = useState('overview');
   const balanceScaleAnim = useRef(new Animated.Value(0)).current;
 
-  const fetchData = useCallback(async () => {
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      if (selectedYear !== 'all') params.set('year', selectedYear);
-      if (selectedMonth) params.set('month', selectedMonth);
-      if (selectedQuarter) params.set('quarter', selectedQuarter);
-      const qs = params.toString();
+  const insightsParams: Record<string, string> = {};
+  if (selectedYear !== 'all') insightsParams.year = selectedYear;
+  if (selectedMonth) insightsParams.month = selectedMonth;
+  if (selectedQuarter) insightsParams.quarter = selectedQuarter;
+  const qs = new URLSearchParams(insightsParams).toString();
 
-      const [insightsRes, healthRes, expensesRes, netWorthRes, bankRes, cashRes] = await Promise.allSettled([
-        api.get(`/api/insights${qs ? `?${qs}` : ''}`),
-        api.get('/api/health-score'),
-        api.get('/api/expenses', { params: { limit: 5 } }),
-      ]);
+  const insightsQuery = useApiQuery<any>(['insights', qs], '/api/insights', { params: insightsParams, placeholderData: true });
+  const healthQuery = useApiQuery<any>(['health-score'], '/api/health-score');
+  const recentQuery = useApiQuery<any>(['expenses', 'recent'], '/api/expenses', { params: { limit: 5 } });
+  const netWorthQuery = useApiQuery<any>(['net-worth'], '/api/net-worth');
+  const accountsQuery = useApiQuery<any>(['bank-accounts'], '/api/bank-accounts');
+  const cashQuery = useApiQuery<any>(['cash-balance'], '/api/cash-balance');
+  const yearsQuery = useApiQuery<any>(['expense-years'], '/api/expenses/years');
 
-      if (insightsRes.status === 'fulfilled') {
-        const d = insightsRes.value.data;
-        setPeriodLabel(d.periodLabel || 'All Years');
-        setTotalIncome(d.periodIncome || d.totalIncome || 0);
-        setTotalExpenses(d.periodExpense || d.totalExpenses || 0);
-        setBalance((d.periodIncome || 0) - (d.periodExpense || 0));
-        setOverall({ expense: d.overallExpense || 0, income: d.overallIncome || 0 });
-        setQuickStats([
-          { label: 'Period Income', amount: d.periodIncome || 0, type: 'income' },
-          { label: 'Period Expense', amount: d.periodExpense || 0, type: 'expense' },
-          { label: 'Net Savings', amount: (d.periodIncome || 0) - (d.periodExpense || 0), type: 'saved' },
-        ]);
-        const budget = d.currentMonthBudget || 0;
-        const spent = d.currentMonthSpent || 0;
-        setBudgetInfo({ budget, spent, pct: budget > 0 ? (spent / budget) * 100 : 0 });
-        setTotalPF(d.totalPF || 0);
-      }
-      if (insightsRes.status === 'rejected' && !error) setError('Failed to load dashboard data');
-
-      if (healthRes.status === 'fulfilled') {
-        const h = healthRes.value.data;
-        setHealthScore(h.score || h.healthScore || null);
-      }
-
-      if (expensesRes.status === 'fulfilled') {
-        const e = expensesRes.value.data;
-        const list = Array.isArray(e?.expenses) ? e.expenses : Array.isArray(e) ? e : [];
-        setRecentExpenses(list.slice(0, 5));
-      }
-
-      if (netWorthRes.status === 'fulfilled') {
-        const nw = netWorthRes.value.data;
-        setNetWorth({
-          netWorth: nw.netWorth || 0,
-          totalAssets: nw.totalAssets || 0,
-          totalLoans: nw.totalLoans || 0,
-          totalPF: nw.totalPF || 0,
-          subscriptionsTotal: nw.subscriptionsTotal || 0,
-          insurancePremiumTotal: nw.insurancePremiumTotal || 0,
-          activeGoals: nw.activeGoals || 0,
-          goalProgress: nw.goalProgress || 0,
-          breakdown: nw.breakdown || { userAssets: 0, investments: 0, bankBalance: 0, fixedDeposits: 0, cash: 0 },
-        });
-      }
-
-      if (bankRes.status === 'fulfilled') {
-        const b = bankRes.value.data;
-        setAccounts(Array.isArray(b?.accounts) ? b.accounts : []);
-      }
-
-      if (cashRes.status === 'fulfilled') {
-        const c = cashRes.value.data;
-        setCashBalance(c?.cash || null);
-      }
-    } catch {
-      setError('Something went wrong');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [error, selectedYear, selectedMonth, selectedQuarter]);
+  // Mirror query data into the existing render state (same extraction as the
+  // previous monolithic fetchData). Repeat navigation paints from the cache.
+  useEffect(() => {
+    const d = insightsQuery.data;
+    if (!d) return;
+    setPeriodLabel(d.periodLabel || 'All Years');
+    setTotalIncome(d.periodIncome || d.totalIncome || 0);
+    setTotalExpenses(d.periodExpense || d.totalExpenses || 0);
+    setBalance((d.periodIncome || 0) - (d.periodExpense || 0));
+    setOverall({ expense: d.overallExpense || 0, income: d.overallIncome || 0 });
+    setQuickStats([
+      { label: 'Period Income', amount: d.periodIncome || 0, type: 'income' },
+      { label: 'Period Expense', amount: d.periodExpense || 0, type: 'expense' },
+      { label: 'Net Savings', amount: (d.periodIncome || 0) - (d.periodExpense || 0), type: 'saved' },
+    ]);
+    const budget = d.currentMonthBudget || 0;
+    const spent = d.currentMonthSpent || 0;
+    setBudgetInfo({ budget, spent, pct: budget > 0 ? (spent / budget) * 100 : 0 });
+    setTotalPF(d.totalPF || 0);
+  }, [insightsQuery.data]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const h = healthQuery.data;
+    if (!h) return;
+    setHealthScore(h.score || h.healthScore || null);
+  }, [healthQuery.data]);
 
   useEffect(() => {
-    api.get('/api/expenses/years').then((r) => {
-      const yrs = Array.isArray(r?.data?.years) ? r.data.years : [];
-      setYears(yrs);
-    }).catch(() => setYears([]));
-  }, []);
+    const e = recentQuery.data;
+    if (!e) return;
+    const list = Array.isArray(e?.expenses) ? e.expenses : Array.isArray(e) ? e : [];
+    setRecentExpenses(list.slice(0, 5));
+  }, [recentQuery.data]);
+
+  useEffect(() => {
+    const nw = netWorthQuery.data;
+    if (!nw) return;
+    setNetWorth({
+      netWorth: nw.netWorth || 0,
+      totalAssets: nw.totalAssets || 0,
+      totalLoans: nw.totalLoans || 0,
+      totalPF: nw.totalPF || 0,
+      subscriptionsTotal: nw.subscriptionsTotal || 0,
+      insurancePremiumTotal: nw.insurancePremiumTotal || 0,
+      activeGoals: nw.activeGoals || 0,
+      goalProgress: nw.goalProgress || 0,
+      breakdown: nw.breakdown || { userAssets: 0, investments: 0, bankBalance: 0, fixedDeposits: 0, cash: 0 },
+    });
+  }, [netWorthQuery.data]);
+
+  useEffect(() => {
+    const b = accountsQuery.data;
+    if (!b) return;
+    setAccounts(Array.isArray(b?.accounts) ? b.accounts : []);
+  }, [accountsQuery.data]);
+
+  useEffect(() => {
+    const c = cashQuery.data;
+    if (!c) return;
+    setCashBalance(c?.cash || null);
+  }, [cashQuery.data]);
+
+  useEffect(() => {
+    const r = yearsQuery.data;
+    setYears(Array.isArray(r?.years) ? r.years : []);
+  }, [yearsQuery.data]);
+
+  const loading = insightsQuery.isLoading || healthQuery.isLoading || recentQuery.isLoading || netWorthQuery.isLoading || accountsQuery.isLoading || cashQuery.isLoading;
+  const error = insightsQuery.isError ? 'Failed to load dashboard data' : null;
 
   useEffect(() => {
     Animated.spring(balanceScaleAnim, {
@@ -176,9 +170,14 @@ null; balance: number }[]>([]);
     }).start();
   }, [balance, balanceScaleAnim]);
 
+  const refetchAll = () => Promise.all([
+    insightsQuery.refetch(), healthQuery.refetch(), recentQuery.refetch(),
+    netWorthQuery.refetch(), accountsQuery.refetch(), cashQuery.refetch(), yearsQuery.refetch(),
+  ]);
+
   const onRefresh = () => {
     setRefreshing(true);
-    fetchData();
+    refetchAll().finally(() => setRefreshing(false));
   };
 
   const [quickCaptureVisible, setQuickCaptureVisible] = useState(false);
@@ -290,7 +289,7 @@ theme.textSecondary }]}>Q{q}</Text>
           <View style={[styles.errorCard, { backgroundColor: theme.expenseLight }]}>
             <Ionicons name="alert-circle" size={22} color={theme.expense} />
             <Text style={[styles.errorText, { color: theme.expense }]}>{error}</Text>
-            <TouchableOpacity onPress={fetchData} style={styles.retryBtn}>
+            <TouchableOpacity onPress={() => { void refetchAll(); }} style={styles.retryBtn}>
               <Text style={[styles.retryText, { color: theme.expense }]}>Retry</Text>
             </TouchableOpacity>
           </View>
@@ -690,7 +689,7 @@ router.push('/expenses')}>
       <QuickCaptureModal
         visible={quickCaptureVisible}
         onClose={() => setQuickCaptureVisible(false)}
-        onSaved={() => fetchData()}
+        onSaved={() => { void refetchAll(); }}
       />
 
       <Modal
@@ -1135,6 +1134,100 @@ const styles = StyleSheet.create({
   qlText: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  budgetCard: {
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  budgetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  budgetTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  budgetStatus: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  budgetBarBg: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    overflow: 'hidden',
+  },
+  budgetBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  budgetSub: {
+    fontSize: 11,
+    marginTop: 6,
+  },
+  wealthRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  wealthCard: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  wealthValue: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  bankBalance: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  bankCard: {
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  bankHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  bankRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  bankName: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  bankTotalRow: {
+    borderTopWidth: 1,
+    marginTop: 4,
+    paddingTop: 12,
   },
   fab: {
     position: 'absolute',

@@ -50,11 +50,9 @@ export async function POST(req: Request) {
         if (!consent.showDisplayAds) {
           return NextResponse.json({ ok: true, skipped: true, reason: "user opted out of display ads" })
         }
-      } else if (body.provider === "sponsored" || body.provider === "affiliate") {
-        if (!consent.showPersonalizedRecs) {
+      } else if ((body.provider === "sponsored" || body.provider === "affiliate") && !consent.showPersonalizedRecs) {
           return NextResponse.json({ ok: true, skipped: true, reason: "user opted out of personalized recs" })
         }
-      }
     }
 
     await prisma.adImpression.create({

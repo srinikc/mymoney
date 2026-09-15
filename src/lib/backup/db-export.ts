@@ -1,5 +1,5 @@
-import { gzipSync } from "zlib"
-import { createHash } from "crypto"
+import { gzipSync } from "node:zlib"
+import { createHash } from "node:crypto"
 import { prisma } from "@/lib/prisma"
 import type { BackupArtifact } from "./types"
 
@@ -54,7 +54,7 @@ export async function exportDatabase(profileId?: number): Promise<BackupArtifact
 }
 
 export async function restoreDatabase(data: Buffer, profileId?: number): Promise<{ tablesRestored: number; rowsInserted: number }> {
-  const { gunzipSync } = await import("zlib")
+  const { gunzipSync } = await import("node:zlib")
   const json = gunzipSync(data).toString("utf8")
   const { dump } = JSON.parse(json) as { dump: Record<string, unknown[]> }
 

@@ -54,7 +54,7 @@ export default function AdminAdsDashboard() {
         setKillSwitch(Boolean(k.killSwitch?.value))
         setKillReason(k.killSwitch?.reason ?? "")
       }
-    } catch (e) {
+    } catch {
       toast.error("Failed to load metrics")
     } finally {
       setLoading(false)

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import crypto from "crypto"
+import crypto from "node:crypto"
 import { cacheGet, cacheSet } from "@/lib/redis"
 
 // Helper: build a stable ETag from a JSON-serializable body. Adds weak-validity

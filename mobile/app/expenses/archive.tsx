@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { formatCurrency, formatDate } from '../../utils/format';
 import api from '../../api/client';
+import { useApiQuery } from '../../hooks/use-api-query';
 
 interface ArchiveExpense {
   id: number;
@@ -27,21 +28,17 @@ export default function ArchiveScreen() {
   const [autoPurged, setAutoPurged] = useState(0);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const fetchArchive = useCallback(async () => {
-    try {
-      const res = await api.get('/api/expenses', { params: { archived: 'true', pageSize: '200' } });
-      const d = res.data;
-      setExpenses(d.data || []);
-    } catch {
-      // ignore
-    } finally {
+  const archiveQuery = useApiQuery<any>(['expenses-archive'], '/api/expenses', { params: { archived: 'true', pageSize: '200' } });
+  useEffect(() => {
+    if (archiveQuery.data !== undefined) {
+      setExpenses(archiveQuery.data.data || []);
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [archiveQuery.data]);
+  const fetchArchive = () => { void archiveQuery.refetch(); };
 
   useEffect(() => {
-    fetchArchive();
     api.post('/api/expenses/archive', { action: 'purge-expired' }).then((r) => {
       if (r.data?.autoPurged) setAutoPurged(r.data.autoPurged);
     }).catch(() => {});

@@ -99,7 +99,7 @@ export default function LearnHubPage() {
       if (!res.ok) throw new Error("Failed to load tips")
       const json: TipsResponse = await res.json()
       setData(json)
-    } catch (e) {
+    } catch {
       toast.error("Failed to load learn content")
     } finally {
       setLoading(false)

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 interface SharedMember {
   id: number;
@@ -45,29 +46,28 @@ export default function FamilyScreen() {
   const [profileId, setProfileId] = useState('');
   const [inviting, setInviting] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    setError(null);
-    try {
-      const [membersRes, profilesRes] = await Promise.all([
-        api.get('/api/family/members'),
-        api.get('/api/profiles'),
-      ]);
-      const members = membersRes.data;
-      const pData = profilesRes.data;
+  const membersQuery = useApiQuery<any>(['family-members'], '/api/family/members');
+  const profilesQuery = useApiQuery<any>(['profiles'], '/api/profiles');
+  useEffect(() => {
+    if (membersQuery.data !== undefined) {
+      const members = membersQuery.data;
       setSent(members?.sent || []);
       setReceived(members?.received || []);
-      const profileList = Array.isArray(pData) ? pData : pData?.profiles || [];
-      setProfiles(profileList);
-      if (!profileId && profileList.length > 0) setProfileId(String(profileList[0].id));
-    } catch {
-      setError('Failed to load family data');
-    } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [profileId]);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
+  }, [membersQuery.data]);
+  useEffect(() => {
+    if (profilesQuery.data !== undefined) {
+      const profileList = Array.isArray(profilesQuery.data) ? profilesQuery.data : profilesQuery.data?.profiles || [];
+      setProfiles(profileList);
+      if (profileList.length > 0) setProfileId((prev) => prev || String(profileList[0].id));
+    }
+  }, [profilesQuery.data]);
+  useEffect(() => {
+    if (membersQuery.isError || profilesQuery.isError) { setError('Failed to load family data'); setLoading(false); setRefreshing(false); }
+  }, [membersQuery.isError, profilesQuery.isError]);
+  const fetchData = () => { membersQuery.refetch(); profilesQuery.refetch(); };
 
   const handleInvite = async () => {
     if (!email.trim() || !profileId) {

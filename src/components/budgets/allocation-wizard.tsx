@@ -155,7 +155,7 @@ export function AllocationWizard({ month, year, onApplied }: Props) {
       if (failed > 0) {
         toast.warning(`${failed} suggestion${failed === 1 ? "" : "s"} could not be applied (may already exist)`)
       }
-    } catch (e) {
+    } catch {
       toast.error("Failed to apply suggestions")
     } finally {
       setApplying(false)

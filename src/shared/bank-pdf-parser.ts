@@ -241,7 +241,7 @@ function parseYesBankPdfText(text: string): BankCsvRow[] {
   // Primary: DD-Mon-YYYY with two dates (original format)
   const txnStartRe = /^(\d{2}-[A-Za-z]{3}-\d{4})\s+\d{2}-[A-Za-z]{3}-\d{4}\s+/
   // Secondary: single date at line start in any format
-  const singleDateRe = /^(\d{2}[-/][A-Za-z\d]{2,}[-/]\d{4}|(?:\d{2}\/){2}\d{4})\s+/
+  const singleDateRe = /^(\d{2}[/-][\dA-Za-z]{2,}[/-]\d{4}|(?:\d{2}\/){2}\d{4})\s+/
   // Amount pattern: two numbers at end (amount + balance, or withdrawal + deposit)
   const amountsEndRe = /([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s*$/
   // Amount pattern: three numbers at end (withdrawal + deposit + balance)
@@ -272,19 +272,19 @@ function parseYesBankPdfText(text: string): BankCsvRow[] {
 
     const fullBlock = blockLines.join(" ")
 
-    function cleanDesc(raw: string): string {
+    const cleanDesc = (raw: string): string => {
       return raw
         // Strip dates anywhere: DD-Mon-YYYY, DD/MM/YYYY, DD-MM-YYYY
-        .replace(/\d{2}[-/][A-Za-z\d]{2,}[-/]\d{4}/g, "")
-        .replace(/(?:\d{2}\/){2}\d{4}/g, "")
+        .replaceAll(/\d{2}[/-][\dA-Za-z]{2,}[/-]\d{4}/g, "")
+        .replaceAll(/(?:\d{2}\/){2}\d{4}/g, "")
         // Strip reference codes like AXIf31aed..., PLUTUS..., UPI ref strings (anywhere)
-        .replace(/\b[A-Z]{3}[\dA-Za-z]{8,}\b/g, "")
+        .replaceAll(/\b[A-Z]{3}[\dA-Za-z]{8,}\b/g, "")
         // Strip UPI/DR/... or UPI/CR/... prefix
-        .replace(/^UPI\/(?:DR|CR)\/[\d.]+\/\s*/i, "")
+        .replace(/^upi\/(?:dr|cr)\/[\d.]+\/\s*/i, "")
         // Strip IMPS/... prefix
-        .replace(/^IMPS\/[\w]+\/[\d.]+\/\s*/i, "")
+        .replace(/^imps\/\w+\/[\d.]+\/\s*/i, "")
         // Strip leading/trailing whitespace
-        .replace(/\s{2,}/g, " ")
+        .replaceAll(/\s{2,}/g, " ")
         .trim()
     }
 
@@ -385,7 +385,7 @@ function parseGenericPdfText(text: string): BankCsvRow[] {
   const result: BankCsvRow[] = []
 
   // Flexible date patterns
-  const dateRe = /(\d{2}[\/-]\d{2}[\/-]\d{4}|\d{2}-[A-Za-z]{3}-\d{4})/
+  const dateRe = /((?:\d{2}[/-]){2}\d{4}|\d{2}-[A-Za-z]{3}-\d{4})/
   // Amount pattern: number with optional commas and decimal
   const amountRe = /([\d,]+\.\d{2})/
 

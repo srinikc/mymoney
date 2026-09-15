@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useState, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,8 +10,9 @@ import { Badge } from "@/components/ui/badge"
 import { DataTable } from "@/components/ui/data-table"
 import { formatDate } from "@/lib/utils"
 import { formatIndianCurrency } from "@/lib/format"
-import type { DashboardInsights, Expense } from "@/types"
-import type { RecurrenceReportItem } from "@/app/api/reports/recurrence/route"
+import type { Expense } from "@/types"
+import { useExpenseYears, useInsights } from "@/hooks/use-dashboard"
+import { useCategories, useReportExpenses, useRecurrence, useIntelligence } from "@/hooks/use-reports"
 import type { ColumnDef } from "@tanstack/react-table"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line,
@@ -51,125 +52,54 @@ const KIND_META: Record<string, { label: string; icon: typeof Sparkles }> = {
 }
 
 export default function ReportsPage() {
-  const [insights, setInsights] = useState<DashboardInsights | null>(null)
-  const [loading, setLoading] = useState(true)
   const reportRef = useRef<HTMLDivElement>(null)
 
   const currentYear = new Date().getFullYear()
-  const [years, setYears] = useState<number[]>([])
   const [selectedYear, setSelectedYear] = useState(currentYear)
   const [selectedMonth, setSelectedMonth] = useState("")
   const [selectedQuarter, setSelectedQuarter] = useState("")
 
   // P5.1: Data table state
-  const [expenses, setExpenses] = useState<Expense[]>([])
-  const [expensesLoading, setExpensesLoading] = useState(false)
   const [tableSearch, setTableSearch] = useState("")
   const [tableCategory, setTableCategory] = useState("")
-  const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
-
-  // P5.2: Recurrence state
-  const [recurrenceData, setRecurrenceData] = useState<RecurrenceReportItem[]>([])
-  const [recurrenceLoading, setRecurrenceLoading] = useState(false)
-
-  // Spending Intelligence state
-  const [intelligence, setIntelligence] = useState<IntelligenceItem[]>([])
-  const [intelligenceLoading, setIntelligenceLoading] = useState(false)
 
   const [generatingPdf, setGeneratingPdf] = useState(false)
 
+  const yearsQuery = useExpenseYears()
+  const years = yearsQuery.data ?? []
+
+  // If the current year has no data, default to the latest available year.
   useEffect(() => {
-    fetch("/api/expenses/years")
-      .then((r) => r.json())
-      .then((data) => {
-        setYears(data.years)
-        if (data.years.length > 0 && !data.years.includes(currentYear)) {
-          setSelectedYear(data.years.at(-1))
-        }
-      })
-      .catch(() => setYears([]))
-  }, [currentYear])
-
-  useEffect(() => {
-    fetch("/api/categories")
-      .then((r) => r.json())
-      .then((data) => setCategories(data))
-      .catch(() => setCategories([]))
-  }, [])
-
-  const fetchInsights = useCallback(async () => {
-    setLoading(true)
-    const params = new URLSearchParams()
-    params.set("year", String(selectedYear ?? new Date().getFullYear()))
-    if (selectedMonth) params.set("month", selectedMonth)
-    if (selectedQuarter) params.set("quarter", selectedQuarter)
-    const res = await fetch(`/api/insights?${params.toString()}`)
-    const data = await res.json()
-    setInsights(data)
-    setLoading(false)
-  }, [selectedYear, selectedMonth, selectedQuarter])
-
-  useEffect(() => {
-    fetchInsights()
-  }, [fetchInsights])
-
-  const fetchExpenses = useCallback(async () => {
-    setExpensesLoading(true)
-    try {
-      const params = new URLSearchParams()
-      params.set("year", String(selectedYear))
-      params.set("pageSize", "500")
-      if (selectedMonth) params.set("month", selectedMonth)
-      if (selectedQuarter) params.set("quarter", selectedQuarter)
-      if (tableSearch) params.set("search", tableSearch)
-      if (tableCategory) params.set("categoryIds", tableCategory)
-      const res = await fetch(`/api/expenses?${params.toString()}`)
-      const data = await res.json()
-      setExpenses(data.data || [])
-    } finally {
-      setExpensesLoading(false)
+    const ys = yearsQuery.data
+    if (ys && ys.length > 0 && !ys.includes(currentYear)) {
+      setSelectedYear(ys.at(-1) ?? currentYear)
     }
-  }, [selectedYear, selectedMonth, selectedQuarter, tableSearch, tableCategory])
+  }, [yearsQuery.data, currentYear])
 
-  useEffect(() => {
-    fetchExpenses()
-  }, [fetchExpenses])
+  const categoriesQuery = useCategories()
+  const categories = categoriesQuery.data ?? []
 
-  const fetchRecurrence = useCallback(async () => {
-    setRecurrenceLoading(true)
-    try {
-      const params = new URLSearchParams()
-      params.set("year", String(selectedYear))
-      if (selectedMonth) params.set("month", selectedMonth)
-      if (selectedQuarter) params.set("quarter", selectedQuarter)
-      const res = await fetch(`/api/reports/recurrence?${params.toString()}`)
-      const data = await res.json()
-      setRecurrenceData(data.data || [])
-    } finally {
-      setRecurrenceLoading(false)
-    }
-  }, [selectedYear, selectedMonth, selectedQuarter])
+  const insightsQuery = useInsights(String(selectedYear ?? currentYear), selectedMonth, selectedQuarter)
+  const insights = insightsQuery.data ?? null
+  const loading = insightsQuery.isLoading
+  const fetchInsights = insightsQuery.refetch
 
-  useEffect(() => {
-    fetchRecurrence()
-  }, [fetchRecurrence])
+  const expensesQuery = useReportExpenses({
+    year: selectedYear, month: selectedMonth, quarter: selectedQuarter, search: tableSearch, categoryIds: tableCategory,
+  })
+  const expenses = expensesQuery.data ?? []
+  const expensesLoading = expensesQuery.isFetching
+  const fetchExpenses = expensesQuery.refetch
 
-  const fetchIntelligence = useCallback(async () => {
-    setIntelligenceLoading(true)
-    try {
-      const res = await fetch("/api/intelligence")
-      const data = await res.json()
-      setIntelligence(data.items || [])
-    } catch {
-      setIntelligence([])
-    } finally {
-      setIntelligenceLoading(false)
-    }
-  }, [])
+  const recurrenceQuery = useRecurrence({ year: selectedYear, month: selectedMonth, quarter: selectedQuarter })
+  const recurrenceData = recurrenceQuery.data ?? []
+  const recurrenceLoading = recurrenceQuery.isFetching
+  const fetchRecurrence = recurrenceQuery.refetch
 
-  useEffect(() => {
-    fetchIntelligence()
-  }, [fetchIntelligence])
+  const intelligenceQuery = useIntelligence()
+  const intelligence = intelligenceQuery.data ?? []
+  const intelligenceLoading = intelligenceQuery.isFetching
+  const fetchIntelligence = intelligenceQuery.refetch
 
   const handleExportEnhancedXLSX = async () => {
     const params = new URLSearchParams()
@@ -344,9 +274,9 @@ export default function ReportsPage() {
       const date = new Date()
       const fname = `mymoney-report-${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}.pdf`
       a.download = fname
-      document.body.appendChild(a)
+      document.body.append(a)
       a.click()
-      document.body.removeChild(a)
+      a.remove()
       URL.revokeObjectURL(url)
       toast.success("Report downloaded")
     } catch (e) {
@@ -414,7 +344,51 @@ export default function ReportsPage() {
     },
   ]
 
-  if (loading) return <ReportsSkeleton />
+  const intelCounts = {
+    alert: intelligence.filter((i) => i.severity === "alert").length,
+    warn: intelligence.filter((i) => i.severity === "warn").length,
+    info: intelligence.filter((i) => i.severity === "info").length,
+  }
+
+  if (loading && !insights) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <div className="h-8 w-40 animate-pulse rounded bg-muted" />
+            <div className="h-4 w-64 animate-pulse rounded bg-muted mt-2" />
+          </div>
+          <div className="flex gap-2">
+            <div className="h-9 w-36 animate-pulse rounded bg-muted" />
+            <div className="h-9 w-28 animate-pulse rounded bg-muted" />
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="h-9 w-24 animate-pulse rounded bg-muted" />
+          <div className="h-9 w-28 animate-pulse rounded bg-muted" />
+          <div className="h-9 w-24 animate-pulse rounded bg-muted" />
+        </div>
+        <Tabs defaultValue="overview">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="income">Income</TabsTrigger>
+            <TabsTrigger value="expenses">Expenses</TabsTrigger>
+            <TabsTrigger value="investments">Investments</TabsTrigger>
+            <TabsTrigger value="goals">Goals & Plans</TabsTrigger>
+            <TabsTrigger value="recurrence">Recurrence</TabsTrigger>
+            <TabsTrigger value="intelligence">
+              <Sparkles className="mr-1 h-3.5 w-3.5" />
+              Intelligence
+            </TabsTrigger>
+            <TabsTrigger value="data">Data</TabsTrigger>
+          </TabsList>
+          <TabsContent value="overview" className="space-y-6 mt-6">
+            <ReportsSkeleton />
+          </TabsContent>
+        </Tabs>
+      </div>
+    )
+  }
 
   if (!insights) return <div className="p-8 text-center text-muted-foreground">Failed to load data</div>
 
@@ -431,12 +405,6 @@ export default function ReportsPage() {
   for (const exp of expenses) {
     const cat = exp.category?.name || "Uncategorized"
     categoryCounts.set(cat, (categoryCounts.get(cat) || 0) + 1)
-  }
-
-  const intelCounts = {
-    alert: intelligence.filter((i) => i.severity === "alert").length,
-    warn: intelligence.filter((i) => i.severity === "warn").length,
-    info: intelligence.filter((i) => i.severity === "info").length,
   }
 
   return (
@@ -903,7 +871,7 @@ export default function ReportsPage() {
                   Anomalies, spending pace, subscriptions, lifestyle creep, and tax gaps detected from your data.
                 </p>
               </div>
-              <Button variant="outline" size="sm" onClick={fetchIntelligence} disabled={intelligenceLoading}>
+              <Button variant="outline" size="sm" onClick={() => fetchIntelligence()} disabled={intelligenceLoading}>
                 <RefreshCw className="mr-2 h-4 w-4" /> Refresh
               </Button>
             </CardHeader>

@@ -37,7 +37,7 @@ export async function GET() {
           profileId: ctx.profileId,
           deletedAt: null,
           date: { gte: start },
-          category: { name: { in: Array.from(ESSENTIAL_CATEGORIES) } },
+          category: { name: { in: [...ESSENTIAL_CATEGORIES] } },
         },
         select: { amount: true, date: true },
       })

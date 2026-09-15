@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, useColorScheme,
   RefreshControl, ActivityIndicator, TextInput, Modal, Alert, ScrollView
@@ -6,9 +6,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
+import { useQueryClient } from '@tanstack/react-query';
 import { Colors } from '../constants/Colors';
 import { formatCurrency, formatDate } from '../utils/format';
 import api, { BASE_URL } from '../api/client';
+import { useInfiniteApiQuery } from '../hooks/use-api-query';
 
 interface ExpenseItem {
   id: number;
@@ -37,14 +39,8 @@ export default function ExpensesScreen() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
 
-  const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<ExpenseItem | null>(null);
   const [, setCategories] = useState<CatItem[]>([]);
@@ -84,32 +80,30 @@ export default function ExpensesScreen() {
     setShowForm(true);
   };
 
-  const fetchExpenses = useCallback(async (targetPage = 1, append = false) => {
-    try {
-      const params: Record<string, string | undefined> = { page: String(targetPage), pageSize: '50', sortField: 'date', sortDir: 'desc' };
-      if (search) params.search = search;
-      if (filterDateFrom) params.dateFrom = filterDateFrom;
-      if (filterDateTo) params.dateTo = filterDateTo;
-      if (flaggedFilter) params.flagged = 'true';
-      const res = await api.get('/api/expenses', { params });
-      const d = res.data;
-      if (append) {
-        setExpenses((prev) => [...prev, ...(d.data || [])]);
-      } else {
-        setExpenses(d.data || []);
-      }
-      setTotalPages(d.totalPages || 1);
-      setPage(targetPage);
-    } catch {
-      setError('Failed to load expenses');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-      setLoadingMore(false);
-    }
-  }, [search, filterDateFrom, filterDateTo, flaggedFilter]);
+  const queryClient = useQueryClient();
+  const listQuery = useInfiniteApiQuery<any>(
+    ['expenses', search, flaggedFilter, filterDateFrom, filterDateTo],
+    '/api/expenses',
+    {
+      params: {
+        pageSize: '50',
+        sortField: 'date',
+        sortDir: 'desc',
+        ...(search ? { search } : {}),
+        ...(filterDateFrom ? { dateFrom: filterDateFrom } : {}),
+        ...(filterDateTo ? { dateTo: filterDateTo } : {}),
+        ...(flaggedFilter ? { flagged: 'true' } : {}),
+      },
+      getNextPageParam: (last: any) => (last?.page < last?.totalPages ? last.page + 1 : undefined),
+    },
+  );
+  const expenses: ExpenseItem[] = listQuery.data?.pages.flatMap((p: any) => p.data || []) ?? [];
+  const loading = listQuery.isLoading;
+  const loadingMore = listQuery.isFetchingNextPage;
+  const error = listQuery.isError ? 'Failed to load expenses' : null;
 
-  useEffect(() => { fetchExpenses(); }, [fetchExpenses]);
+  const reloadList = () => { queryClient.invalidateQueries({ queryKey: ['expenses'] }); };
+  const fetchExpenses = (_targetPage?: number) => { reloadList(); };
 
   useEffect(() => {
     api.get('/api/categories').then((r) => setCategories(Array.isArray(r.data) ? r.data : [])).catch(() => {});
@@ -119,9 +113,8 @@ export default function ExpensesScreen() {
   }, []);
 
   const loadMore = () => {
-    if (page < totalPages && !loadingMore) {
-      setLoadingMore(true);
-      fetchExpenses(page + 1, true);
+    if (listQuery.hasNextPage && !listQuery.isFetchingNextPage) {
+      listQuery.fetchNextPage();
     }
   };
 
@@ -179,7 +172,9 @@ export default function ExpensesScreen() {
           setDeletingId(id);
           try {
             await api.delete(`/api/expenses?id=${id}`);
-            setExpenses((prev) => prev.filter((e) => e.id !== id));
+            queryClient.setQueryData(['expenses', search, flaggedFilter, filterDateFrom, filterDateTo], (old: any) =>
+              old ? { ...old, pages: old.pages.map((pg: any) => ({ ...pg, data: (pg.data || []).filter((e: any) => e.id !== id) })) } : old,
+            );
           } catch { Alert.alert('Error', 'Failed to archive'); }
           finally { setDeletingId(null); }
         },
@@ -199,8 +194,7 @@ export default function ExpensesScreen() {
             try {
               const res = await api.post('/api/expenses/bulk-delete-range', { scope });
               Alert.alert('Done', `Hard-deleted ${res.data?.count ?? 0} expenses`);
-              setPage(1);
-              fetchExpenses(1);
+              reloadList();
             } catch {
               Alert.alert('Error', 'Delete failed');
             }
@@ -274,12 +268,12 @@ export default function ExpensesScreen() {
         <TextInput
           style={[styles.searchInput, { color: theme.text }]}
           value={search}
-          onChangeText={(v) => { setSearch(v); setPage(1); }}
+          onChangeText={(v) => { setSearch(v); }}
           placeholder="Search expenses..."
           placeholderTextColor={theme.textTertiary}
         />
         <TouchableOpacity
-          onPress={() => { setFlaggedFilter((v) => !v); setPage(1); }}
+          onPress={() => { setFlaggedFilter((v) => !v); }}
           style={[styles.dupToggle, { backgroundColor: flaggedFilter ? theme.primary : theme.primaryLight }]}
         >
           <Ionicons name="alert-circle" size={14} color={flaggedFilter ? '#fff' : theme.primary} />
@@ -356,7 +350,7 @@ export default function ExpensesScreen() {
             </TouchableOpacity>
           )}
           contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchExpenses(1); }} tintColor={theme.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); queryClient.invalidateQueries({ queryKey: ['expenses'] }).finally(() => setRefreshing(false)); }} tintColor={theme.primary} />}
           onEndReached={loadMore}
           onEndReachedThreshold={0.3}
           ListFooterComponent={loadingMore ? <ActivityIndicator style={{ padding: 16 }} color={theme.primary} /> : null}

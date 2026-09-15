@@ -1138,3 +1138,59 @@ model BackupHistory {
   @@index([createdAt])
   @@index([type, status])
 }
+
+// ── Assistant (Unified Voice + Text) ─────────────────────────────────────
+
+model AssistantConversation {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  profileId Int
+  title     String?  // auto-generated from first message
+  modality  String   @default("text") // text | voice | mixed
+  currentPage String? // last known page route (e.g. "/budgets")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages       AssistantMessage[]
+  pendingActions AssistantPendingAction[]
+
+  @@index([userId, profileId])
+  @@index([userId, isActive])
+  @@index([profileId, isActive])
+}
+
+model AssistantMessage {
+  id             Int      @id @default(autoincrement())
+  conversationId Int
+  role           String   // user | assistant | system
+  content        String
+  modality       String   // text | voice
+  source         String?  // deterministic | llm | regex
+  toolCalls      Json?    // [{tool, args, result}] if any tools were called
+  metadata       Json?    // {intent, confidence, entities, latency} for analytics
+  createdAt      DateTime @default(now())
+
+  conversation AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+model AssistantPendingAction {
+  id             Int      @id @default(autoincrement())
+  conversationId Int
+  userId         Int
+  profileId      Int
+  toolName       String   // add_expense | add_income | set_budget | add_goal
+  args           Json     // parsed entities
+  riskLevel      String   // none | low | medium | high
+  status         String   @default("pending") // pending | confirmed | rejected | expired
+  expiresAt      DateTime // auto-expire after 10 minutes
+  createdAt      DateTime @default(now())
+
+  conversation AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, status])
+  @@index([userId, status])
+  @@index([expiresAt, status]) // for cleanup of expired actions
+}

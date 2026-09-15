@@ -12,9 +12,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
-import { Colors } from '../../constants/Colors';
-import { formatCurrency } from '../../utils/format';
-import api from '../../api/client';
+import { Colors } from '../constants/Colors';
+import { formatCurrency } from '../utils/format';
+import api from '../api/client';
+import { useApiQuery } from '../hooks/use-api-query';
 
 interface Breakdown {
   monthlyEssentials: number;
@@ -67,25 +68,23 @@ export default function EmergencyFundScreen() {
   const [existing, setExisting] = useState('');
   const [jobPickerOpen, setJobPickerOpen] = useState(false);
 
-  useEffect(() => {
-    void load();
-  }, []);
+  const efQuery = useApiQuery<EFundResponse>(['emergency-fund'], '/api/emergency-fund');
 
-  async function load() {
-    setLoading(true);
-    try {
-      const res = await api.get<EFundResponse>('/api/emergency-fund');
-      setData(res.data);
-      setJobType(res.data.breakdown.jobType);
-      setDependents(String(res.data.breakdown.dependents));
-      setEssentials(String(res.data.breakdown.monthlyEssentials));
-      setExisting(String(res.data.breakdown.liquidSavings));
-    } catch {
-      // noop
-    } finally {
+  useEffect(() => {
+    if (efQuery.data !== undefined) {
+      setData(efQuery.data);
+      setJobType(efQuery.data.breakdown.jobType);
+      setDependents(String(efQuery.data.breakdown.dependents));
+      setEssentials(String(efQuery.data.breakdown.monthlyEssentials));
+      setExisting(String(efQuery.data.breakdown.liquidSavings));
       setLoading(false);
       setRefreshing(false);
     }
+  }, [efQuery.data]);
+
+  function load() {
+    setLoading(true);
+    efQuery.refetch();
   }
 
   if (loading || !data) {

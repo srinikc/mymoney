@@ -77,8 +77,8 @@ export async function GET(req: Request) {
 
     // Category filter
     if (categoryFilter) {
-      const cats = categoryFilter.split(",").map((c) => c.toLowerCase())
-      filtered = filtered.filter((r) => r.categoryName && cats.includes(r.categoryName.toLowerCase()))
+      const cats = new Set(categoryFilter.split(",").map((c) => c.toLowerCase()))
+      filtered = filtered.filter((r) => r.categoryName && cats.has(r.categoryName.toLowerCase()))
     }
 
     // Source filter
@@ -153,10 +153,10 @@ export async function GET(req: Request) {
       withoutVendor: filtered.filter((r) => !r.vendor).length,
       matchRate: total > 0 ? matched.length / total : 0,
       grandTotal,
-      byCategory: Array.from(byCategory.entries())
+      byCategory: [...byCategory.entries()]
         .map(([name, data]) => ({ name, count: data.count, totalAmount: data.totalAmount }))
         .sort((a, b) => b.count - a.count),
-      unmatchedByVendor: Array.from(unmatchedByVendor.entries())
+      unmatchedByVendor: [...unmatchedByVendor.entries()]
         .map(([name, data]) => ({ name, count: data.count, totalAmount: data.totalAmount }))
         .sort((a, b) => b.count - a.count),
     }

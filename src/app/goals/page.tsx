@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,6 +28,9 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import type { Goal, Investment } from "@/types"
 import { Plus, Target, Download, Pencil, Trash2, TrendingUp } from "lucide-react"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
+import { useGoals, useInvestments } from "@/hooks/use-finance"
 
 const termOptions = [
   { value: "short", label: "Short" },
@@ -320,39 +323,18 @@ function AddGoalForm({
 }
 
 export default function GoalsPage() {
-  const [goals, setGoals] = useState<Goal[]>([])
-  const [investments, setInvestments] = useState<Investment[]>([])
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
 
-  const loadData = useCallback(async () => {
-    try {
-      setError(null)
-      const [goalsRes, invRes] = await Promise.all([
-        fetch("/api/goals"),
-        fetch("/api/investments"),
-      ])
-      if (!goalsRes.ok) throw new Error("Failed to fetch goals")
-      const goalsData = await goalsRes.json()
-      const invData = invRes.ok ? await invRes.json() : []
-      setGoals(
-        goalsData.map((g: Goal) => ({
-          ...g,
-          progress: g.targetAmount > 0 ? Math.round((g.currentAmount / g.targetAmount) * 100) : 0,
-        }))
-      )
-      setInvestments(Array.isArray(invData) ? invData : [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong")
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => { loadData() }, [loadData])
+  const goalsQuery = useGoals()
+  const investmentsQuery = useInvestments()
+  const queryClient = useQueryClient()
+  const goals = goalsQuery.data ?? []
+  const investments = investmentsQuery.data ?? []
+  const loading = goalsQuery.isLoading
+  const reload = () => { goalsQuery.refetch(); investmentsQuery.refetch() }
 
   const handleSave = async (formData: GoalFormValues) => {
     try {
@@ -374,8 +356,7 @@ export default function GoalsPage() {
       setDialogOpen(false)
       setShowAddForm(false)
       setEditingGoal(null)
-      setLoading(true)
-      loadData()
+      reload()
     } catch (err) {
       setDialogOpen(false)
       setShowAddForm(false)
@@ -387,7 +368,7 @@ export default function GoalsPage() {
     try {
       const res = await fetch(`/api/goals/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete goal")
-      setGoals((prev) => prev.filter((g) => g.id !== id))
+      queryClient.setQueryData(queryKeys.goals(), (old: Goal[] | undefined) => (old || []).filter((g) => g.id !== id))
       toast.success("Goal deleted")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to delete")
@@ -440,7 +421,7 @@ export default function GoalsPage() {
         <Card className="border-red-500/30 bg-red-500/5">
           <CardContent className="flex items-center gap-3 py-4 text-sm text-red-600">
             <span>Failed to load goals: {error}</span>
-            <Button variant="outline" size="sm" onClick={() => { setLoading(true); setError(null); loadData() }}>
+            <Button variant="outline" size="sm" onClick={reload}>
               Retry
             </Button>
           </CardContent>

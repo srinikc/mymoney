@@ -131,15 +131,27 @@ export async function GET(request: Request) {
     const selectedYear = year
     let yearIncome = 0
     for (const source of incomeSources) {
-      if (source.type === "monthly") {
+      switch (source.type) {
+      case "monthly": {
         yearIncome += source.amount * 12
-      } else if (source.type === "variable") {
+      
+      break;
+      }
+      case "variable": {
         yearIncome += source.amount || 0
-      } else if (source.type === "yearly" || source.type === "onetime") {
+      
+      break;
+      }
+      case "yearly": 
+      case "onetime": {
         if (source.startDate) {
           const sd = new Date(source.startDate)
           if (sd.getFullYear() === selectedYear) yearIncome += source.amount
         }
+      
+      break;
+      }
+      // No default
       }
     }
 

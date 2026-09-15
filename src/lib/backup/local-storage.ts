@@ -1,5 +1,5 @@
-import { writeFileSync, mkdirSync, readFileSync, statSync, readdirSync, existsSync } from "fs"
-import { join } from "path"
+import { writeFileSync, mkdirSync, readFileSync, statSync, readdirSync, existsSync } from "node:fs"
+import { join } from "node:path"
 
 const BACKUP_DIR = join(process.cwd(), "data", "backups")
 
@@ -11,14 +11,14 @@ function ensureBackupDir(): void {
 
 export async function uploadToLocal(key: string, body: Buffer, _contentType: string): Promise<string> {
   ensureBackupDir()
-  const filename = key.replace(/[/\\]/g, "_")
+  const filename = key.replaceAll(/[/\\]/g, "_")
   const filePath = join(BACKUP_DIR, filename)
   writeFileSync(filePath, body)
   return filename
 }
 
 export async function downloadFromLocal(key: string): Promise<Buffer> {
-  const filename = key.replace(/[/\\]/g, "_")
+  const filename = key.replaceAll(/[/\\]/g, "_")
   const filePath = join(BACKUP_DIR, filename)
   if (!existsSync(filePath)) throw new Error(`Local backup not found: ${key}`)
   return readFileSync(filePath)

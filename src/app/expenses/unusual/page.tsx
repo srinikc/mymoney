@@ -84,7 +84,7 @@ export default function UnusualExpensesPage() {
       const json: UnusualResponse = await res.json()
       setData(json)
       setSelected(new Set())
-    } catch (e) {
+    } catch {
       toast.error("Failed to load unusual expenses")
     } finally {
       setLoading(false)
@@ -107,7 +107,7 @@ export default function UnusualExpensesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action,
-          ids: Array.from(selected),
+          ids: [...selected],
           ...(action === "categorize" ? { purpose: bulkPurpose } : {}),
         }),
       })
@@ -208,7 +208,7 @@ export default function UnusualExpensesPage() {
                     purposeFilter === p.purpose ? "border-primary bg-primary/5" : "hover:bg-muted/50"
                   }`}
                 >
-                  <span className="text-sm capitalize">{p.purpose.replace(/-/g, " ")}</span>
+                  <span className="text-sm capitalize">{p.purpose.replaceAll('-', " ")}</span>
                   <span className="text-sm font-semibold">{formatCurrency(p.total)}</span>
                 </button>
               ))}
@@ -288,11 +288,11 @@ export default function UnusualExpensesPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-sm capitalize">
-                      {e.category.name.replace(/-/g, " ")}
+                      {e.category.name.replaceAll('-', " ")}
                     </TableCell>
                     <TableCell>
                       {e.purpose ? (
-                        <Badge variant="secondary" className="capitalize">{e.purpose.replace(/-/g, " ")}</Badge>
+                        <Badge variant="secondary" className="capitalize">{e.purpose.replaceAll('-', " ")}</Badge>
                       ) : (
                         <Badge variant="outline" className="text-amber-600 border-amber-300">Untagged</Badge>
                       )}
@@ -350,7 +350,7 @@ export default function UnusualExpensesPage() {
                   <SelectContent>
                     {EXPENSE_PURPOSES.map((p) => (
                       <SelectItem key={p} value={p} className="capitalize">
-                        {p.replace(/-/g, " ")}
+                        {p.replaceAll('-', " ")}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -85,7 +85,7 @@ function appendVary(existing: string, value: string): string {
 async function compressGzip(input: Uint8Array): Promise<Uint8Array> {
   const stream = new Blob([new Uint8Array(input).buffer]).stream().pipeThrough(new CompressionStream("gzip"))
   const chunks: Uint8Array[] = []
-  // @ts-ignore — AsyncIterable<Uint8Array>
+  // @ts-expect-error — AsyncIterable<Uint8Array>
   for await (const chunk of stream) chunks.push(chunk)
   return joinChunks(chunks)
 }
@@ -96,7 +96,7 @@ async function compressBrotli(input: Uint8Array): Promise<Uint8Array> {
   // yet. For Brotli you need a native binding. Fall back to gzip here.
   // Most production platforms (Cloudflare, Vercel) do Brotli at the edge.
   const chunks: Uint8Array[] = []
-  // @ts-ignore
+  // @ts-expect-error — AsyncIterable<Uint8Array>
   for await (const chunk of stream) chunks.push(chunk)
   return joinChunks(chunks)
 }

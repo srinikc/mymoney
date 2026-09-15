@@ -63,7 +63,7 @@ export function computeEmergencyFund(input: EmergencyFundInput): EmergencyFundRe
   const gap = Math.max(0, target - existing)
 
   const runUpMonths = input.monthlyIncome
-    ? Math.max(1, Math.ceil(gap / Math.max(1, input.monthlyIncome * 0.20)))
+    ? Math.max(1, Math.ceil(gap / Math.max(1, input.monthlyIncome * 0.2)))
     : 12
 
   const monthlyRunUp = Math.ceil(gap / runUpMonths)
@@ -80,13 +80,9 @@ export function computeEmergencyFund(input: EmergencyFundInput): EmergencyFundRe
 
   const tips: string[] = []
   if (gap > 0) {
-    tips.push("Open a separate high-yield savings account. Examples: Fi Money, Niyo, Jupiter savings, IDFC First.")
-    tips.push("Auto-debit on salary day — 1 hour after salary credits, not at month end.")
-    tips.push("Don't touch this account for non-emergencies. A wedding is not an emergency.")
-    tips.push("If your employer offers emergency advances, skip — they often cost 1-2% per month.")
+    tips.push("Open a separate high-yield savings account. Examples: Fi Money, Niyo, Jupiter savings, IDFC First.", "Auto-debit on salary day — 1 hour after salary credits, not at month end.", "Don't touch this account for non-emergencies. A wedding is not an emergency.", "If your employer offers emergency advances, skip — they often cost 1-2% per month.")
   } else {
-    tips.push("Top up every January for inflation (~6% per year).")
-    tips.push("Park excess in a liquid fund or short-duration debt fund for slightly better returns.")
+    tips.push("Top up every January for inflation (~6% per year).", "Park excess in a liquid fund or short-duration debt fund for slightly better returns.")
   }
 
   return {

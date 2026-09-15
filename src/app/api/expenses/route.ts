@@ -4,7 +4,7 @@ import { validateBody } from "@/shared/validate"
 import { ExpenseCreateSchema } from "@/shared/validation"
 import { getAuthContext, handleAuthError } from "@/lib/with-auth"
 import { cacheDel, cacheDelPattern, CacheKeys, invalidateProfile, cached, CACHE_TTL } from "@/lib/cache"
-import { createHash } from "crypto"
+import { createHash } from "node:crypto"
 import type { Prisma } from "@prisma/client"
 
 async function invalidateExpenseCaches(profileId: number) {
@@ -81,7 +81,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
 
   // Build cache key from sorted query params
-  const paramEntries = Array.from(searchParams.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+  const paramEntries = [...searchParams.entries()].sort((a, b) => a[0].localeCompare(b[0]))
   const queryHash = createHash("md5").update(JSON.stringify(paramEntries)).digest("hex").slice(0, 12)
 
   const cacheKey = CacheKeys.expenses(profileId, queryHash)

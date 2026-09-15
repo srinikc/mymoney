@@ -8,6 +8,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import api from '../api/client';
 import { registerForPushNotifications, setupNotificationHandler, checkBudgetAlerts } from '../lib/notifications';
 import { HelpButton } from '../components/help/HelpButton';
+import { AssistantFAB } from '../components/assistant/AssistantFAB';
 import { QueryProvider } from '../providers/query-provider';
 
 SplashScreen.preventAutoHideAsync();
@@ -157,6 +158,7 @@ export default function RootLayout() {
         )}
       </Stack>
       {isLoggedIn && <HelpButton path={pathname} />}
+      {isLoggedIn && <AssistantFAB />}
     </QueryProvider>
   );
 }

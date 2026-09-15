@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "opencode-go": {
+      "name": "OpenCode Go (mymoney / Account B)",
+      "options": {
+        "apiKey": "{file:.opencode/opencode.key}"
+      }
+    },
+    "opencode": {
+      "name": "OpenCode Zen (mymoney / Account B)",
+      "options": {
+        "apiKey": "{file:.opencode/opencode.key}"
+      }
+    }
+  }
+}

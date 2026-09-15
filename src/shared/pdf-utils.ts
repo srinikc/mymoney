@@ -5,10 +5,8 @@
 
 export async function extractPdfText(buffer: Buffer): Promise<string> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require("pdf-parse/worker")
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PDFParse } = require("pdf-parse")
+    await import("pdf-parse/worker")
+    const { PDFParse } = await import("pdf-parse")
     const parser = new PDFParse({ data: buffer, verbosity: 0 })
     const result = await parser.getText()
     console.log("[pdf-utils] extractPdfText OK, length:", (result.text || "").length)

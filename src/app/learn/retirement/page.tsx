@@ -64,7 +64,7 @@ export default function RetirementPage() {
       const res = await fetch("/api/nps")
       if (!res.ok) throw new Error("Failed to load")
       setNpsData(await res.json())
-    } catch (e) {
+    } catch {
       toast.error("Failed to load NPS data")
     } finally {
       setLoading(false)
@@ -191,7 +191,7 @@ export default function RetirementPage() {
               <CardContent>
                 {!result ? (
                   <div className="py-12 text-center text-muted-foreground text-sm">
-                    Fill in inputs and click "Calculate" to see your retirement projection.
+                    Fill in inputs and click &quot;Calculate&quot; to see your retirement projection.
                   </div>
                 ) : (
                   <RetirementResult data={result} />
@@ -266,7 +266,7 @@ function RetirementResult({ data }: { data: RetirementResult & { profileData?: {
 
       {data.profileData?.currentCorpusFromDB && (
         <div className="p-3 rounded-lg border border-blue-200 bg-blue-50/30 text-xs text-muted-foreground">
-          <p>Your actual retirement corpus on MyMoney: ₹{data.profileData.currentCorpusFromDB.toLocaleString("en-IN")}. <strong>Update the input above if it's different.</strong></p>
+          <p>Your actual retirement corpus on MyMoney: ₹{data.profileData.currentCorpusFromDB.toLocaleString("en-IN")}. <strong>Update the input above if it&apos;s different.</strong></p>
         </div>
       )}
 

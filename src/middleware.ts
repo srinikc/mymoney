@@ -86,6 +86,21 @@ function checkRateLimit(
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
+  // ── 0. Static assets ──────────────────────────────────────────────────
+  // Always public and never rate-limited. The wake word engine fetches the
+  // WASM runtime plus the 3.3M KWS model (~16 files) in a rapid burst; running
+  // those through the per-IP rate limiter returns 429s and breaks detection.
+  if (
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/icons/") ||
+    pathname.startsWith("/manifest.json") ||
+    pathname.startsWith("/sw.js") ||
+    pathname.startsWith("/wasm/") ||
+    pathname.startsWith("/kws-models/")
+  ) {
+    return NextResponse.next()
+  }
+
   // ── 1. Per-tier rate limiting ─────────────────────────────────────────
   // Rate limiting is a production concern; skip it in dev to avoid
   // throttling HMR, auth-session polling, and multi-request page loads.
@@ -95,20 +110,20 @@ export default async function middleware(req: NextRequest) {
     if (!rateLimitResult.allowed) {
       return new NextResponse(
         JSON.stringify({ error: "Too many requests. Please try again later." }),
-      {
-        status: 429,
-        headers: {
-          "Content-Type": "application/json",
-          "Retry-After": String(rateLimitResult.retryAfter),
-          "X-RateLimit-Limit": String(rateLimitResult.limit),
-          "X-RateLimit-Remaining": "0",
-          "X-RateLimit-Reset": String(
-            Math.ceil((Date.now() + rateLimitResult.retryAfter * 1000) / 1000)
-          ),
-        },
-      }
-    )
-  }
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": String(rateLimitResult.retryAfter),
+            "X-RateLimit-Limit": String(rateLimitResult.limit),
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": String(
+              Math.ceil((Date.now() + rateLimitResult.retryAfter * 1000) / 1000)
+            ),
+          },
+        }
+      )
+    }
   }
 
   // ── 2. Public route check ─────────────────────────────────────────────
@@ -120,16 +135,6 @@ export default async function middleware(req: NextRequest) {
     { prefix: "/setup", reason: "First-run admin setup must work before any user account exists" },
   ]
   const isPublic = publicRoutes.some((r) => pathname.startsWith(r.prefix))
-
-  // Static assets and images are always public
-  if (
-    pathname.startsWith("/_next/") ||
-    pathname.startsWith("/icons/") ||
-    pathname.startsWith("/manifest.json") ||
-    pathname.startsWith("/sw.js")
-  ) {
-    return NextResponse.next()
-  }
 
   if (isPublic) return NextResponse.next()
 

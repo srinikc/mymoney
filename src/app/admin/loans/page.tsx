@@ -63,7 +63,7 @@ export default function AdminLoansPage() {
         const json = (await res.json()) as { products: LoanProduct[] }
         setProducts(json.products)
       }
-    } catch (e) {
+    } catch {
       toast.error("Failed to load loan products")
     } finally {
       setLoading(false)

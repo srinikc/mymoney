@@ -104,6 +104,8 @@ const FLAGS: FlagDef[] = [
   { name: "ai_advisor",             tier: "pro",      enabled: true,  category: "AI & Analytics" },
   { name: "llm_chatbot",            tier: "premium",  enabled: true,  category: "AI & Analytics" },
   { name: "unlimited_chatbot",      tier: "premium",  enabled: true,  category: "AI & Analytics" },
+  { name: "voice_input",            tier: "premium",  enabled: true,  category: "AI & Analytics" },
+  { name: "voice_query",            tier: "premium",  enabled: true,  category: "AI & Analytics" },
 
   // ─── User & Profile ─────────────────────────────────────────────────────────
   { name: "family_dashboard",       tier: "free",     enabled: true,  category: "User & Profile" },

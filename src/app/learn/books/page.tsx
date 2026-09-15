@@ -55,7 +55,7 @@ export default function BooksPage() {
       const res = await fetch(`/api/books?${params}`)
       if (!res.ok) throw new Error("Failed to load")
       setData(await res.json())
-    } catch (e) {
+    } catch {
       toast.error("Failed to load books")
     } finally {
       setLoading(false)
@@ -92,7 +92,7 @@ export default function BooksPage() {
             <div className="md:col-span-2 flex flex-col gap-2 text-xs text-muted-foreground">
               <p>• 5 of these are India-specific. 5 are universal but critical.</p>
               <p>• 3 are short reads (&lt;250 pages). 4 are intermediate. 3 are deep dives.</p>
-              <p>• Total combined reading time: ~60 hours. That's one book per month for a year.</p>
+              <p>• Total combined reading time: ~60 hours. That&apos;s one book per month for a year.</p>
             </div>
           </div>
         </CardContent>

@@ -96,13 +96,13 @@ function parseLLMResponse(response: string): LLMBatchResult[] {
   let jsonStr = response.trim()
 
   // Remove markdown code blocks if present
-  jsonStr = jsonStr.replace(/```json\s*/g, "").replace(/```\s*/g, "")
+  jsonStr = jsonStr.replaceAll(/```json\s*/g, "").replaceAll(/```\s*/g, "")
 
   // Find the JSON array
   const arrayStart = jsonStr.indexOf("[")
   const arrayEnd = jsonStr.lastIndexOf("]")
   if (arrayStart === -1 || arrayEnd === -1) {
-    const snippet = response.slice(0, 200).replace(/\n/g, " ")
+    const snippet = response.slice(0, 200).replaceAll('\n', " ")
     throw new Error(`No JSON array found in LLM response (first 200 chars: "${snippet}")`)
   }
 
@@ -111,7 +111,7 @@ function parseLLMResponse(response: string): LLMBatchResult[] {
   try {
     const parsed = JSON.parse(jsonStr)
     if (!Array.isArray(parsed)) {
-      throw new Error("Response is not an array")
+      throw new TypeError("Response is not an array")
     }
 
     return parsed.map((item: Record<string, unknown>) => ({

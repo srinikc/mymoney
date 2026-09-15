@@ -73,7 +73,6 @@ export function getProvider(name: AdProviderName): AdProvider {
         },
       }
     }
-    case "mock":
     default: {
       return {
         name: "mock",

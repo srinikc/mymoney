@@ -103,7 +103,7 @@ export default function MutualFundsPage() {
       if (!res.ok) throw new Error("Failed to load")
       const json: SearchResponse = await res.json()
       setData(json)
-    } catch (e) {
+    } catch {
       toast.error("Failed to load mutual funds")
     } finally {
       setLoading(false)
@@ -136,7 +136,7 @@ export default function MutualFundsPage() {
       if (!res.ok) throw new Error("Failed to calculate")
       const json: ProjectResponse = await res.json()
       setProjection(json)
-    } catch (e) {
+    } catch {
       toast.error("Failed to calculate")
     } finally {
       setProjecting(false)
@@ -304,7 +304,7 @@ export default function MutualFundsPage() {
                   </TabsContent>
                   <TabsContent value="reverse-sip" className="space-y-3 mt-3">
                     <div className="space-y-2">
-                      <Label htmlFor="target">Target corpus (₹, today's money)</Label>
+                      <Label htmlFor="target">Target corpus (₹, today&apos;s money)</Label>
                       <Input id="target" type="number" min={100000} value={targetCorpus} onChange={(e) => setTargetCorpus(e.target.value)} />
                     </div>
                   </TabsContent>
@@ -322,7 +322,7 @@ export default function MutualFundsPage() {
                 <div className="space-y-2">
                   <Label htmlFor="inflation">Inflation % p.a.</Label>
                   <Input id="inflation" type="number" min={0} max={15} step={0.5} value={inflation} onChange={(e) => setInflation(e.target.value)} />
-                  <p className="text-xs text-muted-foreground">Used to show real (today's money) value.</p>
+                  <p className="text-xs text-muted-foreground">Used to show real (today&apos;s money) value.</p>
                 </div>
                 <Button onClick={calculate} disabled={projecting} className="w-full">
                   {projecting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Calculator className="h-4 w-4 mr-2" />}
@@ -338,7 +338,7 @@ export default function MutualFundsPage() {
               <CardContent>
                 {!projection ? (
                   <div className="py-12 text-center text-muted-foreground text-sm">
-                    Fill in inputs and click "Calculate" to see the projection.
+                    Fill in inputs and click &quot;Calculate&quot; to see the projection.
                   </div>
                 ) : (
                   <ResultDisplay data={projection} />
@@ -382,7 +382,7 @@ function ResultDisplay({ data }: { data: ProjectResponse }) {
           <div className="flex items-start gap-2">
             <Info className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs font-semibold">In today's money (real value)</p>
+              <p className="text-xs font-semibold">In today&apos;s money (real value)</p>
               <p className="text-lg font-bold">₹{data.inflation.realValue.toLocaleString("en-IN")}</p>
               <p className="text-xs text-muted-foreground mt-1">At {data.inflation.pct}% inflation. Your real return: {data.inflation.realReturn}%.</p>
             </div>
@@ -403,7 +403,7 @@ function ResultDisplay({ data }: { data: ProjectResponse }) {
       </div>
       <div className="p-3 rounded-lg border border-amber-200 bg-amber-50/30">
         <p className="text-xs font-semibold">Inflation-aware</p>
-        <p className="text-sm">To buy the same things in the future, your target in today's money is <strong>₹{(data as any).target.realToday.toLocaleString("en-IN")}</strong>. Required SIP: <strong>₹{r.realPower.toLocaleString("en-IN")}/month</strong>.</p>
+        <p className="text-sm">To buy the same things in the future, your target in today&apos;s money is <strong>₹{(data as any).target.realToday.toLocaleString("en-IN")}</strong>. Required SIP: <strong>₹{r.realPower.toLocaleString("en-IN")}/month</strong>.</p>
       </div>
       <p className="text-xs text-muted-foreground">{data.message}</p>
     </div>

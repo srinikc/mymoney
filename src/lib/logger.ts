@@ -24,7 +24,7 @@ const REDACT_KEYS = new Set([
   "password", "hashedPassword", "token", "access_token", "refresh_token",
   "id_token", "authorization", "cookie", "set-cookie", "secret", "apiKey", "api_key",
 ])
-const REDACT_VALUE_RE = /(?:password|token|secret|api[_-]?key|authorization|cookie)/i
+const REDACT_VALUE_RE = /password|token|secret|api[_-]?key|authorization|cookie/i
 
 function redactValue(v: unknown): unknown {
   if (v == null) return v

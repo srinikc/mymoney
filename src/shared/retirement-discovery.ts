@@ -73,10 +73,15 @@ export async function discoverSubGoals(profileId: number): Promise<DiscoveryResu
       let confidence: "high" | "medium" | "low" = "low"
       let reason = ""
 
-      if (goal.type === "Health") {
+      switch (goal.type) {
+      case "Health": {
         confidence = "high"
         reason = "Health goals after age 55 are retirement healthcare needs"
-      } else if (goal.type === "Marriage" || goal.type === "Marriages") {
+      
+      break;
+      }
+      case "Marriage": 
+      case "Marriages": {
         // Check if deadline falls during retirement years
         if (goal.deadline) {
           const deadlineYear = new Date(goal.deadline).getFullYear()
@@ -93,7 +98,10 @@ export async function discoverSubGoals(profileId: number): Promise<DiscoveryResu
           confidence = "medium"
           reason = "Marriage goal without deadline — may fall during retirement"
         }
-      } else if (goal.type === "Education") {
+      
+      break;
+      }
+      case "Education": {
         if (goal.deadline) {
           const deadlineYear = new Date(goal.deadline).getFullYear()
           const currentYear = new Date().getFullYear()
@@ -109,7 +117,10 @@ export async function discoverSubGoals(profileId: number): Promise<DiscoveryResu
           confidence = "medium"
           reason = "Education goal without deadline — may overlap with retirement"
         }
-      } else if (hasRetirementPurpose) {
+      
+      break;
+      }
+      default: if (hasRetirementPurpose) {
         confidence = "high"
         reason = "Goal has retirement-related purpose"
       } else if (goal.type === "Functions") {
@@ -118,6 +129,7 @@ export async function discoverSubGoals(profileId: number): Promise<DiscoveryResu
       } else if (goal.type === "Custom") {
         confidence = "low"
         reason = "Custom goal — review if it relates to retirement"
+      }
       }
 
       suggestions.push({

@@ -73,7 +73,7 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
       const value = await redis.get(key);
       if (value === null) return null;
       return JSON.parse(value) as T;
-    } catch (err) {
+    } catch {
       console.warn(`[Redis] GET failed for ${key}, using memory fallback`);
     }
   }
@@ -96,7 +96,7 @@ export async function cacheSet(
     try {
       await redis.setex(key, ttlSeconds, serialized);
       return;
-    } catch (err) {
+    } catch {
       console.warn(`[Redis] SET failed for ${key}, using memory fallback`);
     }
   }
@@ -107,7 +107,7 @@ export async function cacheDel(key: string): Promise<void> {
   if (redis && redis.status === "ready") {
     try {
       await redis.del(key);
-    } catch (err) {
+    } catch {
       console.warn(`[Redis] DEL failed for ${key}`);
     }
   }
@@ -130,11 +130,11 @@ export async function cacheDelPattern(pattern: string): Promise<void> {
         await redis.del(...keysToDelete);
       }
       return;
-    } catch (err) {
+    } catch {
       console.warn(`[Redis] DEL pattern failed for ${pattern}`);
     }
   }
-  const prefix = pattern.replace(/\*/g, "");
+  const prefix = pattern.replaceAll('*', "");
   for (const key of memoryCache.keys()) {
     if (key.includes(prefix)) memoryCache.delete(key);
   }
@@ -144,7 +144,7 @@ export async function cacheFlush(): Promise<void> {
   if (redis && redis.status === "ready") {
     try {
       await redis.flushdb();
-    } catch (err) {
+    } catch {
       console.warn("[Redis] FLUSH failed");
     }
   }

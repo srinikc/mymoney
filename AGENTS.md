@@ -14,6 +14,20 @@
 
 **`srinikc@gmail.com`** — personal user, only for manual personal testing, NEVER used in automated tests or dev workflows.
 
+# No Shortcuts / No Half-Baked Work (MANDATORY — every session)
+
+**Every implementation must be production-ready on the first pass. No exceptions.**
+
+- Do NOT use `any` as a type unless the external library genuinely has no types (and document why).
+- Do NOT leave TODO comments in code — either implement it now or raise it with the user before proceeding.
+- Do NOT use placeholder/mock implementations (e.g. `return null`, `// TODO: implement later`).
+- Do NOT skip error handling, edge cases, or cleanup.
+- Do NOT use deprecated APIs (e.g. `ScriptProcessorNode`, `componentWillMount`).
+- Do NOT add dependencies without verifying the codebase already uses them or that they are the right choice.
+- Every file you create or modify must pass typecheck, lint, and tests before you say "done".
+- If you cannot complete a task fully, say so explicitly — do not mark it done with hidden gaps.
+- When the user says "no shortcuts", treat this as a hard constraint: full implementation, proper types, proper error handling, proper cleanup, proper memoization, proper caching, proper tests.
+
 # Cross-Platform Development Rule
 
 **Every feature or fix must be implemented in BOTH:**

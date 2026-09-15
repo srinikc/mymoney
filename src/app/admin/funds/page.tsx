@@ -36,7 +36,7 @@ export default function AdminFundsPage() {
         const json = (await res.json()) as { funds: FundMetadata[] }
         setFunds(json.funds)
       }
-    } catch (e) {
+    } catch {
       toast.error("Failed to load funds")
     } finally {
       setLoading(false)

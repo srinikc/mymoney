@@ -110,45 +110,45 @@ export interface CategoryWeight {
 }
 
 export const CATEGORY_WEIGHTS: Record<string, CategoryWeight> = {
-  "dining-groceries": { needs: 1.0 },
+  "dining-groceries": { needs: 1 },
   "healthcare": { needs: 0.8, savings: 0.2 },
-  "commute": { needs: 1.0 },
-  "fuel-topup": { needs: 1.0 },
-  "utility-bills": { needs: 1.0 },
+  "commute": { needs: 1 },
+  "fuel-topup": { needs: 1 },
+  "utility-bills": { needs: 1 },
   "telecom": { needs: 0.7, wants: 0.3 },
-  "rent-housing": { needs: 1.0 },
+  "rent-housing": { needs: 1 },
   "home-fixes": { needs: 0.7, wants: 0.3 },
-  "auto-maintenance": { needs: 1.0 },
+  "auto-maintenance": { needs: 1 },
   "protection-premiums": { needs: 0.6, savings: 0.4 },
   "grooming": { needs: 0.5, wants: 0.5 },
   "personal-care": { needs: 0.5, wants: 0.5 },
-  "tax-govt": { needs: 1.0 },
-  "daily-essentials": { needs: 1.0 },
+  "tax-govt": { needs: 1 },
+  "daily-essentials": { needs: 1 },
   "office-supplies": { needs: 0.8, wants: 0.2 },
   "debt-repayment": { needs: 0.7, savings: 0.3 },
-  "card-fees": { needs: 1.0 },
+  "card-fees": { needs: 1 },
 
-  "shopping-general": { wants: 1.0 },
+  "shopping-general": { wants: 1 },
   "apparel": { wants: 0.8, needs: 0.2 },
   "footwear": { wants: 0.7, needs: 0.3 },
   "fine-gold": { wants: 0.5, savings: 0.5 },
   "home-furnishing": { wants: 0.5, needs: 0.5 },
-  "leisure": { wants: 1.0 },
-  "religious-worship": { wants: 1.0 },
-  "flowers-garlands": { wants: 1.0 },
+  "leisure": { wants: 1 },
+  "religious-worship": { wants: 1 },
+  "flowers-garlands": { wants: 1 },
   "festive-occasions": { wants: 0.7, needs: 0.3 },
-  "gifting": { wants: 1.0 },
+  "gifting": { wants: 1 },
   "charity-giving": { wants: 0.7, savings: 0.3 },
-  "adult-indulgence": { wants: 1.0 },
-  "memory-keeping": { wants: 1.0 },
+  "adult-indulgence": { wants: 1 },
+  "memory-keeping": { wants: 1 },
 
-  "learning": { savings: 1.0 },
-  "wealth-building": { savings: 1.0 },
-  "equity": { savings: 1.0 },
+  "learning": { savings: 1 },
+  "wealth-building": { savings: 1 },
+  "equity": { savings: 1 },
 }
 
 export function weightsForCategory(name: string): CategoryWeight {
-  return CATEGORY_WEIGHTS[name] ?? { wants: 1.0 }
+  return CATEGORY_WEIGHTS[name] ?? { wants: 1 }
 }
 
 export interface CategoryAllocation {

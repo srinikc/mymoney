@@ -103,8 +103,8 @@ export function getAutoCatCategories(keywords: KeywordRule[]): Array<{ name: str
     }
     catMap.get(entry.categoryName)!.add(entry.subCategory)
   }
-  return Array.from(catMap.entries())
-    .map(([name, subs]) => ({ name, subCategories: Array.from(subs).sort() }))
+  return [...catMap.entries()]
+    .map(([name, subs]) => ({ name, subCategories: [...subs].sort() }))
     .sort((a, b) => a.name.localeCompare(b.name))
 }
 
@@ -119,7 +119,7 @@ export function parseGpayDebits(html: string): GpayTransaction[] {
  * Escape special regex characters.
  */
 function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  return str.replaceAll(/[$()*+.?[\\\]^{|}]/g, "\\$&")
 }
 
 /**
@@ -334,12 +334,12 @@ export function getCategorizeStats(results: CategorizeResult[]) {
     withVendor: withVendor.length,
     withoutVendor: withoutVendor.length,
     matchRate: total > 0 ? matched.length / total : 0,
-    byCategory: Array.from(byCategory.entries()).map(([name, data]) => ({
+    byCategory: [...byCategory.entries()].map(([name, data]) => ({
       name,
       count: data.count,
       totalAmount: data.totalAmount,
     })).sort((a, b) => b.count - a.count),
-    unmatchedByVendor: Array.from(unmatchedByVendor.entries()).map(([name, data]) => ({
+    unmatchedByVendor: [...unmatchedByVendor.entries()].map(([name, data]) => ({
       name,
       count: data.count,
       totalAmount: data.totalAmount,

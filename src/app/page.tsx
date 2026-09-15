@@ -133,16 +133,14 @@ export default function DashboardPage() {
     incomeRows.push([
       { label: insights.periodLabel, value: insights.periodIncome, href: `/income` },
       { label: String(selectedYearNum), value: insights.yearIncome, href: `/income` },
-    ])
-    incomeRows.push([
+    ], [
       { label: "", value: 0, href: "" },
       { label: "All Years", value: insights.allTimeIncome, href: `/income` },
     ])
     expenseRows.push([
       { label: insights.periodLabel, value: insights.periodExpense, href: expenseMonthLink(selectedYearNum, selectedMonthNum) },
       { label: String(selectedYearNum), value: insights.yearlyExpense, href: expenseYearLink(selectedYearNum) },
-    ])
-    expenseRows.push([
+    ], [
       { label: "", value: 0, href: "" },
       { label: "All Years", value: insights.allTimeExpenses, href: "/expenses" },
     ])
@@ -150,16 +148,14 @@ export default function DashboardPage() {
     incomeRows.push([
       { label: insights.periodLabel, value: insights.periodIncome, href: `/income` },
       { label: String(selectedYearNum), value: insights.yearIncome, href: `/income` },
-    ])
-    incomeRows.push([
+    ], [
       { label: "", value: 0, href: "" },
       { label: "All Years", value: insights.allTimeIncome, href: `/income` },
     ])
     expenseRows.push([
       { label: insights.periodLabel, value: insights.periodExpense, href: expenseQuarterLink(selectedYearNum, selectedQuarterNum) },
       { label: String(selectedYearNum), value: insights.yearlyExpense, href: expenseYearLink(selectedYearNum) },
-    ])
-    expenseRows.push([
+    ], [
       { label: "", value: 0, href: "" },
       { label: "All Years", value: insights.allTimeExpenses, href: "/expenses" },
     ])
@@ -350,7 +346,7 @@ export default function DashboardPage() {
 
   // ── Return ──────────────────────────────────────────────────────────────
   const scrollToSection = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })
+    document.querySelector(`#${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
 
   const SECTION_NAV = [

@@ -5,7 +5,7 @@ import "./globals.css"
 import { AppShell } from "@/components/layout/app-shell"
 import { SessionProvider } from "@/components/auth/session-provider"
 import { QueryProvider } from "@/components/providers/query-provider"
-import { FloatingChat } from "@/components/chat/floating-chat"
+import { MyMoneyAssistant } from "@/components/assistant/MyMoneyAssistant"
 import { ToastProvider } from "@/components/ui/toast-provider"
 import { CookieConsent } from "@/components/ads/cookie-consent"
 import { ThemeProvider } from "next-themes"
@@ -55,7 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <QueryProvider>
               <Suspense fallback={<div className="min-h-screen animate-pulse bg-muted" />}>
                 <AppShell>{children}</AppShell>
-                <FloatingChat />
+                <MyMoneyAssistant />
               </Suspense>
               <ToastProvider />
               <CookieConsent />

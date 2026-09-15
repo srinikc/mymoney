@@ -330,7 +330,7 @@ export default function EmergencyFundPage() {
           <CardContent className="pt-6 space-y-2">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-              <h3 className="font-semibold">You're fully funded</h3>
+              <h3 className="font-semibold">You&apos;re fully funded</h3>
             </div>
             <p className="text-sm text-muted-foreground">
               Keep this money in a high-yield savings or liquid fund. Re-evaluate every January to keep up with inflation.

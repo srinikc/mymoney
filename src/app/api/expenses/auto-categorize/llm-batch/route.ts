@@ -87,7 +87,7 @@ export async function POST(req: Request) {
         unmatchedSet.add(tx.vendor.trim())
       }
 
-      vendorNames = Array.from(unmatchedSet)
+      vendorNames = [...unmatchedSet]
     }
 
     if (vendorNames.length === 0) {

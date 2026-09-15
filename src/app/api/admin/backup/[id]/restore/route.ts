@@ -5,9 +5,9 @@ import { decryptEnvFile } from "@/lib/backup/env-encrypt"
 import { prisma } from "@/lib/prisma"
 import { downloadBackupArchive } from "@/lib/backup"
 import AdmZip from "adm-zip"
-import { existsSync, rmSync } from "fs"
-import { join } from "path"
-import { createHash } from "crypto"
+import { existsSync, rmSync } from "node:fs"
+import { join } from "node:path"
+import { createHash } from "node:crypto"
 
 export const runtime = "nodejs"
 

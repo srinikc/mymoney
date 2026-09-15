@@ -96,7 +96,7 @@ export async function GET(req: Request) {
       ctrByProvider,
       byPage: Object.fromEntries(impressionsByPage),
       topTargets: Object.fromEntries(
-        Array.from(topTargets.entries()).sort((a, b) => b[1] - a[1]).slice(0, 10),
+        [...topTargets.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10),
       ),
       trend,
       catalog: {

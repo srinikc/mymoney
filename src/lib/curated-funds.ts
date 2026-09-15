@@ -73,9 +73,7 @@ export const CURATED_FUNDS: CuratedFund[] = [
 ]
 
 // Deduplicate by schemeCode
-export const UNIQUE_CURATED = Array.from(
-  new Map(CURATED_FUNDS.map((f) => [f.schemeCode, f])).values(),
-)
+export const UNIQUE_CURATED = [...new Map(CURATED_FUNDS.map((f) => [f.schemeCode, f])).values()]
 
 export const CATEGORY_LABEL: Record<CuratedFund["category"], string> = {
   equity: "Equity",

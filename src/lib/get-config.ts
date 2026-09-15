@@ -20,6 +20,7 @@ export type ConfigKey =
   | "AUTH_GOOGLE_SECRET"
   | "DATABASE_URL"
   | "AUTH_SECRET"
+  | "WAKE_WORD_PHRASE"
 
 const ENV_FALLBACK: Record<string, string | undefined> = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,

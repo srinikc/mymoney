@@ -1,12 +1,12 @@
 import {
   cacheGet,
   cacheSet,
-  cacheDel,
+  
   cacheDelPattern,
-  cacheFlush,
-  getRedisStatus,
-  isRedisReady,
-  disconnectRedis,
+  
+  
+  
+  
 } from "./redis";
 
 export const CACHE_TTL = {
@@ -94,13 +94,6 @@ export async function invalidateMfProjections(): Promise<void> {
   await cacheDelPattern(`mf:proj:*`);
 }
 
-export {
-  cacheGet,
-  cacheSet,
-  cacheDel,
-  cacheDelPattern,
-  cacheFlush,
-  getRedisStatus,
-  isRedisReady,
-  disconnectRedis,
-};
+
+
+export {cacheDel, cacheFlush, getRedisStatus, isRedisReady, disconnectRedis, cacheGet, cacheSet, cacheDelPattern} from "./redis";

@@ -106,7 +106,7 @@ export const TOP_BOOKS: Book[] = [
     pages: 280,
     difficulty: "beginner",
     category: "investing",
-    rating: 4.0,
+    rating: 4,
     description: "India's original personal finance classic. Slightly dated on specifics (written pre-2008) but timeless on philosophy. Strong on the 'why start now' argument.",
     keyTakeaway: "Starting at 25 vs 35: a 10-year delay costs you 60% of your final corpus. Time in market > timing the market.",
     amazonLink: "https://www.amazon.in/dp/8184000850",

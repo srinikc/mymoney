@@ -72,7 +72,7 @@ export default function ReportsPage() {
   useEffect(() => {
     const ys = yearsQuery.data
     if (ys && ys.length > 0 && !ys.includes(currentYear)) {
-      setSelectedYear(ys[ys.length - 1])
+      setSelectedYear(ys.at(-1) ?? currentYear)
     }
   }, [yearsQuery.data, currentYear])
 
@@ -274,9 +274,9 @@ export default function ReportsPage() {
       const date = new Date()
       const fname = `mymoney-report-${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}.pdf`
       a.download = fname
-      document.body.appendChild(a)
+      document.body.append(a)
       a.click()
-      document.body.removeChild(a)
+      a.remove()
       URL.revokeObjectURL(url)
       toast.success("Report downloaded")
     } catch (e) {

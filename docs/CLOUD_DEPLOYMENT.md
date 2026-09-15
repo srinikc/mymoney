@@ -170,6 +170,67 @@ Visit `https://mymoney-app.vercel.app` in your browser:
    curl https://mymoney-app.vercel.app/api/health/rate-limit
    ```
 
+## Step 6 — Configure Voice & AI (Optional, one-time)
+
+Voice features (wake word, speech-to-text, text-to-speech) work out of the box with zero configuration. The LLM is optional and enhances only complex/advisory queries.
+
+### Voice Support — Zero Setup Required
+
+| Feature | How It Works | Config Needed |
+|---|---|---|
+| Wake word ("Hey MyMoney") | Sherpa-ONNX WASM, self-hosted in `/wasm/` + `/kws-models/` | None |
+| Speech-to-text | Browser/device native (Chrome Google STT, iOS Safari Siri) | None |
+| Text-to-speech | Browser `speechSynthesis` API | None |
+| Intent parsing | Deterministic engine (regex) — 12 Indian languages | None |
+| DB queries (read intents) | Deterministic engine — ₹0 cost | None |
+
+**What ships with zero config:** Wake word detection, speech-to-text, 90% of voice commands (add expense, add income, set budget, query data, greetings), TTS read-aloud.
+
+### LLM Setup (Optional — for complex advisory queries)
+
+The LLM is only used when the deterministic engine cannot classify the input (e.g., "how can I save more?", "what's the best investment for me?"). All basic commands work without an LLM key.
+
+**One-time setup (admin only):**
+
+1. Go to `Settings → API Keys` (admin-only page)
+2. Enter your OpenAI API key (or Anthropic for Claude)
+3. Save — this applies to ALL users globally
+
+**Or set via environment variable (Vercel dashboard):**
+
+```env
+# Optional — LLM for complex advisory queries
+LLM_PROVIDER=openai          # openai | claude | local
+OPENAI_API_KEY=sk-...        # Your OpenAI API key
+LLM_MODEL=gpt-4o-mini        # Default model
+```
+
+**Cost:** ₹0 for basic commands (deterministic). LLM calls only happen for complex/advisory queries — typically <5% of user interactions.
+
+### Feature Flags
+
+Voice features are gated by premium-tier feature flags (enabled by default):
+
+| Flag | Tier | Default | Effect |
+|---|---|---|---|
+| `voice_input` | premium | enabled | Enables voice command input |
+| `voice_query` | premium | enabled | Enables voice query responses |
+| `llm_chatbot` | premium | enabled | Enables AI chat responses |
+| `ai_advisor` | pro | enabled | Enables AI financial advisor |
+
+Admins can toggle these via the admin features API/UI, or override per-user via `feature.override.<name>` in UserSettings.
+
+### Server STT/TTS (Optional — for better accuracy)
+
+If browser STT accuracy is insufficient for Indian languages, deploy a server-side STT/TTS service:
+
+```env
+# Optional — server STT/TTS for better accuracy
+STT_TTS_SERVICE_URL=https://your-stt-service.onrender.com
+```
+
+Deploy Whisper/Vosk to Render or Railway. See `docs/PRODUCTION_READINESS.md` for details.
+
 ---
 
 # Path B: Vercel + Neon + Upstash (alternative)

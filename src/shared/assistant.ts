@@ -41,12 +41,28 @@ export interface ToolCall {
   result?: ToolResult
 }
 
+export interface AssistantDraft {
+  kind: string
+  fields: Record<string, unknown>
+}
+
+export interface AssistantAwaiting {
+  mode: "confirm" | "field" | "offer"
+  draft: AssistantDraft
+  field?: string
+  question: string
+}
+
 export interface MessageMetadata {
   intent?: string
   confidence?: "high" | "medium" | "low"
   entities?: Record<string, unknown>
   latencyMs?: number
   language?: string
+  /** When the assistant should navigate the user to a page. */
+  navigation?: { path: string; label: string }
+  /** Multi-turn state: a question the assistant is waiting on. */
+  awaiting?: AssistantAwaiting
 }
 
 // ── Pending Actions ─────────────────────────────────────────────────────
@@ -152,6 +168,8 @@ export type AssistantIntent =
   | "query_income"
   | "query_subscriptions"
   | "query_transactions"
+  | "query_domain"
+  | "navigate"
   | "unknown"
 
 export interface ParsedIntent {
@@ -172,6 +190,10 @@ export interface ParsedEntities {
   period?: string
   month?: number
   year?: number
+  /** Read-domain key (e.g. "loans", "insurance") for query_domain. */
+  domain?: string
+  /** Target route for a navigate intent (e.g. "/budgets"). */
+  path?: string
 }
 
 // ── STT/TTS ─────────────────────────────────────────────────────────────

@@ -116,6 +116,30 @@ describe("intent parser", () => {
       const result = detectIntent("xyzzy123", "en-IN")
       expect(result.intent).toBe("unknown")
     })
+
+    it("detects navigate intent with a target path", () => {
+      const result = detectIntent("open budgets", "en-IN")
+      expect(result.intent).toBe("navigate")
+      expect(result.entities.path).toBe("/budgets")
+    })
+
+    it("detects query_domain for a data domain (loans)", () => {
+      const result = detectIntent("loans", "en-IN")
+      expect(result.intent).toBe("query_domain")
+      expect(result.entities.domain).toBe("loans")
+    })
+
+    it("detects query_domain for insurance", () => {
+      const result = detectIntent("what insurance do I have", "en-IN")
+      expect(result.intent).toBe("query_domain")
+      expect(result.entities.domain).toBe("insurance")
+    })
+
+    it("detects a month period for transactions", () => {
+      const result = detectIntent("what are my july transactions", "en-IN")
+      expect(result.intent).toBe("query_transactions")
+      expect(result.entities.month).toBe(7)
+    })
   })
 
   describe("detectIntent (Hindi)", () => {

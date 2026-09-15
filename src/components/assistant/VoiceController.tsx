@@ -6,15 +6,19 @@
 
 import { Mic, MicOff } from "lucide-react"
 import { useSpeechRecognition } from "@/components/voice/use-speech-recognition"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { playPromptSound } from "@/lib/prompt-sound"
 
 interface VoiceControllerProps {
   onTranscript: (text: string) => void
   disabled?: boolean
+  /** Bumped externally (e.g. wake word) to start listening automatically. */
+  listenSignal?: number
+  /** Bumped externally (e.g. Stop) to stop listening immediately. */
+  stopSignal?: number
 }
 
-export function VoiceController({ onTranscript, disabled }: VoiceControllerProps) {
+export function VoiceController({ onTranscript, disabled, listenSignal, stopSignal }: VoiceControllerProps) {
   const [language, setLanguage] = useState("en-IN")
   const { isSupported, isListening, transcript, interimTranscript, error, start, stop, reset } =
     useSpeechRecognition(language)
@@ -34,6 +38,27 @@ export function VoiceController({ onTranscript, disabled }: VoiceControllerProps
     }
   }, [disabled, isListening, stop])
 
+  // Auto-start listening when the wake word fires (handoff from KWS to STT).
+  const lastSignalRef = useRef(0)
+  useEffect(() => {
+    if (!listenSignal || listenSignal === lastSignalRef.current) return
+    lastSignalRef.current = listenSignal
+    if (!isSupported || disabled) return
+    playPromptSound("enable")
+    start()
+  }, [listenSignal, isSupported, disabled, start])
+
+  // Stop listening when an external stop is requested.
+  const lastStopRef = useRef(0)
+  useEffect(() => {
+    if (!stopSignal || stopSignal === lastStopRef.current) return
+    lastStopRef.current = stopSignal
+    if (isListening) {
+      stop()
+      playPromptSound("disable")
+    }
+  }, [stopSignal, isListening, stop])
+
   const handleClick = useCallback(() => {
     if (isListening) {
       stop()
@@ -45,7 +70,11 @@ export function VoiceController({ onTranscript, disabled }: VoiceControllerProps
   }, [isListening, stop, start])
 
   if (!isSupported) {
-    return null
+    return (
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        Voice input isn&apos;t supported in this browser — please type your question.
+      </p>
+    )
   }
 
   return (

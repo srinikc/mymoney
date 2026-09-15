@@ -11,7 +11,21 @@ import type {
   AssistantPendingAction,
   ConversationModality,
   MessageModality,
+  MessageMetadata,
 } from "@/shared/assistant"
+
+/** Initial greeting shown when the panel opens. */
+function greetingMessage(): AssistantMessage {
+  return {
+    id: Date.now(),
+    conversationId: 0,
+    role: "assistant",
+    content:
+      "Hi! I'm your MyMoney assistant. Ask about spending, budgets, goals or investments — or tap the mic and just talk.",
+    modality: "text",
+    createdAt: new Date(),
+  }
+}
 
 interface UseAssistantReturn {
   // State
@@ -27,10 +41,12 @@ interface UseAssistantReturn {
   rejectAction: () => Promise<void>
   clearMessages: () => void
   setConversationId: (id: number | null) => void
+  /** Append a local assistant message (not sent to the API). Returns its id. */
+  appendAssistantMessage: (content: string, metadata?: MessageMetadata) => number
 }
 
 export function useAssistant(): UseAssistantReturn {
-  const [messages, setMessages] = useState<AssistantMessage[]>([])
+  const [messages, setMessages] = useState<AssistantMessage[]>(() => [greetingMessage()])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [conversationId, setConversationId] = useState<number | null>(null)
@@ -190,11 +206,31 @@ export function useAssistant(): UseAssistantReturn {
   }, [pendingAction, conversationId])
 
   const clearMessages = useCallback(() => {
-    setMessages([])
+    setMessages([greetingMessage()])
     setConversationId(null)
     setPendingAction(null)
     setError(null)
   }, [])
+
+  const appendAssistantMessage = useCallback(
+    (content: string, metadata?: MessageMetadata): number => {
+      const id = Date.now()
+      setMessages((prev) => [
+        ...prev,
+        {
+          id,
+          conversationId: conversationId || 0,
+          role: "assistant",
+          content,
+          modality: "text",
+          metadata,
+          createdAt: new Date(),
+        },
+      ])
+      return id
+    },
+    [conversationId],
+  )
 
   return {
     messages,
@@ -207,5 +243,6 @@ export function useAssistant(): UseAssistantReturn {
     rejectAction,
     clearMessages,
     setConversationId,
+    appendAssistantMessage,
   }
 }

@@ -6,7 +6,7 @@ import { loadSentencePiece, phraseToBpeTokens, loadVocabulary, validateTokens } 
 import path from "node:path"
 
 const MODEL_DIR = path.join(process.cwd(), "public", "kws-models", "sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01")
-const DEFAULT_PHRASE = "Hey MyMoney"
+const DEFAULT_PHRASE = "Hey My Money"
 
 export async function GET() {
   try {

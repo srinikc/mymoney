@@ -3,7 +3,8 @@
 // Supports 12 Indian languages + English.
 
 import type { AssistantIntent, ParsedIntent, ParsedEntities } from "@/shared/assistant"
-import { normalizeText, extractAmount, extractDate } from "./normalizer"
+import { normalizeText, extractAmount, extractDate, extractPeriod } from "./normalizer"
+import { resolveDomain, resolveNavigation } from "@/ai/assistant/domains"
 
 // ── Language-Specific Patterns ───────────────────────────────────────────
 
@@ -22,7 +23,16 @@ interface LanguagePatterns {
   query_investments: RegExp[]
   query_income: RegExp[]
   query_transactions: RegExp[]
+  // Optional (English only for now) — other languages omit these.
+  add_investment?: RegExp[]
+  add_goal?: RegExp[]
+  add_subscription?: RegExp[]
+  add_insurance?: RegExp[]
 }
+
+// Month names/abbreviations for period-aware queries ("july transactions").
+const EN_MONTH =
+  "jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"
 
 const EN_PATTERNS: LanguagePatterns = {
   greeting: [
@@ -48,6 +58,8 @@ const EN_PATTERNS: LanguagePatterns = {
     /\b(for|on|at|from)\b.*\b(expense|cost|bill|fee|charge|rent|emi)\b/i,
     /\b\w+\s*(rupees|rs|inr|₹)\b/i,
     /\b(kharcha|kiraya|bill|fee|charge)\b/i,
+    // "add 500 ...", "log 200 ..."
+    /\b(add|log|record|track)\s+\d+/i,
   ],
   add_income: [
     /\b(received|got|earned|salary|income|credit|bonus|incentive|refund|cashback)\b.*\b\d+/i,
@@ -66,6 +78,19 @@ const EN_PATTERNS: LanguagePatterns = {
     /\b(keep|limit|cap|restrict)\b.*\b(spend|spending|expense)\b/i,
     /\b(not exceed|under|within)\b.*\b\d+/i,
   ],
+  add_investment: [
+    /\b(add|record|log|create|track)\b.*\b(investment|invest|sip|mutual fund|stock|equity|fd|fixed deposit)\b/i,
+    /\b(i|we)\b.*\b(invested|bought)\b.*\b\d+/i,
+  ],
+  add_goal: [
+    /\b(add|create|set|start|make)\b.*\b(goal|target|savings goal)\b/i,
+  ],
+  add_subscription: [
+    /\b(add|create|set|subscribe)\b.*\b(subscription|recurring)\b/i,
+  ],
+  add_insurance: [
+    /\b(add|record|create|bought)\b.*\b(insurance|policy|polic(y|ies)|lic)\b/i,
+  ],
   query_spending: [
     /\b(how much|what.{0,3}s|show|tell|give).*(spent|spend|expense|expenditure|paid)\b/i,
     /\b(last|this|previous)\s+(month|week|year)\b.*\b(spend|paid|expense)/i,
@@ -73,6 +98,7 @@ const EN_PATTERNS: LanguagePatterns = {
     /\bwhere\b.*\b(spend|spent|money|expense)/i,
     /\b(total|overall)\s+(spend|spent|expense|expenses)\b/i,
     /\bspending\b/i,
+    new RegExp(`\\b(${EN_MONTH})\\b.*\\b(spend|spent|expense|expenses|spending)\\b`, "i"),
   ],
   query_budget: [
     /\b(over|exceed|exceeding|exceeded|breach|went over)\b.*\b(budget|limit|spend)/i,
@@ -101,6 +127,8 @@ const EN_PATTERNS: LanguagePatterns = {
     /\b(show|tell|give|list|what).*(transaction|purchase|payment)s?\b/i,
     /\bwhat did i (buy|purchase|pay|spend)/i,
     /\bwhere did i (spend|pay|buy)/i,
+    new RegExp(`\\b(${EN_MONTH})\\b.*\\b(transaction|purchase|payment|expense)s?\\b`, "i"),
+    new RegExp(`\\b(transaction|purchase|payment|expense)s?\\b.*\\b(${EN_MONTH})\\b`, "i"),
   ],
 }
 
@@ -906,6 +934,18 @@ export function detectIntent(text: string, language = "en-IN"): ParsedIntent {
   const normalized = normalizeText(text)
   const patterns = LANGUAGE_PATTERN_MAP[language] || EN_PATTERNS
 
+  // Explicit navigation wins: "open budgets", "go to loans", "take me to tax".
+  if (/\b(open|go to|goto|navigate to|take me to|jump to)\b/i.test(normalized)) {
+    const nav = resolveNavigation(normalized)
+    if (nav) {
+      return {
+        intent: "navigate",
+        confidence: "high",
+        entities: { ...extractEntities(normalized), path: nav.path, name: nav.label },
+      }
+    }
+  }
+
   // Check each intent pattern, return first match with highest confidence
   const intents: Array<{ intent: AssistantIntent; confidence: "high" | "medium" | "low" }> = []
 
@@ -923,8 +963,16 @@ export function detectIntent(text: string, language = "en-IN"): ParsedIntent {
     }
   }
 
-  // If no intent matched, return unknown
+  // If no intent matched, try a data domain (deterministic, no LLM), else unknown
   if (intents.length === 0) {
+    const domain = resolveDomain(normalized)
+    if (domain) {
+      return {
+        intent: "query_domain",
+        confidence: "medium",
+        entities: { ...extractEntities(normalized), domain: domain.key },
+      }
+    }
     return {
       intent: "unknown",
       confidence: "low",
@@ -944,9 +992,12 @@ export function detectIntent(text: string, language = "en-IN"): ParsedIntent {
  * Extract entities from normalized text.
  */
 export function extractEntities(text: string): ParsedEntities {
+  const period = extractPeriod(text)
   return {
     amount: extractAmount(text),
     date: extractDate(text),
+    month: period.month,
+    year: period.year,
     // Category and vendor extraction will be handled by the entity extractor
   }
 }

@@ -13,13 +13,8 @@ import { TextComposer } from "./TextComposer"
 import { VoiceController } from "./VoiceController"
 import { SuggestionChips } from "./SuggestionChips"
 import { ConfirmationCard } from "./ConfirmationCard"
-import {
-  speak,
-  stopSpeaking,
-  getAvailableVoices,
-  getSelectedVoiceName,
-  setSelectedVoiceName,
-} from "@/lib/speech-synthesis"
+import { speakText, stopTts } from "@/lib/tts-client"
+import { EDGE_VOICES, defaultEdgeVoice } from "@/shared/tts-voices"
 
 interface AssistantPanelProps {
   isOpen: boolean
@@ -53,9 +48,19 @@ export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWo
   const [autoListenKey, setAutoListenKey] = useState(0)
   const [stopSignal, setStopSignal] = useState(0)
   const [voiceName, setVoiceName] = useState("")
-  const [voices, setVoices] = useState<{ name: string; lang: string }[]>([])
   const lastHandledIdRef = useRef<number | null>(null)
   const wakeWelcomeIdRef = useRef<number | null>(null)
+
+  // Persisted natural-voice choice.
+  useEffect(() => {
+    try { const v = localStorage.getItem("mm-assistant-edge-voice"); if (v) setVoiceName(v) } catch { /* ignore */ }
+  }, [])
+  useEffect(() => {
+    try {
+      if (voiceName) localStorage.setItem("mm-assistant-edge-voice", voiceName)
+      else localStorage.removeItem("mm-assistant-edge-voice")
+    } catch { /* ignore */ }
+  }, [voiceName])
 
   // Wrap sends so any manual/voice message resumes a paused conversation.
   const send = useCallback(
@@ -73,23 +78,9 @@ export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWo
 
   // Stop everything: speech, listening, and the auto-listen loop.
   const handleStop = useCallback(() => {
-    stopSpeaking()
+    stopTts()
     setStopSignal((n) => n + 1)
     setPaused(true)
-  }, [])
-
-  // Load available TTS voices (they arrive asynchronously).
-  useEffect(() => {
-    const load = () => {
-      const list = getAvailableVoices().map((v) => ({ name: v.name, lang: v.lang }))
-      setVoices(list)
-      setVoiceName(getSelectedVoiceName() ?? "")
-    }
-    load()
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.addEventListener("voiceschanged", load)
-      return () => window.speechSynthesis.removeEventListener("voiceschanged", load)
-    }
   }, [])
 
   // Restore preferences
@@ -131,7 +122,7 @@ export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWo
     const afterSpeech = () => {
       if (conversationMode && !pausedRef.current) setAutoListenKey((k) => k + 1)
     }
-    if (speakReplies) speak(welcome, "en-IN", afterSpeech)
+    if (speakReplies) void speakText(welcome, "en-IN", voiceName || defaultEdgeVoice("en-IN"), afterSpeech)
     else afterSpeech()
     // Only re-run when the wake signal changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -158,13 +149,13 @@ export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWo
     const afterSpeech = () => {
       if (conversationMode && !pausedRef.current) setAutoListenKey((k) => k + 1)
     }
-    if (speakReplies) speak(last.content, "en-IN", afterSpeech)
+    if (speakReplies) void speakText(last.content, "en-IN", voiceName || defaultEdgeVoice("en-IN"), afterSpeech)
     else afterSpeech()
-  }, [messages, speakReplies, conversationMode, router, onClose])
+  }, [messages, speakReplies, conversationMode, router, onClose, voiceName])
 
   // Stop any speech when the panel closes.
   useEffect(() => {
-    if (!isOpen) stopSpeaking()
+    if (!isOpen) stopTts()
   }, [isOpen])
 
   if (!isOpen) return null
@@ -270,7 +261,7 @@ export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWo
           {/* Assistant behaviour toggles */}
           <div className="flex flex-wrap items-center gap-2 px-4 pt-2 text-[11px] text-gray-500 dark:text-gray-400">
             <button
-              onClick={() => { setSpeakReplies((v) => { if (v) stopSpeaking(); return !v }) }}
+              onClick={() => { setSpeakReplies((v) => { if (v) stopTts(); return !v }) }}
               className={`flex items-center gap-1 rounded-md px-2 py-1 transition-colors ${speakReplies ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300" : "hover:bg-gray-100 dark:hover:bg-gray-800"}`}
               title={speakReplies ? "Spoken replies: on" : "Spoken replies: off"}
             >
@@ -293,19 +284,17 @@ export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWo
               <Square className="w-3.5 h-3.5" />
               Stop
             </button>
-            {voices.length > 0 && (
-              <select
-                value={voiceName}
-                onChange={(e) => { setVoiceName(e.target.value); setSelectedVoiceName(e.target.value) }}
-                className="ml-auto max-w-[150px] rounded-md border border-gray-200 bg-gray-50 px-1.5 py-1 text-[11px] text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                title="Assistant voice"
-              >
-                <option value="">Default voice</option>
-                {voices.map((v) => (
-                  <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>
-                ))}
-              </select>
-            )}
+            <select
+              value={voiceName}
+              onChange={(e) => setVoiceName(e.target.value)}
+              className="ml-auto max-w-[170px] rounded-md border border-gray-200 bg-gray-50 px-1.5 py-1 text-[11px] text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+              title="Assistant voice"
+            >
+              <option value="">Default voice</option>
+              {EDGE_VOICES.map((v) => (
+                <option key={v.id} value={v.id}>{v.label}</option>
+              ))}
+            </select>
           </div>
 
           {/* Text input */}

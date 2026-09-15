@@ -1,7 +1,7 @@
 // ── AssistantSheet (Mobile) ─────────────────────────────────────────────
 // Bottom sheet for the unified assistant (mobile version).
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import {
   View,
   Text,
@@ -14,8 +14,10 @@ import {
   ActivityIndicator,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
+import { useRouter } from "expo-router"
 import { useAssistant } from "../../hooks/useAssistant"
 import { useSpeechRecognition } from "../../hooks/useSpeechRecognition"
+import { speakText, stopTts } from "../../lib/tts"
 import { Colors } from "../../constants/Colors"
 import { useColorScheme } from "react-native"
 
@@ -24,6 +26,8 @@ interface Props {
   onClose: () => void
   wakeWordActive?: boolean
   onToggleWakeWord?: () => void
+  /** Bumped when the wake word fires. */
+  listenSignal?: number
 }
 
 const SUGGESTIONS = [
@@ -34,9 +38,10 @@ const SUGGESTIONS = [
   "Set a budget",
 ]
 
-export function AssistantSheet({ visible, onClose, wakeWordActive, onToggleWakeWord }: Props) {
+export function AssistantSheet({ visible, onClose, wakeWordActive, onToggleWakeWord, listenSignal }: Props) {
   const colorScheme = useColorScheme()
   const theme = colorScheme === "dark" ? Colors.dark : Colors.light
+  const router = useRouter()
   const {
     messages,
     isLoading,
@@ -45,9 +50,110 @@ export function AssistantSheet({ visible, onClose, wakeWordActive, onToggleWakeW
     sendMessage,
     confirmAction,
     rejectAction,
+    appendAssistantMessage,
   } = useAssistant()
   const [input, setInput] = useState("")
   const scrollViewRef = useRef<ScrollView>(null)
+  const {
+    isSupported,
+    isListening,
+    transcript,
+    interimTranscript,
+    error: speechError,
+    start,
+    stop,
+    reset,
+  } = useSpeechRecognition()
+
+  const [speakReplies, setSpeakReplies] = useState(true)
+  const [conversationMode, setConversationMode] = useState(true)
+  const [paused, setPaused] = useState(false)
+  const [autoListenKey, setAutoListenKey] = useState(0)
+  const pausedRef = useRef(false)
+  const lastHandledIdRef = useRef<number | null>(null)
+  const wakeWelcomeIdRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    pausedRef.current = paused
+  }, [paused])
+
+  // Sending a message resumes a stopped conversation.
+  const send = useCallback(
+    (text: string, modality: "text" | "voice" = "text") => {
+      setPaused(false)
+      return sendMessage(text, modality)
+    },
+    [sendMessage],
+  )
+
+  // Wake word fired: greet with date/time, speak it, then listen.
+  useEffect(() => {
+    if (!listenSignal) return
+    const now = new Date()
+    const dateStr = now.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    const timeStr = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
+    const welcome = `👋 Welcome! It's ${dateStr}, ${timeStr}. What would you like to do?`
+    wakeWelcomeIdRef.current = appendAssistantMessage(welcome)
+    const after = () => {
+      if (conversationMode && !pausedRef.current) setAutoListenKey((k) => k + 1)
+    }
+    if (speakReplies) speakText(welcome, "en-IN", after)
+    else after()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listenSignal])
+
+  // Auto-listen whenever the signal changes.
+  useEffect(() => {
+    if (!autoListenKey || !isSupported || !visible) return
+    reset()
+    start("en-IN", false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoListenKey])
+
+  // Send the recognised query.
+  useEffect(() => {
+    if (transcript) {
+      void send(transcript, "voice")
+      reset()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transcript])
+
+  // New assistant reply: navigate, speak it, then listen again.
+  useEffect(() => {
+    const last = messages.at(-1)
+    if (!last || last.role !== "assistant") return
+    if (lastHandledIdRef.current === last.id) return
+    if (wakeWelcomeIdRef.current === last.id) return
+    lastHandledIdRef.current = last.id
+    const nav = last.metadata?.navigation as { path: string; label: string } | undefined
+    if (nav) {
+      router.push(nav.path as never)
+      onClose()
+      return
+    }
+    const after = () => {
+      if (conversationMode && !pausedRef.current) setAutoListenKey((k) => k + 1)
+    }
+    if (speakReplies) speakText(last.content, "en-IN", after)
+    else after()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages])
+
+  // Stop speech/listening when the sheet closes.
+  useEffect(() => {
+    if (!visible) {
+      stop()
+      stopTts()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible])
+
+  const handleStop = useCallback(() => {
+    stopTts()
+    stop()
+    setPaused(true)
+  }, [stop])
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -60,13 +166,13 @@ export function AssistantSheet({ visible, onClose, wakeWordActive, onToggleWakeW
 
   const handleSend = () => {
     if (input.trim() && !isLoading) {
-      sendMessage(input.trim())
+      void send(input.trim(), "text")
       setInput("")
     }
   }
 
   const handleSuggestion = (suggestion: string) => {
-    sendMessage(suggestion)
+    void send(suggestion, "text")
   }
 
   return (
@@ -370,6 +476,66 @@ export function AssistantSheet({ visible, onClose, wakeWordActive, onToggleWakeW
               </View>
             )}
 
+            {/* Assistant behaviour toggles */}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                flexWrap: "wrap",
+                paddingHorizontal: 16,
+                paddingBottom: 6,
+                gap: 8,
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => { setSpeakReplies((v) => { if (v) stopTts(); return !v }) }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                  backgroundColor: speakReplies ? theme.primary + "22" : theme.background,
+                }}
+              >
+                <Ionicons name={speakReplies ? "volume-high" : "volume-mute"} size={14} color={theme.textSecondary} />
+                <Text style={{ fontSize: 11, color: theme.textSecondary }}>{speakReplies ? "Voice on" : "Voice off"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setConversationMode((v) => !v)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                  backgroundColor: conversationMode ? theme.primary + "22" : theme.background,
+                }}
+              >
+                <Ionicons name="repeat" size={14} color={theme.textSecondary} />
+                <Text style={{ fontSize: 11, color: theme.textSecondary }}>{conversationMode ? "Hands-free" : "Manual"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleStop}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                  backgroundColor: theme.background,
+                }}
+              >
+                <Ionicons name="square" size={14} color={theme.expense} />
+                <Text style={{ fontSize: 11, color: theme.expense }}>Stop</Text>
+              </TouchableOpacity>
+              {isListening && <Text style={{ fontSize: 11, color: "#22C55E" }}>Listening…</Text>}
+              {speechError && <Text style={{ fontSize: 11, color: theme.expense }}>{speechError}</Text>}
+            </View>
+
             {/* Input */}
             <View
               style={{
@@ -382,6 +548,20 @@ export function AssistantSheet({ visible, onClose, wakeWordActive, onToggleWakeW
                 gap: 8,
               }}
             >
+              <TouchableOpacity
+                onPress={() => { if (isListening) stop(); else start("en-IN", false) }}
+                disabled={!isSupported}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: isListening ? "#EF4444" : theme.background,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name={isListening ? "mic-off" : "mic"} size={18} color={isListening ? "#FFF" : theme.textSecondary} />
+              </TouchableOpacity>
               <TextInput
                 value={input}
                 onChangeText={setInput}

@@ -15,7 +15,7 @@ import { playPromptSound } from "@/lib/prompt-sound"
 function MyMoneyAssistantInner() {
   const [isOpen, setIsOpen] = useState(false)
   const [listenSignal, setListenSignal] = useState(0)
-  const { isActive: wakeWordActive, isTriggered, error: wakeWordError, loadProgress, toggle: toggleWakeWord, resetTrigger } = useWakeWord()
+  const { isActive: wakeWordActive, isTriggered, error: wakeWordError, loadProgress, toggle: toggleWakeWord, resetTrigger, start: startWakeWord, stop: stopWakeWord } = useWakeWord()
 
   const handleClose = useCallback(() => setIsOpen(false), [])
   // Opening the assistant is a strong signal the user will use voice — start
@@ -31,6 +31,24 @@ function MyMoneyAssistantInner() {
   const isOpenRef = useRef(isOpen)
   useEffect(() => {
     isOpenRef.current = isOpen
+  }, [isOpen])
+
+  // Pause wake-word listening while the assistant is open (the mic is now
+  // busy with speech-to-text and TTS would otherwise re-trigger the phrase),
+  // then resume it when the panel closes.
+  const wasWakeActiveRef = useRef(false)
+  useEffect(() => {
+    if (isOpen) {
+      if (wakeWordActive) {
+        wasWakeActiveRef.current = true
+        stopWakeWord()
+      }
+    } else if (wasWakeActiveRef.current) {
+      wasWakeActiveRef.current = false
+      startWakeWord()
+    }
+    // Only react to open/close.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen])
 
   // Wake word: greet + open + hand off to voice capture (only when closed).

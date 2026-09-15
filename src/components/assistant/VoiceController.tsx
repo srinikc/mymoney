@@ -14,9 +14,11 @@ interface VoiceControllerProps {
   disabled?: boolean
   /** Bumped externally (e.g. wake word) to start listening automatically. */
   listenSignal?: number
+  /** Bumped externally (e.g. Stop) to stop listening immediately. */
+  stopSignal?: number
 }
 
-export function VoiceController({ onTranscript, disabled, listenSignal }: VoiceControllerProps) {
+export function VoiceController({ onTranscript, disabled, listenSignal, stopSignal }: VoiceControllerProps) {
   const [language, setLanguage] = useState("en-IN")
   const { isSupported, isListening, transcript, interimTranscript, error, start, stop, reset } =
     useSpeechRecognition(language)
@@ -45,6 +47,17 @@ export function VoiceController({ onTranscript, disabled, listenSignal }: VoiceC
     playPromptSound("enable")
     start()
   }, [listenSignal, isSupported, disabled, start])
+
+  // Stop listening when an external stop is requested.
+  const lastStopRef = useRef(0)
+  useEffect(() => {
+    if (!stopSignal || stopSignal === lastStopRef.current) return
+    lastStopRef.current = stopSignal
+    if (isListening) {
+      stop()
+      playPromptSound("disable")
+    }
+  }, [stopSignal, isListening, stop])
 
   const handleClick = useCallback(() => {
     if (isListening) {

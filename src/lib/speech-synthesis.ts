@@ -9,6 +9,55 @@ export function isTtsSupported(): boolean {
   return typeof window !== "undefined" && "speechSynthesis" in window
 }
 
+const VOICE_KEY = "mm-assistant-voice"
+
+/** All installed voices (empty until the browser has loaded them). */
+export function getAvailableVoices(): SpeechSynthesisVoice[] {
+  if (!isTtsSupported()) return []
+  try {
+    return window.speechSynthesis.getVoices()
+  } catch {
+    return []
+  }
+}
+
+/** The user's chosen voice name, if any. */
+export function getSelectedVoiceName(): string | null {
+  try {
+    return localStorage.getItem(VOICE_KEY)
+  } catch {
+    return null
+  }
+}
+
+/** Persist the user's chosen voice name. */
+export function setSelectedVoiceName(name: string): void {
+  try {
+    if (name) localStorage.setItem(VOICE_KEY, name)
+    else localStorage.removeItem(VOICE_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Pick the most natural-sounding voice for a language. */
+function pickVoice(language: string): SpeechSynthesisVoice | null {
+  const voices = getAvailableVoices()
+  if (voices.length === 0) return null
+  const selectedName = getSelectedVoiceName()
+  const selected = selectedName ? voices.find((v) => v.name === selectedName) : null
+  if (selected) return selected
+
+  const langVoices = voices.filter((v) => v.lang === language || v.lang.startsWith(language.slice(0, 2)))
+  const pool = langVoices.length > 0 ? langVoices : voices
+  // Prefer the higher-quality voices shipped by Chrome/Edge/macOS.
+  return (
+    pool.find((v) => /natural|neural|online|premium|enhanced/i.test(v.name)) ??
+    pool.find((v) => /google/i.test(v.name)) ??
+    pool[0]
+  )
+}
+
 /**
  * Strip markdown/emojis so the spoken output sounds natural.
  */
@@ -47,10 +96,8 @@ export function speak(text: string, language = "en-IN", onEnd?: () => void): voi
     utterance.lang = language
     utterance.rate = 1
     utterance.pitch = 1
-    const voices = window.speechSynthesis.getVoices()
-    const exact = voices.find((v) => v.lang === language)
-    const prefix = voices.find((v) => v.lang.startsWith(language.slice(0, 2)))
-    utterance.voice = exact ?? prefix ?? null
+    const voice = pickVoice(language)
+    if (voice) utterance.voice = voice
     if (onEnd) {
       utterance.addEventListener("end", finish)
       utterance.addEventListener("error", finish)

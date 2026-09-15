@@ -23,6 +23,11 @@ interface LanguagePatterns {
   query_investments: RegExp[]
   query_income: RegExp[]
   query_transactions: RegExp[]
+  // Optional (English only for now) — other languages omit these.
+  add_investment?: RegExp[]
+  add_goal?: RegExp[]
+  add_subscription?: RegExp[]
+  add_insurance?: RegExp[]
 }
 
 // Month names/abbreviations for period-aware queries ("july transactions").
@@ -53,6 +58,8 @@ const EN_PATTERNS: LanguagePatterns = {
     /\b(for|on|at|from)\b.*\b(expense|cost|bill|fee|charge|rent|emi)\b/i,
     /\b\w+\s*(rupees|rs|inr|₹)\b/i,
     /\b(kharcha|kiraya|bill|fee|charge)\b/i,
+    // "add 500 ...", "log 200 ..."
+    /\b(add|log|record|track)\s+\d+/i,
   ],
   add_income: [
     /\b(received|got|earned|salary|income|credit|bonus|incentive|refund|cashback)\b.*\b\d+/i,
@@ -70,6 +77,19 @@ const EN_PATTERNS: LanguagePatterns = {
     /\b(my|our)\b.*\b(budget|limit)\b.*\b(should be|is|will be|for)\b/i,
     /\b(keep|limit|cap|restrict)\b.*\b(spend|spending|expense)\b/i,
     /\b(not exceed|under|within)\b.*\b\d+/i,
+  ],
+  add_investment: [
+    /\b(add|record|log|create|track)\b.*\b(investment|invest|sip|mutual fund|stock|equity|fd|fixed deposit)\b/i,
+    /\b(i|we)\b.*\b(invested|bought)\b.*\b\d+/i,
+  ],
+  add_goal: [
+    /\b(add|create|set|start|make)\b.*\b(goal|target|savings goal)\b/i,
+  ],
+  add_subscription: [
+    /\b(add|create|set|subscribe)\b.*\b(subscription|recurring)\b/i,
+  ],
+  add_insurance: [
+    /\b(add|record|create|bought)\b.*\b(insurance|policy|polic(y|ies)|lic)\b/i,
   ],
   query_spending: [
     /\b(how much|what.{0,3}s|show|tell|give).*(spent|spend|expense|expenditure|paid)\b/i,

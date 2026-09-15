@@ -3,8 +3,8 @@
 
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { X, Trash2, Mic, MicOff, Volume2, VolumeX, Repeat } from "lucide-react"
+import { useState, useEffect, useRef, useCallback } from "react"
+import { X, Trash2, Mic, MicOff, Volume2, VolumeX, Repeat, Square } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { resolvePageContext } from "@/ai/assistant/page-context"
 import { useAssistant } from "./useAssistant"
@@ -13,7 +13,13 @@ import { TextComposer } from "./TextComposer"
 import { VoiceController } from "./VoiceController"
 import { SuggestionChips } from "./SuggestionChips"
 import { ConfirmationCard } from "./ConfirmationCard"
-import { speak, stopSpeaking } from "@/lib/speech-synthesis"
+import {
+  speak,
+  stopSpeaking,
+  getAvailableVoices,
+  getSelectedVoiceName,
+  setSelectedVoiceName,
+} from "@/lib/speech-synthesis"
 
 interface AssistantPanelProps {
   isOpen: boolean
@@ -43,9 +49,48 @@ export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWo
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [speakReplies, setSpeakReplies] = useState(true)
   const [conversationMode, setConversationMode] = useState(true)
+  const [paused, setPaused] = useState(false)
   const [autoListenKey, setAutoListenKey] = useState(0)
+  const [stopSignal, setStopSignal] = useState(0)
+  const [voiceName, setVoiceName] = useState("")
+  const [voices, setVoices] = useState<{ name: string; lang: string }[]>([])
   const lastHandledIdRef = useRef<number | null>(null)
   const wakeWelcomeIdRef = useRef<number | null>(null)
+
+  // Wrap sends so any manual/voice message resumes a paused conversation.
+  const send = useCallback(
+    (text: string, modality: "text" | "voice" = "text") => {
+      setPaused(false)
+      return sendMessage(text, modality)
+    },
+    [sendMessage],
+  )
+
+  const pausedRef = useRef(false)
+  useEffect(() => {
+    pausedRef.current = paused
+  }, [paused])
+
+  // Stop everything: speech, listening, and the auto-listen loop.
+  const handleStop = useCallback(() => {
+    stopSpeaking()
+    setStopSignal((n) => n + 1)
+    setPaused(true)
+  }, [])
+
+  // Load available TTS voices (they arrive asynchronously).
+  useEffect(() => {
+    const load = () => {
+      const list = getAvailableVoices().map((v) => ({ name: v.name, lang: v.lang }))
+      setVoices(list)
+      setVoiceName(getSelectedVoiceName() ?? "")
+    }
+    load()
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.addEventListener("voiceschanged", load)
+      return () => window.speechSynthesis.removeEventListener("voiceschanged", load)
+    }
+  }, [])
 
   // Restore preferences
   useEffect(() => {
@@ -84,7 +129,7 @@ export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWo
     const welcome = `👋 Welcome! It's ${dateStr}, ${timeStr}. What would you like to do?`
     wakeWelcomeIdRef.current = appendAssistantMessage(welcome)
     const afterSpeech = () => {
-      if (conversationMode) setAutoListenKey((k) => k + 1)
+      if (conversationMode && !pausedRef.current) setAutoListenKey((k) => k + 1)
     }
     if (speakReplies) speak(welcome, "en-IN", afterSpeech)
     else afterSpeech()
@@ -111,7 +156,7 @@ export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWo
     }
 
     const afterSpeech = () => {
-      if (conversationMode) setAutoListenKey((k) => k + 1)
+      if (conversationMode && !pausedRef.current) setAutoListenKey((k) => k + 1)
     }
     if (speakReplies) speak(last.content, "en-IN", afterSpeech)
     else afterSpeech()
@@ -207,7 +252,7 @@ export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWo
 
         {/* Suggestions (until the user sends something) */}
         {!messages.some((m) => m.role === "user") && (
-          <SuggestionChips suggestions={suggestions} onSelect={sendMessage} />
+          <SuggestionChips suggestions={suggestions} onSelect={(t) => void send(t, "text")} />
         )}
 
         {/* Input area */}
@@ -215,21 +260,22 @@ export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWo
           {/* Voice controls */}
           <div className="px-4 pt-3">
             <VoiceController
-              onTranscript={(text) => sendMessage(text, "voice")}
+              onTranscript={(text) => void send(text, "voice")}
               disabled={isLoading}
               listenSignal={effectiveListenSignal}
+              stopSignal={stopSignal}
             />
           </div>
 
           {/* Assistant behaviour toggles */}
-          <div className="flex items-center gap-3 px-4 pt-2 text-[11px] text-gray-500 dark:text-gray-400">
+          <div className="flex flex-wrap items-center gap-2 px-4 pt-2 text-[11px] text-gray-500 dark:text-gray-400">
             <button
               onClick={() => { setSpeakReplies((v) => { if (v) stopSpeaking(); return !v }) }}
               className={`flex items-center gap-1 rounded-md px-2 py-1 transition-colors ${speakReplies ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300" : "hover:bg-gray-100 dark:hover:bg-gray-800"}`}
               title={speakReplies ? "Spoken replies: on" : "Spoken replies: off"}
             >
               {speakReplies ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-              {speakReplies ? "Voice replies on" : "Voice replies off"}
+              {speakReplies ? "Voice on" : "Voice off"}
             </button>
             <button
               onClick={() => setConversationMode((v) => !v)}
@@ -237,12 +283,33 @@ export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWo
               title={conversationMode ? "Continuous conversation: on" : "Continuous conversation: off"}
             >
               <Repeat className="w-3.5 h-3.5" />
-              {conversationMode ? "Conversation: hands-free" : "Conversation: manual"}
+              {conversationMode ? "Hands-free" : "Manual"}
             </button>
+            <button
+              onClick={handleStop}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10 transition-colors"
+              title="Stop listening and speaking"
+            >
+              <Square className="w-3.5 h-3.5" />
+              Stop
+            </button>
+            {voices.length > 0 && (
+              <select
+                value={voiceName}
+                onChange={(e) => { setVoiceName(e.target.value); setSelectedVoiceName(e.target.value) }}
+                className="ml-auto max-w-[150px] rounded-md border border-gray-200 bg-gray-50 px-1.5 py-1 text-[11px] text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                title="Assistant voice"
+              >
+                <option value="">Default voice</option>
+                {voices.map((v) => (
+                  <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Text input */}
-          <TextComposer onSend={(text) => sendMessage(text, "text")} disabled={isLoading} />
+          <TextComposer onSend={(text) => void send(text, "text")} disabled={isLoading} />
         </div>
       </div>
     </div>

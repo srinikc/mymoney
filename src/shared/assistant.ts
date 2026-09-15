@@ -41,6 +41,18 @@ export interface ToolCall {
   result?: ToolResult
 }
 
+export interface AssistantDraft {
+  kind: string
+  fields: Record<string, unknown>
+}
+
+export interface AssistantAwaiting {
+  mode: "confirm" | "field" | "offer"
+  draft: AssistantDraft
+  field?: string
+  question: string
+}
+
 export interface MessageMetadata {
   intent?: string
   confidence?: "high" | "medium" | "low"
@@ -49,6 +61,8 @@ export interface MessageMetadata {
   language?: string
   /** When the assistant should navigate the user to a page. */
   navigation?: { path: string; label: string }
+  /** Multi-turn state: a question the assistant is waiting on. */
+  awaiting?: AssistantAwaiting
 }
 
 // ── Pending Actions ─────────────────────────────────────────────────────

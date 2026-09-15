@@ -100,15 +100,29 @@ export function useWakeWord(): UseWakeWordReturn {
       setLoadProgress(0)
       cleanup()
 
-      // Step 1: Initialize WASM (~13MB, cached after first load)
-      setLoadProgress(0.1)
+      // Step 1: Request microphone access FIRST so the browser permission
+      // prompt appears immediately. (Previously this happened only after the
+      // ~13MB WASM runtime + ~6.5MB model had downloaded, delaying the prompt
+      // by 10s+ and making it look like nothing was happening.)
+      setLoadProgress(0.05)
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          channelCount: 1,
+        },
+      })
+      streamRef.current = mediaStream
+
+      // Step 2: Initialize WASM (~13MB, cached after first load)
+      setLoadProgress(0.3)
       const ready = await initSherpaWasm()
       if (!ready) {
         throw new Error("Failed to load Sherpa-ONNX WASM module")
       }
 
-      // Step 2: Fetch current wake word config from server (admin-configurable)
-      setLoadProgress(0.2)
+      // Step 3: Fetch current wake word config from server (admin-configurable)
+      setLoadProgress(0.5)
       let keywordsContent: string | undefined
       try {
         const res = await fetch("/api/admin/wake-word")
@@ -116,7 +130,7 @@ export function useWakeWord(): UseWakeWordReturn {
         if (data.bpeTokens) {
           // Server returned pre-tokenized BPE content — use it directly.
           // Label must be a single token (no spaces) or the native parser fails.
-          const phrase = (data.phrase || "Hey MyMoney").trim()
+          const phrase = (data.phrase || "Hey My Money").trim()
           const label = phrase.replaceAll(/\s+/g, "_")
           keywordsContent = `${data.bpeTokens} @${label}`
         }
@@ -124,8 +138,8 @@ export function useWakeWord(): UseWakeWordReturn {
         // Fall back to the static keywords file
       }
 
-      // Step 3: Create KWS instance with model files
-      setLoadProgress(0.3)
+      // Step 4: Create KWS instance with model files
+      setLoadProgress(0.75)
       const kws = await createKwsInstance(
         "/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01/mymoney_keywords.txt",
         keywordsContent,
@@ -135,21 +149,11 @@ export function useWakeWord(): UseWakeWordReturn {
       }
       kwsRef.current = kws
 
-      // Step 4: Request microphone access
-      setLoadProgress(0.7)
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          channelCount: 1,
-          sampleRate: 16000,
-        },
-      })
-      streamRef.current = mediaStream
-
-      // Step 5: Set up audio processing
+      // Step 5: Set up audio processing. Use the device's NATIVE sample rate —
+      // the worklet resamples to 16kHz, so requesting a 16kHz AudioContext
+      // (which browsers may ignore, breaking detection) is unnecessary.
       setLoadProgress(0.9)
-      const audioContext = new AudioContext({ sampleRate: 16000 })
+      const audioContext = new AudioContext()
       audioContextRef.current = audioContext
 
       // Ensure the context is running. Browsers start an AudioContext suspended
@@ -171,7 +175,9 @@ export function useWakeWord(): UseWakeWordReturn {
         }
       }
 
-      await audioContext.audioWorklet.addModule("/wasm/wake-word-processor.js")
+      // `?v=2` busts the long-lived immutable cache for the previous worklet
+      // (which did not resample to 16kHz).
+      await audioContext.audioWorklet.addModule("/wasm/wake-word-processor.js?v=2")
       const workletNode = new AudioWorkletNode(audioContext, "wake-word-processor")
       workletNodeRef.current = workletNode
 

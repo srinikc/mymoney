@@ -1,6 +1,6 @@
 // ── useWakeWord (Mobile) ────────────────────────────────────────────────
 // Wake word detection using Sherpa-ONNX native (free, offline, Apache 2.0).
-// Listens for the configured phrase (default "Hey MyMoney") when active.
+// Listens for the configured phrase (default "Hey My Money") when active.
 // Automatically stops when app is backgrounded.
 //
 // Architecture:
@@ -18,7 +18,7 @@ import { useAudioStream } from "expo-audio"
 interface UseWakeWordReturn {
   /** Whether wake word detection is enabled */
   isActive: boolean
-  /** Whether wake word was just detected (user said "Hey MyMoney") */
+  /** Whether wake word was just detected (user said "Hey My Money") */
   isTriggered: boolean
   /** Error message if wake word init failed */
   error: string | null

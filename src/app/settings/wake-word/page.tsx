@@ -10,7 +10,7 @@ import { toast } from "sonner"
 import { ArrowLeft, Save, Mic, Info } from "lucide-react"
 import Link from "next/link"
 
-const DEFAULT_PHRASE = "Hey MyMoney"
+const DEFAULT_PHRASE = "Hey My Money"
 
 export default function WakeWordSettingsPage() {
   const { data: session, status } = useSession()
@@ -99,7 +99,7 @@ export default function WakeWordSettingsPage() {
             <div>
               <p>Supported characters: letters (a-z, A-Z), numbers (0-9), and spaces.</p>
               <p className="mt-1">The speech model must recognize all words in the phrase. Keep it short (2-3 words) for best accuracy.</p>
-              <p className="mt-1">Examples: &quot;Hey MyMoney&quot;, &quot;Hello Finance&quot;, &quot;OK Assistant&quot;</p>
+              <p className="mt-1">Examples: &quot;Hey My Money&quot;, &quot;Hello Finance&quot;, &quot;OK Assistant&quot; (use natural, multi-word phrases)</p>
             </div>
           </div>
         </CardContent>

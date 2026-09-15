@@ -84,7 +84,7 @@ export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWo
                     ? "bg-green-500 text-white hover:bg-green-600"
                     : "text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
                 }`}
-                title={wakeWordActive ? "Wake word active — click to disable" : "Enable wake word (Hey MyMoney)"}
+                title={wakeWordActive ? "Wake word active — click to disable" : "Enable wake word (Hey My Money)"}
               >
                 {wakeWordActive ? <Mic className="w-4 h-4 animate-pulse" /> : <MicOff className="w-4 h-4" />}
               </button>

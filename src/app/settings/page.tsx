@@ -109,7 +109,7 @@ export default function SettingsPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">Configure the voice wake word phrase (e.g. &quot;Hey MyMoney&quot;) for all users</p>
+                <p className="text-sm text-muted-foreground">Configure the voice wake word phrase (e.g. &quot;Hey My Money&quot;) for all users</p>
                 <Badge variant="outline" className="mt-2 text-xs border-amber-200 text-amber-700">Admin only</Badge>
               </CardContent>
             </Card>

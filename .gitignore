@@ -37,3 +37,7 @@ public/uploads/
 
 # e2e session cookie state (never commit)
 e2e/.auth.json
+
+# Production release secrets (never commit) — see .env.production.local.example
+.env.production.local
+.env.*.local

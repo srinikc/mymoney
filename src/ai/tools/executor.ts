@@ -1,9 +1,9 @@
 // ── Tool Executor ───────────────────────────────────────────────────────
 // Executes tools with validation, auth, and confirmation policy.
 
-import type { ToolDefinition, ToolContext, ToolResult, RiskLevel } from "@/shared/assistant"
+import type { ToolContext, ToolResult, RiskLevel } from "@/shared/assistant"
 import { getToolByName } from "./registry"
-import { requiresConfirmation, getRiskLevel, getConfirmationPolicy } from "../assistant/confirmation"
+import { requiresConfirmation, getConfirmationPolicy } from "../assistant/confirmation"
 import { createPendingAction } from "../assistant/conversation"
 
 /**
@@ -84,18 +84,26 @@ export async function executeConfirmedAction(
     return { success: false, error: "Pending action not found or expired" }
   }
 
-  // Confirm the action
+  // Mark the action confirmed
   await confirmPendingAction(pendingActionId, ctx.userId)
 
-  // Execute the tool
-  const tool = getToolByName(action.toolName)
-  if (!tool) {
-    return { success: false, error: `Unknown tool: ${action.toolName}` }
+  // Execute it through the deterministic write flow (writes straight to the DB).
+  const { executeDraft, intentToWriteKind } = await import("../assistant/write-flow")
+  const kind = intentToWriteKind(action.toolName)
+  if (!kind) {
+    return { success: false, error: `Unknown action: ${action.toolName}` }
   }
 
   try {
-    const result = await tool.handler(action.args as Record<string, unknown>, ctx)
-    return result
+    const message = await executeDraft(
+      { kind, fields: (action.args as Record<string, unknown>) || {} },
+      { userId: ctx.userId, profileId: ctx.profileId },
+    )
+    return {
+      success: true,
+      message,
+      data: { toolName: action.toolName, args: action.args },
+    }
   } catch (error) {
     return {
       success: false,

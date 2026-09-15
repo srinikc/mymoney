@@ -20,6 +20,7 @@ import {
   createConversation,
   addMessage,
   getRecentMessages,
+  createPendingAction,
 } from "./conversation"
 import {
   startDraft,
@@ -235,7 +236,25 @@ export async function processInput(
     }
   }
 
-  // 6. Build metadata
+  // 6. When a draft is ready to confirm, also expose a clickable pending
+  // action so the user can Confirm/Cancel with a button (in addition to
+  // replying "yes"/"no" by voice or text).
+  if (newAwaiting?.mode === "confirm" && !pendingAction) {
+    try {
+      pendingAction = await createPendingAction({
+        conversationId,
+        userId: input.userId,
+        profileId: input.profileId,
+        toolName: newAwaiting.draft.kind,
+        args: newAwaiting.draft.fields,
+        riskLevel: "low",
+      })
+    } catch {
+      // The card is optional — the conversational yes/no still works.
+    }
+  }
+
+  // 7. Build metadata
   const latencyMs = Date.now() - startTime
   const metadata: MessageMetadata = {
     intent: parsed.intent,

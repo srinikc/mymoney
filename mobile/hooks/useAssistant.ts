@@ -22,6 +22,8 @@ interface UseAssistantReturn {
   confirmAction: () => Promise<void>
   rejectAction: () => Promise<void>
   clearMessages: () => void
+  /** Append a local assistant message (not sent to the API). Returns its id. */
+  appendAssistantMessage: (content: string, metadata?: Record<string, unknown>) => number
 }
 
 export function useAssistant(): UseAssistantReturn {
@@ -151,6 +153,26 @@ export function useAssistant(): UseAssistantReturn {
     setError(null)
   }, [])
 
+  const appendAssistantMessage = useCallback(
+    (content: string, metadata?: Record<string, unknown>): number => {
+      const id = Date.now()
+      setMessages((prev) => [
+        ...prev,
+        {
+          id,
+          conversationId: conversationId || 0,
+          role: "assistant" as AssistantMessage["role"],
+          content,
+          modality: "text" as MessageModality,
+          metadata,
+          createdAt: new Date(),
+        },
+      ])
+      return id
+    },
+    [conversationId],
+  )
+
   return {
     messages,
     isLoading,
@@ -161,5 +183,6 @@ export function useAssistant(): UseAssistantReturn {
     confirmAction,
     rejectAction,
     clearMessages,
+    appendAssistantMessage,
   }
 }

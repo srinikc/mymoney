@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   // shares chunk/cache files with the dev server (avoids ChunkLoadError).
   distDir: process.env.NEXT_DIST_DIR || ".next",
   eslint: { ignoreDuringBuilds: true },
-  serverExternalPackages: ["prisma", "@prisma/client", "pdf-parse"],
+  serverExternalPackages: ["prisma", "@prisma/client", "pdf-parse", "msedge-tts", "ws", "bufferutil", "utf-8-validate"],
   // Phase 5 (E2E row 2 of scaling_perf.md): enable Next.js built-in compression.
   // When `compress: true`, Next.js compresses HTML, CSS, JS, JSON, and SVG
   // responses with gzip when the client sends `Accept-Encoding: gzip`. On

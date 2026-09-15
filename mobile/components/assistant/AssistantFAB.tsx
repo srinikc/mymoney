@@ -13,21 +13,45 @@ import { playPromptSound } from "../../lib/prompt-sound"
 
 function AssistantFABInner() {
   const [open, setOpen] = useState(false)
+  const [listenSignal, setListenSignal] = useState(0)
   const colorScheme = useColorScheme()
   const theme = colorScheme === "dark" ? Colors.dark : Colors.light
-  const { isActive: wakeWordActive, isTriggered, error: wakeWordError, loadProgress, toggle: toggleWakeWord, resetTrigger } = useWakeWord()
+  const { isActive: wakeWordActive, isTriggered, error: wakeWordError, loadProgress, toggle: toggleWakeWord, resetTrigger, start: startWakeWord, stop: stopWakeWord } = useWakeWord()
 
   const handleClose = useCallback(() => setOpen(false), [])
   const handleOpen = useCallback(() => setOpen(true), [])
 
-  // Auto-open sheet when wake word is detected + play prompt sound
+  const openRef = useRef(open)
   useEffect(() => {
-    if (isTriggered) {
+    openRef.current = open
+  }, [open])
+
+  // Wake word: greet + open (only when closed; ignore while open).
+  useEffect(() => {
+    if (!isTriggered) return
+    if (!openRef.current) {
       void playPromptSound("wake")
       setOpen(true)
-      resetTrigger()
+      setListenSignal((n) => n + 1)
     }
+    resetTrigger()
   }, [isTriggered, resetTrigger])
+
+  // Pause wake-word listening while the sheet is open (frees the mic for STT
+  // and stops TTS re-triggering), then resume on close.
+  const wasWakeActiveRef = useRef(false)
+  useEffect(() => {
+    if (open) {
+      if (wakeWordActive) {
+        wasWakeActiveRef.current = true
+        stopWakeWord()
+      }
+    } else if (wasWakeActiveRef.current) {
+      wasWakeActiveRef.current = false
+      startWakeWord()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   // Play enable/disable prompt sound when wake word state changes
   const prevActiveRef = useRef(wakeWordActive)
@@ -78,8 +102,10 @@ function AssistantFABInner() {
             </>
           ) : (
             <>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>Listening...</Text>
+              <View style={[styles.statusDot, { backgroundColor: "#22C55E" }]} />
+              <Text style={[styles.statusText, { color: "#22C55E" }]}>
+                Wake word ready
+              </Text>
             </>
           )}
         </View>
@@ -97,6 +123,7 @@ function AssistantFABInner() {
         onClose={handleClose}
         wakeWordActive={wakeWordActive}
         onToggleWakeWord={toggleWakeWord}
+        listenSignal={listenSignal}
       />
     </>
   )

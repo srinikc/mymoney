@@ -41,6 +41,9 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 Set-Location $repoRoot
 
+# Vercel team scope that owns the `mymoney` project.
+$vercelScope = if ($env:VERCEL_SCOPE) { $env:VERCEL_SCOPE } else { "srinivas-kc-s-projects" }
+
 function Fail([string]$msg) { Write-Host "FAIL: $msg" -ForegroundColor Red; exit 1 }
 function Ok([string]$msg)   { Write-Host "OK: $msg" -ForegroundColor Green }
 function Step([string]$msg) { Write-Host ""; Write-Host "== $msg ==" -ForegroundColor Cyan }
@@ -91,7 +94,8 @@ if (-not $SkipMigrate) {
 # ── 3. Deploy (Vercel production) ──────────────────────────────────────
 if (-not $SkipDeploy) {
   Step "Deploy to Vercel (production)"
-  vercel --prod --yes; if ($LASTEXITCODE) { Fail "vercel --prod failed" }
+  # Explicit scope: the project lives under the srinivas-kc-s-projects team.
+  vercel --prod --yes --scope $vercelScope; if ($LASTEXITCODE) { Fail "vercel --prod failed" }
   Ok "Deployed"
 } else { Step "Deploy skipped" }
 

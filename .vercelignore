@@ -1,0 +1,27 @@
+# ── Build artifacts & caches ───────────────────────────────────────────
+.next
+.next-e2e
+node_modules
+*.log
+
+# ── Separate app (not part of the web deploy) ──────────────────────────
+mobile
+
+# ── Local tooling / secrets ────────────────────────────────────────────
+.vercel
+.graphify
+.opencode
+.gpay-profile
+.env
+.env.*
+uploads
+
+# ── Tests / reports ────────────────────────────────────────────────────
+e2e
+test-results
+playwright-report
+
+# ── Misc local data ────────────────────────────────────────────────────
+data
+dev-dashboard
+docs

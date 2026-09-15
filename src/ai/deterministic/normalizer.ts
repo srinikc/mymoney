@@ -200,3 +200,33 @@ export function extractDate(text: string): string | undefined {
 function formatDate(d: Date): string {
   return d.toISOString().split("T")[0]
 }
+
+const MONTH_ABBR = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+
+/**
+ * Extract a month/year period from text, e.g. "July", "last month",
+ * "this month", "June 2025". Returns month (1-12) and/or year.
+ */
+export function extractPeriod(text: string): { month?: number; year?: number } {
+  const lower = text.toLowerCase()
+  const now = new Date()
+
+  if (/\bthis\s+month\b/.test(lower)) return { month: now.getMonth() + 1, year: now.getFullYear() }
+  if (/\blast\s+month\b/.test(lower)) {
+    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    return { month: d.getMonth() + 1, year: d.getFullYear() }
+  }
+
+  const result: { month?: number; year?: number } = {}
+  if (/\bthis\s+year\b/.test(lower)) result.year = now.getFullYear()
+
+  const m = lower.match(
+    /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/,
+  )
+  if (m) result.month = MONTH_ABBR.indexOf(m[1].slice(0, 3)) + 1
+
+  const y = lower.match(/\b(20\d{2})\b/)
+  if (y) result.year = Number.parseInt(y[1], 10)
+
+  return result
+}

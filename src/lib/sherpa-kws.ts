@@ -242,3 +242,29 @@ export async function createKwsInstance(
     return null
   }
 }
+
+let warmupPromise: Promise<void> | null = null
+
+/**
+ * Warm the browser cache for the wake-word WASM runtime + KWS model so the
+ * first "enable wake word" is fast. Idempotent; safe to call repeatedly.
+ */
+export function warmupWakeWord(): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve()
+  if (warmupPromise) return warmupPromise
+  warmupPromise = (async () => {
+    const ready = await initSherpaWasm()
+    if (!ready) return
+    const base = "/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01"
+    const files = [
+      "encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx",
+      "decoder-epoch-12-avg-2-chunk-16-left-64.onnx",
+      "joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx",
+      "tokens.txt",
+    ]
+    await Promise.allSettled(files.map((f) => fetch(`${base}/${f}`, { cache: "force-cache" })))
+  })().catch(() => {
+    // best-effort warmup
+  })
+  return warmupPromise
+}

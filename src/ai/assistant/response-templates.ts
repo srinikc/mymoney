@@ -111,6 +111,8 @@ const EN_TEMPLATES: Record<AssistantIntent, (entities: ParsedEntities) => string
   query_transactions: () => {
     return "Let me find your recent transactions..."
   },
+  query_domain: () => "Let me look that up for you...",
+  navigate: (e) => (e.name ? `Opening ${e.name}…` : "Opening that page…"),
   unknown: (e) => {
     if (e.amount) {
       return `I understand you mentioned ₹${e.amount}, but I'm not sure what you'd like me to do. Could you clarify?`
@@ -190,6 +192,8 @@ const HI_TEMPLATES: Record<AssistantIntent, (entities: ParsedEntities) => string
   query_income: () => "आपकी आमदनी देख रहा हूँ...",
   query_subscriptions: () => "आपकी सब्सक्रिप्शन देख रहा हूँ...",
   query_transactions: () => "आपके हाल के लेनदेन देख रहा हूँ...",
+  query_domain: () => "मैं वह देख रहा हूँ...",
+  navigate: (e) => (e.name ? `${e.name} खोल रहा हूँ...` : "वह पेज खोल रहा हूँ..."),
   unknown: (e) => {
     if (e.amount) {
       return `आपने ₹${e.amount} का उल्लेख किया, लेकिन मुझे समझ नहीं आया आप क्या करना चाहते हैं। क्या आप स्पष्ट कर सकते हैं?`
@@ -256,6 +260,8 @@ const KN_TEMPLATES: Record<AssistantIntent, (entities: ParsedEntities) => string
   query_income: () => "ನಿಮ್ಮ ಆದಾಯ ಪರಿಶೀಲಿಸುತ್ತಿದ್ದೇನೆ...",
   query_subscriptions: () => "ನಿಮ್ಮ ಸಬ್ಸ್ಕ್ರಿಪ್ಷನ್‌ಗಳನ್ನು ಪರಿಶೀಲಿಸುತ್ತಿದ್ದೇನೆ...",
   query_transactions: () => "ನಿಮ್ಮ ಇತ್ತೀಚಿನ ವ್ಯವಹಾರಗಳನ್ನು ಹುಡುಕುತ್ತಿದ್ದೇನೆ...",
+  query_domain: () => "ಅದನ್ನು ನೋಡುತ್ತಿದ್ದೇನೆ...",
+  navigate: (e) => (e.name ? `${e.name} ತೆರೆಯುತ್ತಿದ್ದೇನೆ...` : "ಆ ಪುಟವನ್ನು ತೆರೆಯುತ್ತಿದ್ದೇನೆ..."),
   unknown: (e) => {
     if (e.amount) {
       return `ನೀವು ₹${e.amount} ಉಲ್ಲೇಖಿಸಿದ್ದೀರಿ, ಆದರೆ ನೀವು ಏನು ಮಾಡಲು ಬಯಸುತ್ತೀರಿ ಎಂದು ನನಗೆ ತಿಳಿದಿಲ್ಲ. ನೀವು ಸ್ಪಷ್ಟಪಡಿಸಬಹುದೇ?`

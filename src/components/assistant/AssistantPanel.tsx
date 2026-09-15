@@ -3,8 +3,9 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
-import { X, Trash2, Mic, MicOff } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { X, Trash2, Mic, MicOff, Volume2, VolumeX, Repeat } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { resolvePageContext } from "@/ai/assistant/page-context"
 import { useAssistant } from "./useAssistant"
 import { ConversationView } from "./ConversationView"
@@ -12,6 +13,7 @@ import { TextComposer } from "./TextComposer"
 import { VoiceController } from "./VoiceController"
 import { SuggestionChips } from "./SuggestionChips"
 import { ConfirmationCard } from "./ConfirmationCard"
+import { speak, stopSpeaking } from "@/lib/speech-synthesis"
 
 interface AssistantPanelProps {
   isOpen: boolean
@@ -34,9 +36,32 @@ export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWo
     confirmAction,
     rejectAction,
     clearMessages,
+    appendAssistantMessage,
   } = useAssistant()
 
+  const router = useRouter()
   const [suggestions, setSuggestions] = useState<string[]>([])
+  const [speakReplies, setSpeakReplies] = useState(true)
+  const [conversationMode, setConversationMode] = useState(true)
+  const [autoListenKey, setAutoListenKey] = useState(0)
+  const lastHandledIdRef = useRef<number | null>(null)
+  const wakeWelcomeIdRef = useRef<number | null>(null)
+
+  // Restore preferences
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem("mm-assistant-speak")
+      if (s !== null) setSpeakReplies(s === "1")
+      const c = localStorage.getItem("mm-assistant-conversation")
+      if (c !== null) setConversationMode(c === "1")
+    } catch { /* ignore */ }
+  }, [])
+  useEffect(() => {
+    try { localStorage.setItem("mm-assistant-speak", speakReplies ? "1" : "0") } catch { /* ignore */ }
+  }, [speakReplies])
+  useEffect(() => {
+    try { localStorage.setItem("mm-assistant-conversation", conversationMode ? "1" : "0") } catch { /* ignore */ }
+  }, [conversationMode])
 
   // Update suggestions based on current page
   useEffect(() => {
@@ -50,7 +75,58 @@ export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWo
     return () => window.removeEventListener("popstate", updateSuggestions)
   }, [])
 
+  // Wake word fired: greet with the current date/time, speak it, then listen.
+  useEffect(() => {
+    if (!listenSignal) return
+    const now = new Date()
+    const dateStr = now.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    const timeStr = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
+    const welcome = `👋 Welcome! It's ${dateStr}, ${timeStr}. What would you like to do?`
+    wakeWelcomeIdRef.current = appendAssistantMessage(welcome)
+    const afterSpeech = () => {
+      if (conversationMode) setAutoListenKey((k) => k + 1)
+    }
+    if (speakReplies) speak(welcome, "en-IN", afterSpeech)
+    else afterSpeech()
+    // Only re-run when the wake signal changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listenSignal])
+
+  // On each new assistant reply: navigate if requested, speak it, then
+  // (in conversation mode) automatically listen for the next turn.
+  useEffect(() => {
+    const last = messages.at(-1)
+    if (!last || last.role !== "assistant") return
+    if (lastHandledIdRef.current === last.id) return
+    if (wakeWelcomeIdRef.current === last.id) return // welcome handled above
+    lastHandledIdRef.current = last.id
+    if (messages.length <= 1) return // skip the opening greeting
+
+    const nav = last.metadata?.navigation
+    if (nav) {
+      setTimeout(() => {
+        router.push(nav.path)
+        onClose()
+      }, 400)
+    }
+
+    const afterSpeech = () => {
+      if (conversationMode) setAutoListenKey((k) => k + 1)
+    }
+    if (speakReplies) speak(last.content, "en-IN", afterSpeech)
+    else afterSpeech()
+  }, [messages, speakReplies, conversationMode, router, onClose])
+
+  // Stop any speech when the panel closes.
+  useEffect(() => {
+    if (!isOpen) stopSpeaking()
+  }, [isOpen])
+
   if (!isOpen) return null
+
+  // Only per-turn auto-listen drives VoiceController here; the wake signal is
+  // consumed by the welcome effect above (which listens *after* speaking).
+  const effectiveListenSignal = autoListenKey
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-end p-4">
@@ -141,8 +217,28 @@ export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWo
             <VoiceController
               onTranscript={(text) => sendMessage(text, "voice")}
               disabled={isLoading}
-              listenSignal={listenSignal}
+              listenSignal={effectiveListenSignal}
             />
+          </div>
+
+          {/* Assistant behaviour toggles */}
+          <div className="flex items-center gap-3 px-4 pt-2 text-[11px] text-gray-500 dark:text-gray-400">
+            <button
+              onClick={() => { setSpeakReplies((v) => { if (v) stopSpeaking(); return !v }) }}
+              className={`flex items-center gap-1 rounded-md px-2 py-1 transition-colors ${speakReplies ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300" : "hover:bg-gray-100 dark:hover:bg-gray-800"}`}
+              title={speakReplies ? "Spoken replies: on" : "Spoken replies: off"}
+            >
+              {speakReplies ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+              {speakReplies ? "Voice replies on" : "Voice replies off"}
+            </button>
+            <button
+              onClick={() => setConversationMode((v) => !v)}
+              className={`flex items-center gap-1 rounded-md px-2 py-1 transition-colors ${conversationMode ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300" : "hover:bg-gray-100 dark:hover:bg-gray-800"}`}
+              title={conversationMode ? "Continuous conversation: on" : "Continuous conversation: off"}
+            >
+              <Repeat className="w-3.5 h-3.5" />
+              {conversationMode ? "Conversation: hands-free" : "Conversation: manual"}
+            </button>
           </div>
 
           {/* Text input */}

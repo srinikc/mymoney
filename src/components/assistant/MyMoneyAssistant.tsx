@@ -9,6 +9,7 @@ import { MessageSquare, Mic, MicOff } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { AssistantPanel } from "./AssistantPanel"
 import { useWakeWord } from "@/hooks/useWakeWord"
+import { warmupWakeWord } from "@/lib/sherpa-kws"
 import { playPromptSound } from "@/lib/prompt-sound"
 
 function MyMoneyAssistantInner() {
@@ -17,17 +18,30 @@ function MyMoneyAssistantInner() {
   const { isActive: wakeWordActive, isTriggered, error: wakeWordError, loadProgress, toggle: toggleWakeWord, resetTrigger } = useWakeWord()
 
   const handleClose = useCallback(() => setIsOpen(false), [])
-  const handleOpen = useCallback(() => setIsOpen(true), [])
+  // Opening the assistant is a strong signal the user will use voice — start
+  // warming the wake-word assets so enabling is fast when they do.
+  const handleOpen = useCallback(() => {
+    setIsOpen(true)
+    void warmupWakeWord()
+  }, [])
 
-  // Auto-open panel when wake word is detected + play prompt sound, then
-  // hand off to voice capture so the user can speak their question.
+  // Track open state so the wake handler can ignore triggers while the panel
+  // is already open (the phrase is still audible in the mic stream, and the
+  // mic is now busy with speech-to-text).
+  const isOpenRef = useRef(isOpen)
   useEffect(() => {
-    if (isTriggered) {
+    isOpenRef.current = isOpen
+  }, [isOpen])
+
+  // Wake word: greet + open + hand off to voice capture (only when closed).
+  useEffect(() => {
+    if (!isTriggered) return
+    if (!isOpenRef.current) {
       playPromptSound("wake")
       setIsOpen(true)
       setListenSignal((n) => n + 1)
-      resetTrigger()
     }
+    resetTrigger()
   }, [isTriggered, resetTrigger])
 
   // Play enable/disable prompt sound when wake word state changes
@@ -56,6 +70,7 @@ function MyMoneyAssistantInner() {
       {/* Wake word toggle — small button above FAB */}
       <button
         onClick={toggleWakeWord}
+        onMouseEnter={() => void warmupWakeWord()}
         className={`fixed bottom-[4.5rem] right-6 z-40 w-10 h-10 rounded-full shadow-md flex items-center justify-center transition-all ${
           wakeWordActive
             ? "bg-green-500 hover:bg-green-600 text-white"

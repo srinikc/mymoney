@@ -3,20 +3,19 @@
 // No LLM needed — deterministic, fast, ₹0 cost.
 
 import { prisma } from "@/lib/prisma"
-import type { AssistantIntent } from "@/shared/assistant"
+import type { AssistantIntent, ParsedEntities } from "@/shared/assistant"
 
 export async function getReadResponse(
   intent: AssistantIntent,
   userId: number,
   profileId: number,
-  language = "en-IN"
+  _language = "en-IN",
+  entities?: ParsedEntities
 ): Promise<string> {
   const now = new Date()
   const month = now.getMonth() + 1
   const year = now.getFullYear()
   const startOfMonth = new Date(year, month - 1, 1)
-  const startOfPrevMonth = new Date(year, month - 2, 1)
-  const endOfPrevMonth = new Date(year, month - 1, 1)
 
   switch (intent) {
     // ── Net Worth ───────────────────────────────────────────────────
@@ -45,25 +44,30 @@ export async function getReadResponse(
 
     // ── Spending ────────────────────────────────────────────────────
     case "query_spending": {
+      const tMonth = entities?.month || month
+      const tYear = entities?.year || year
+      const tStart = new Date(tYear, tMonth - 1, 1)
+      const pStart = new Date(tYear, tMonth - 2, 1)
+      const pEnd = new Date(tYear, tMonth - 1, 1)
       const [monthlyAgg, prevMonthAgg, topCats, recent] = await Promise.all([
         prisma.expense.aggregate({
-          where: { profileId, date: { gte: startOfMonth }, amount: { gt: 0 } },
+          where: { profileId, date: { gte: tStart }, amount: { gt: 0 } },
           _sum: { amount: true },
           _count: true,
         }),
         prisma.expense.aggregate({
-          where: { profileId, date: { gte: startOfPrevMonth, lt: endOfPrevMonth }, amount: { gt: 0 } },
+          where: { profileId, date: { gte: pStart, lt: pEnd }, amount: { gt: 0 } },
           _sum: { amount: true },
         }),
         prisma.expense.groupBy({
           by: ["categoryId"],
-          where: { profileId, date: { gte: startOfMonth }, amount: { gt: 0 } },
+          where: { profileId, date: { gte: tStart }, amount: { gt: 0 } },
           _sum: { amount: true },
           orderBy: { _sum: { amount: "desc" } },
           take: 5,
         }),
         prisma.expense.findMany({
-          where: { profileId, date: { gte: startOfMonth }, amount: { gt: 0 } },
+          where: { profileId, date: { gte: tStart }, amount: { gt: 0 } },
           include: { category: true },
           orderBy: { date: "desc" },
           take: 5,
@@ -79,7 +83,8 @@ export async function getReadResponse(
       const catMap = new Map(catNames.map(c => [c.id, c.name]))
 
       const lines: string[] = []
-      lines.push(`You spent ₹${fmt(monthly)} this month across ${count} transactions.`)
+      const periodLabel = entities?.month ? `in ${monthNames[tMonth - 1]} ${tYear}` : "this month"
+      lines.push(`You spent ₹${fmt(monthly)} ${periodLabel} across ${count} transactions.`)
       if (prevMonth > 0) {
         const arrow = diff > 0 ? "📈 up" : "📉 down"
         lines.push(`${arrow} ${Math.abs(diff).toFixed(0)}% from last month (₹${fmt(prevMonth)}).`)
@@ -102,16 +107,37 @@ export async function getReadResponse(
 
     // ── Transactions ────────────────────────────────────────────────
     case "query_transactions": {
+      const pMonth = entities?.month
+      const pYear = entities?.year || year
+      const where: { profileId: number; amount: { gt: number }; date?: { gte: Date; lt: Date } } = {
+        profileId,
+        amount: { gt: 0 },
+      }
+      let label = "Your recent transactions:"
+      let take = 10
+      if (pMonth) {
+        where.date = { gte: new Date(pYear, pMonth - 1, 1), lt: new Date(pYear, pMonth, 1) }
+        label = `Your transactions for ${monthNames[pMonth - 1]} ${pYear}:`
+        take = 100
+      }
       const txns = await prisma.expense.findMany({
-        where: { profileId, amount: { gt: 0 } },
+        where,
         include: { category: true },
         orderBy: { date: "desc" },
-        take: 10,
+        take,
       })
-      if (txns.length === 0) return "You don't have any transactions recorded yet."
-      const lines = ["Your recent transactions:", ""]
+      if (txns.length === 0) {
+        return pMonth
+          ? `You don't have any transactions recorded for ${monthNames[pMonth - 1]} ${pYear}.`
+          : "You don't have any transactions recorded yet."
+      }
+      const lines = [label, ""]
       for (const e of txns) {
         lines.push(`• ${fmtDate(e.date)} — ${e.description || e.category.name} — ₹${fmt(e.amount)}`)
+      }
+      if (pMonth) {
+        const total = txns.reduce((s, e) => s + e.amount, 0)
+        lines.push("", `Total: ₹${fmt(total)} across ${txns.length} transactions.`)
       }
       return lines.join("\n")
     }

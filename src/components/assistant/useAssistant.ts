@@ -11,6 +11,7 @@ import type {
   AssistantPendingAction,
   ConversationModality,
   MessageModality,
+  MessageMetadata,
 } from "@/shared/assistant"
 
 /** Initial greeting shown when the panel opens. */
@@ -40,6 +41,8 @@ interface UseAssistantReturn {
   rejectAction: () => Promise<void>
   clearMessages: () => void
   setConversationId: (id: number | null) => void
+  /** Append a local assistant message (not sent to the API). Returns its id. */
+  appendAssistantMessage: (content: string, metadata?: MessageMetadata) => number
 }
 
 export function useAssistant(): UseAssistantReturn {
@@ -209,6 +212,26 @@ export function useAssistant(): UseAssistantReturn {
     setError(null)
   }, [])
 
+  const appendAssistantMessage = useCallback(
+    (content: string, metadata?: MessageMetadata): number => {
+      const id = Date.now()
+      setMessages((prev) => [
+        ...prev,
+        {
+          id,
+          conversationId: conversationId || 0,
+          role: "assistant",
+          content,
+          modality: "text",
+          metadata,
+          createdAt: new Date(),
+        },
+      ])
+      return id
+    },
+    [conversationId],
+  )
+
   return {
     messages,
     isLoading,
@@ -220,5 +243,6 @@ export function useAssistant(): UseAssistantReturn {
     rejectAction,
     clearMessages,
     setConversationId,
+    appendAssistantMessage,
   }
 }

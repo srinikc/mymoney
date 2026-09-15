@@ -47,6 +47,8 @@ export interface MessageMetadata {
   entities?: Record<string, unknown>
   latencyMs?: number
   language?: string
+  /** When the assistant should navigate the user to a page. */
+  navigation?: { path: string; label: string }
 }
 
 // ── Pending Actions ─────────────────────────────────────────────────────
@@ -152,6 +154,8 @@ export type AssistantIntent =
   | "query_income"
   | "query_subscriptions"
   | "query_transactions"
+  | "query_domain"
+  | "navigate"
   | "unknown"
 
 export interface ParsedIntent {
@@ -172,6 +176,10 @@ export interface ParsedEntities {
   period?: string
   month?: number
   year?: number
+  /** Read-domain key (e.g. "loans", "insurance") for query_domain. */
+  domain?: string
+  /** Target route for a navigate intent (e.g. "/budgets"). */
+  path?: string
 }
 
 // ── STT/TTS ─────────────────────────────────────────────────────────────

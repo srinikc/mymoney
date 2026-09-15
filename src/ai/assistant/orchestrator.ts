@@ -117,35 +117,84 @@ export async function processInput(
   if (isReadIntent && !response) {
     try {
       const { getReadResponse } = await import("./read-handler")
-      const readResult = await getReadResponse(parsed.intent, input.userId, input.profileId, input.language)
+      const readResult = await getReadResponse(parsed.intent, input.userId, input.profileId, input.language, enhancedEntities)
       response = readResult
     } catch {
       response = generateResponse(parsed.intent, enhancedEntities, input.language)
     }
   }
 
+  // ── Domain queries: any MyMoney data, deterministic (no LLM) ────────
+  let navigation: { path: string; label: string } | undefined
+  if (parsed.intent === "query_domain" && !response) {
+    try {
+      const { READ_DOMAINS, getDomainResponse } = await import("./domains")
+      const domain = READ_DOMAINS.find((d) => d.key === enhancedEntities.domain)
+      if (domain) {
+        response = await getDomainResponse(domain, {
+          userId: input.userId,
+          profileId: input.profileId,
+          entities: enhancedEntities,
+        })
+      }
+    } catch {
+      // fall through to template
+    }
+    if (!response) response = generateResponse("unknown", enhancedEntities, input.language)
+  }
+
+  // ── Navigation: "open budgets", "go to loans" ───────────────────────
+  if (parsed.intent === "navigate") {
+    const { resolveNavigation } = await import("./domains")
+    const nav = resolveNavigation(input.text)
+    if (nav) {
+      navigation = { path: nav.path, label: nav.label }
+      response = `Opening **${nav.label}**…`
+    } else {
+      response = "Which page would you like to open? Try \"open budgets\" or \"go to investments\"."
+    }
+  }
+
   // ── Greeting / small_talk / help: template response ─────────────────
-  if (!isReadIntent && !isWriteIntent && parsed.intent !== "unknown" && !response) {
+  if (!isReadIntent && !isWriteIntent && parsed.intent !== "unknown" && parsed.intent !== "query_domain" && parsed.intent !== "navigate" && !response) {
     response = generateResponse(parsed.intent, enhancedEntities, input.language)
   }
 
   // ── Unknown intent: try LLM with full financial context FIRST ──────
   if (parsed.intent === "unknown" && !response) {
+    // Only build the (expensive) financial context if an LLM is actually
+    // configured for this user — otherwise skip straight to a template.
+    let hasLlm = false
     try {
-      const { getFinancialContext } = await import("./financial-context")
-      const { buildFinancialPrompt } = await import("@/lib/prompt-builder")
-      const { queryLLM } = await import("@/lib/llm")
-
-      const context = await getFinancialContext(input.userId, input.profileId)
-      const prompt = buildFinancialPrompt(input.text, context)
-      const llmResponse = await queryLLM(prompt, input.userId)
-
-      if (llmResponse && llmResponse.trim()) {
-        response = llmResponse.trim()
-        source = "llm"
-      }
+      const { getConfig } = await import("@/lib/get-config")
+      const [openai, anthropic, opencode, baseUrl] = await Promise.all([
+        getConfig("OPENAI_API_KEY", input.userId),
+        getConfig("ANTHROPIC_API_KEY", input.userId),
+        getConfig("OPENCODE_API_KEY", input.userId),
+        getConfig("LLM_BASE_URL", input.userId),
+      ])
+      hasLlm = Boolean(openai || anthropic || opencode || baseUrl)
     } catch {
-      // LLM not available
+      hasLlm = false
+    }
+
+    if (hasLlm) {
+      try {
+        const { getFinancialContext } = await import("./financial-context")
+        const { buildFinancialPrompt } = await import("@/lib/prompt-builder")
+        const { queryLLM } = await import("@/lib/llm")
+
+        const context = await getFinancialContext(input.userId, input.profileId)
+        const prompt = buildFinancialPrompt(input.text, context)
+        const llmResponse = await queryLLM(prompt, input.userId)
+
+        if (llmResponse && llmResponse.trim()) {
+          response = llmResponse.trim()
+          source = "llm"
+        }
+      } catch {
+        // LLM not available
+      }
     }
 
     // Fallback to template only if LLM didn't respond
@@ -162,6 +211,7 @@ export async function processInput(
     entities: enhancedEntities as unknown as Record<string, unknown>,
     latencyMs,
     language: input.language,
+    ...(navigation ? { navigation } : {}),
   }
 
   // 7. Save assistant message
@@ -242,6 +292,8 @@ function getToolForIntent(intent: AssistantIntent): string | null {
     query_income: "query_income",
     query_subscriptions: "query_subscriptions",
     query_transactions: "query_transactions",
+    query_domain: "",
+    navigate: "",
     unknown: "",
   }
   return intentToolMap[intent] || null

@@ -20,9 +20,11 @@ interface AssistantPanelProps {
   wakeWordError?: string | null
   loadProgress?: number | null
   onToggleWakeWord?: () => void
+  /** Bumped when the wake word fires — starts voice capture for the query. */
+  listenSignal?: number
 }
 
-export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWord }: AssistantPanelProps) {
+export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWord, listenSignal }: AssistantPanelProps) {
   const {
     messages,
     isLoading,
@@ -127,8 +129,8 @@ export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWo
           </div>
         )}
 
-        {/* Suggestions (only show when no messages) */}
-        {messages.length === 0 && (
+        {/* Suggestions (until the user sends something) */}
+        {!messages.some((m) => m.role === "user") && (
           <SuggestionChips suggestions={suggestions} onSelect={sendMessage} />
         )}
 
@@ -136,7 +138,11 @@ export function AssistantPanel({ isOpen, onClose, wakeWordActive, onToggleWakeWo
         <div className="border-t border-gray-200 dark:border-gray-700">
           {/* Voice controls */}
           <div className="px-4 pt-3">
-            <VoiceController onTranscript={(text) => sendMessage(text, "voice")} disabled={isLoading} />
+            <VoiceController
+              onTranscript={(text) => sendMessage(text, "voice")}
+              disabled={isLoading}
+              listenSignal={listenSignal}
+            />
           </div>
 
           {/* Text input */}

@@ -13,6 +13,19 @@ import type {
   MessageModality,
 } from "@/shared/assistant"
 
+/** Initial greeting shown when the panel opens. */
+function greetingMessage(): AssistantMessage {
+  return {
+    id: Date.now(),
+    conversationId: 0,
+    role: "assistant",
+    content:
+      "Hi! I'm your MyMoney assistant. Ask about spending, budgets, goals or investments — or tap the mic and just talk.",
+    modality: "text",
+    createdAt: new Date(),
+  }
+}
+
 interface UseAssistantReturn {
   // State
   messages: AssistantMessage[]
@@ -30,7 +43,7 @@ interface UseAssistantReturn {
 }
 
 export function useAssistant(): UseAssistantReturn {
-  const [messages, setMessages] = useState<AssistantMessage[]>([])
+  const [messages, setMessages] = useState<AssistantMessage[]>(() => [greetingMessage()])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [conversationId, setConversationId] = useState<number | null>(null)
@@ -190,7 +203,7 @@ export function useAssistant(): UseAssistantReturn {
   }, [pendingAction, conversationId])
 
   const clearMessages = useCallback(() => {
-    setMessages([])
+    setMessages([greetingMessage()])
     setConversationId(null)
     setPendingAction(null)
     setError(null)

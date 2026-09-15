@@ -13,16 +13,19 @@ import { playPromptSound } from "@/lib/prompt-sound"
 
 function MyMoneyAssistantInner() {
   const [isOpen, setIsOpen] = useState(false)
+  const [listenSignal, setListenSignal] = useState(0)
   const { isActive: wakeWordActive, isTriggered, error: wakeWordError, loadProgress, toggle: toggleWakeWord, resetTrigger } = useWakeWord()
 
   const handleClose = useCallback(() => setIsOpen(false), [])
   const handleOpen = useCallback(() => setIsOpen(true), [])
 
-  // Auto-open panel when wake word is detected + play prompt sound
+  // Auto-open panel when wake word is detected + play prompt sound, then
+  // hand off to voice capture so the user can speak their question.
   useEffect(() => {
     if (isTriggered) {
       playPromptSound("wake")
       setIsOpen(true)
+      setListenSignal((n) => n + 1)
       resetTrigger()
     }
   }, [isTriggered, resetTrigger])
@@ -81,7 +84,7 @@ function MyMoneyAssistantInner() {
             <>
               <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
               <span className="text-[10px] text-green-600 dark:text-green-400 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded shadow-sm">
-                Listening...
+                Wake word ready
               </span>
             </>
           )}
@@ -103,6 +106,7 @@ function MyMoneyAssistantInner() {
         wakeWordError={wakeWordError}
         loadProgress={loadProgress}
         onToggleWakeWord={toggleWakeWord}
+        listenSignal={listenSignal}
       />
     </>
   )
